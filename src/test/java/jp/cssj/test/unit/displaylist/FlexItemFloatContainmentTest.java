@@ -62,7 +62,54 @@ public class FlexItemFloatContainmentTest extends TestCase {
 				"T40")[1], 0.01);
 	}
 
+	private static final String RUN = "<div>T1</div><div>T2</div><div><div style=\"float: left\">T3</div></div>";
+
+	private static final String AFTER = "<p>T10</p><p>T11</p><p>T12</p><p>T13</p><p>T14</p><p>T15</p>";
+
+	/**
+	 * Laid out again by balanced columns, the items stack, and the float stayed at its stacked place for the text after
+	 * the container (fit seed 56147995, 2026-11-01; Chrome 0, here 11.11 and more).
+	 */
+	public void testTextAfterTheContainerInBalancedColumns() throws Exception {
+		assertEquals(0, pos("<div style=\"column-count: 2\"><div style=\"display: flex\">" + RUN + "</div>" + AFTER + "</div>",
+				"T11")[0], 0.01);
+	}
+
+	public void testTextAfterAGridInBalancedColumns() throws Exception {
+		assertEquals(0, pos("<div style=\"column-count: 2\"><div style=\"display: grid; grid-template-columns: 1fr 1fr 1fr\">"
+				+ RUN + "</div>" + AFTER + "</div>", "T11")[0], 0.01);
+	}
+
+	/** The next item too, beside its neighbour's float (Chrome 0; here below the float, over the text after it). */
+	public void testNextItemInBalancedColumns() throws Exception {
+		assertEquals(0, pos("<div style=\"column-count: 2\"><div style=\"display: flex\"><div><div style=\"float: left; "
+				+ "height: 30pt\">T1</div></div><div>T2<br>T3</div></div>" + AFTER + "</div>", "T2")[1], 0.01);
+	}
+
+	/** Moved whole to the next page, the same (Chrome 0). */
+	public void testTextAfterTheContainerMovedToTheNextPage() throws Exception {
+		final StringBuilder fill = new StringBuilder();
+		for (int i = 0; i < 50; ++i) {
+			fill.append("<p>F</p>");
+		}
+		assertEquals(0, pos(fill + "<div style=\"display: flex; break-inside: avoid\"><div><div style=\"height: 40pt\">T1"
+				+ "</div></div><div>T2</div><div><div style=\"float: left\">T3</div></div></div>" + AFTER, "T11", 2)[0], 0.01);
+	}
+
+	/**
+	 * A container of the opposite block direction is a float scope of its own: it took the stacked end of the float for
+	 * its size, and its lines went that far from the start of the columns (the seed: off the paper; Chrome 0).
+	 */
+	public void testOppositeBlockDirectionInBalancedColumns() throws Exception {
+		assertEquals(0, pos("<div style=\"writing-mode: vertical-lr\"><div style=\"column-count: 2\"><div style=\"display: flex; "
+				+ "writing-mode: vertical-rl\">" + RUN + "</div></div></div>", "T1")[0], 0.01);
+	}
+
 	private static double[] pos(final String body, final String token) throws Exception {
+		return pos(body, token, 1);
+	}
+
+	private static double[] pos(final String body, final String token, final int pageNumber) throws Exception {
 		final File dir = Files.createTempDirectory("flex-item-float-containment").toFile();
 		final File input = new File(dir, "input.html");
 		Files.writeString(input.toPath(), "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"
@@ -74,7 +121,8 @@ public class FlexItemFloatContainmentTest extends TestCase {
 			session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 			CTISessionHelper.transcodeFile(session, input, "text/html", null);
 		}
-		final String page = Files.readString(new File(dir, "page-0001.txt").toPath(), StandardCharsets.UTF_8);
+		final String page = Files.readString(new File(dir, String.format("page-%04d.txt", pageNumber)).toPath(),
+				StandardCharsets.UTF_8);
 		final Matcher m = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) Text\\[\"" + token + "\"").matcher(page);
 		assertTrue(page, m.find());
 		return new double[] { Double.parseDouble(m.group(1)), Double.parseDouble(m.group(2)) };

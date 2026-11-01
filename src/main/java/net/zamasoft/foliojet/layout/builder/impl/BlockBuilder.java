@@ -1091,7 +1091,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			// removing the scope, extend the auto box's cursor and dimensions to the float bottom.
 			// A streamed flex item (F0+) only needs this when it holds floats: setPageAxis with the cursor would undo the
 			// remaining min-height of its continuation fragment (everylayout's Cover in a column flex, 2026-10-08).
-			if (!flowBox.isSpecifiedPageSize() && (!flow.flexItem || !floatings.isEmpty())) {
+			if (!flowBox.isSpecifiedPageSize() && (!flow.flexItem && !isContainerItem(flowBox) || !floatings.isEmpty())) {
 				for (int i = 0; i < floatings.size(); ++i) {
 					this.pageAxis = Math.max(this.pageAxis, floatings.get(i).pageEnd);
 				}
@@ -2012,6 +2012,17 @@ public class BlockBuilder implements Builder, LayoutContext {
 	}
 
 	/**
+	 * Whether the box is an item of a flex or grid container. An item opened here is laid out again, stacked on the
+	 * items before it (balanced columns, a move to the next page), and it holds its floats as it did when it was
+	 * bound: at the stacked places they ran over the next items and the text after the container, and a container of
+	 * the opposite block direction took their end for its size (fit seed 56147995, 2026-11-01).
+	 */
+	private static boolean isContainerItem(final FlowBlockBox flowBox) {
+		return flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox
+				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox;
+	}
+
+	/**
 	 * Whether the box narrows to avoid floats (CSS 2.1 §9.5: the border box of a box establishing an
 	 * independent formatting context does not overlap a float's margin box). Avoids both normal floats
 	 * and page floats (flow-root and non-visible overflow boxes added 2026-10-05).
@@ -2098,7 +2109,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			final BlockParams parentParams) {
 		final BlockParams params = flowBox.getBlockParams();
 		// display:flow-root creates an independent BFC (2026-08-29). Treat like overflow:hidden.
-		return params.overflow != OverflowMode.VISIBLE || params.flowRoot
+		return isContainerItem(flowBox) || params.overflow != OverflowMode.VISIBLE || params.flowRoot
 				|| (params.flow.isVertical() == parentParams.flow.isVertical()
 						&& params.flow != parentParams.flow);
 	}

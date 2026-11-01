@@ -1281,7 +1281,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * "a real regression slipped into exclusions"; neither should go unnoticed.
 	 * </p>
 	 */
-	private static final class ExcludedByOversizedBox extends AssertionError {
+	static final class ExcludedByOversizedBox extends AssertionError {
 		private static final long serialVersionUID = 1L;
 
 		ExcludedByOversizedBox(final String message) {

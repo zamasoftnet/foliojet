@@ -51,9 +51,17 @@ public class TextRunReopenAfterFragmentationTest extends TestCase {
 				"repeated-float-fragmentation");
 	}
 
-	/** Pin down the original generator input too, preserving its link to the minimal case across future vocabulary changes. */
+	/**
+	 * Pin down the original generator input too, preserving its link to the minimal case across future vocabulary changes.
+	 * On its 60pt paper a grid item holds an empty float 124pt wide, also when it is laid out again (2026-11-01), so
+	 * the pages end blank and the document is excluded; the checks on lost text, what this test is for, come first.
+	 */
 	public void testStrictSeed41546() throws Exception {
-		checkSeed(41546);
+		try {
+			checkSeed(41546);
+		} catch (final RandomDocumentFuzzTest.ExcludedByOversizedBox expected) {
+			assertTrue(expected.getMessage(), expected.getMessage().startsWith("白紙ページ"));
+		}
 	}
 
 	/**
