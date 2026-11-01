@@ -1,13 +1,10 @@
 package net.zamasoft.foliojet.css;
 
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -151,13 +148,9 @@ public class CSSProcessor implements XMLHandler {
 		// Always ranks below author stylesheets, regardless of specificity or source order.
 		// (Added on 2026-07-18 to gradually move defaults expressible in CSS out of the
 		// switch statement in HTMLStyle.java. See PLAN.md for details.)
-		try (Reader uaStyleReader = new InputStreamReader(
-				CSSProcessor.class.getResourceAsStream("html/html-ua.css"), StandardCharsets.UTF_8)) {
-			InputSource uaInputSource = new InputSource(uaStyleReader);
-			uaInputSource.setURI("net/zamasoft/foliojet/css/html/html-ua.css");
-			uaInputSource.setEncoding("UTF-8");
+		try {
 			this.styleSheetBuilder.setOrigin(Origin.USER_AGENT);
-			this.styleSheetBuilder.parse(uaInputSource);
+			this.styleSheetBuilder.parseBundled("html/html-ua.css");
 		} catch (IOException | CSSException e) {
 			// Not expected at runtime because this is a bundled resource
 			throw new IllegalStateException("UAデフォルトスタイルシートの読み込みに失敗しました", e);

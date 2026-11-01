@@ -235,6 +235,8 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 			}
 		});
 		this.visitor = null;
+		this.lastImageUri = null;
+		this.lastImage = null;
 	}
 
 	/** {@code output.color=gray} (2026-10-20, a publishing request; before, only PDF honored it). */
@@ -339,6 +341,9 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 	@Override
 	public net.zamasoft.pdfg2d.gc.image.Image getImage(final URI uri,
 			final net.zamasoft.zstream.resolver.Source source) throws IOException {
+		if (uri != null && uri.equals(this.lastImageUri)) {
+			return this.lastImage;
+		}
 		final net.zamasoft.pdfg2d.gc.image.Image image = super.getImage(uri, source);
 		if (image == null || uri == null) {
 			return image;
@@ -361,8 +366,21 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 				sourced.companion = null;
 			}
 		}
+		if (!this.isMeasurePass() && !this.isStructureScanPass()) {
+			this.lastImageUri = uri;
+			this.lastImage = sourced;
+		}
 		return sourced;
 	}
+
+	/**
+	 * The image of the last {@link #getImage(URI, net.zamasoft.zstream.resolver.Source)} that read pixels. The same image
+	 * again (a logo in a running header) is not decoded for each page; PDF does not either, it keeps images by URI. Only
+	 * one, as the images of a book must not add up in memory.
+	 */
+	private URI lastImageUri;
+
+	private net.zamasoft.pdfg2d.gc.image.Image lastImage;
 
 	/**
 	 * Does not open resources when dimensions alone suffice.

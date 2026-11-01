@@ -1,6 +1,7 @@
 package net.zamasoft.foliojet.layout.util;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * Array of double values that can be set at arbitrary positions.
@@ -46,12 +47,13 @@ public class DoubleList implements Serializable {
 		this.set(this.length, b);
 	}
 
-	public void add(int i, double b) {
-		this.add(b);
-		for (int j = this.length - 1; j > i; --j) {
-			this.array[j] = this.array[j - 1];
-		}
-		this.array[i] = b;
+	/** Removes the values from {@code from} on and returns them, in order, as a new list. */
+	public DoubleList cutTail(int from) {
+		final DoubleList tail = new DoubleList(this.defaultValue);
+		tail.array = Arrays.copyOfRange(this.array, from, this.length);
+		tail.length = this.length - from;
+		this.length = from;
+		return tail;
 	}
 
 	public double[] toArray() {
@@ -64,15 +66,6 @@ public class DoubleList implements Serializable {
 			return this.defaultValue;
 		}
 		return this.array[i];
-	}
-
-	public double remove(int i) {
-		double v = this.array[i];
-		--this.length;
-		for (int j = i; j < this.length; ++j) {
-			this.array[j] = this.array[j + 1];
-		}
-		return v;
 	}
 
 	public int size() {

@@ -264,14 +264,7 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 						keptRow.cutUnextendedRowspanCells(row + 1 - k, above, movedHead);
 					}
 				}
-				for (int j = row + 1; j < this.rows.size(); ++j) {
-					TableRowBox rowBox = (TableRowBox) this.rows.get(j);
-					this.pageSize -= rowBox.getPageSize();
-					nextRowGroup.addTableRow(rowBox);
-				}
-				for (int j = this.rows.size() - 1; j > row; --j) {
-					this.rows.remove(j);
-				}
+				this.moveRows(row + 1, nextRowGroup);
 			}
 			return new SplitResult.Split(nextRowGroup);
 		}
@@ -413,17 +406,35 @@ public class TableRowGroupBox extends AbstractInnerTableBox implements IPageBrea
 			return net.zamasoft.foliojet.layout.fragment.TableCutter.keepOrMoveAll(flags);
 		}
 
-		int remove = 0;
-		for (int j = i; j < this.rows.size(); ++j) {
-			TableRowBox prevRow = (TableRowBox) this.rows.get(j);
-			this.pageSize -= prevRow.getPageSize();
-			nextRowGroup.addTableRow(prevRow);
-			++remove;
-		}
-		for (int j = 0; j < remove; ++j) {
-			this.rows.remove(this.rows.size() - 1);
-		}
+		this.moveRows(i, nextRowGroup);
 		return new SplitResult.Split(nextRowGroup);
+	}
+
+	/**
+	 * Moves the rows from {@code from} on to the end of {@code next}, in one copy: all the remaining rows of a long table
+	 * move on every page. The extents are still summed row by row, in the same order, so that they stay the same to the
+	 * last bit.
+	 */
+	private void moveRows(final int from, final TableRowGroupBox next) {
+		final int count = this.rows.size();
+		if (from >= count) {
+			return;
+		}
+		for (int j = from; j < count; ++j) {
+			final TableRowBox row = this.rows.get(j);
+			this.pageSize -= row.getPageSize();
+			next.pageSize += row.getPageSize();
+			if (row.getLineSize() > next.lineSize) {
+				next.lineSize = row.getLineSize();
+			}
+		}
+		final List<TableRowBox> moved = this.rows.subList(from, count);
+		if (next.rows == null) {
+			next.rows = new ArrayList<TableRowBox>(moved);
+		} else {
+			next.rows.addAll(moved);
+		}
+		moved.clear();
 	}
 
 	private TableRowGroupBox splitTableRowGroup() {

@@ -89,6 +89,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 	/** Container-owned paragraph event queue, created only when enabled. */
 	private net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session bidiParagraph;
 
+	/** See {@link #lastClosedTextBlock()}. */
+	private net.zamasoft.foliojet.layout.box.impl.TextBlockBox closedTextBlock;
+
 	/**
 	 * Text run currently open in the upstream {@code GlyphHandler}.
 	 *
@@ -545,14 +548,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
 		}
 		this.bidiParagraph.replayPrefix(prefix);
-	}
-
-	/** Records outer ordering boundaries such as float/absolute/bound in the paragraph queue. */
-	public final void noteBidiBarrier(final Object payload) {
-		if (this.bidiParagraph == null) {
-			this.bidiParagraph = new net.zamasoft.foliojet.layout.text.bidi.BidiParagraphLayout.Session();
-		}
-		this.bidiParagraph.barrier(payload);
 	}
 
 	final void resolveBidiParagraph(final BlockParams params) {
@@ -1260,7 +1255,6 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (this.textSession != null) {
 			this.textSession.abortToLegacy();
 		}
-		this.noteBidiBarrier(box);
 		switch (box.getPos().getType()) {
 		case FLOW, TABLE -> this.addFlowBound(box);
 		case FLOAT -> this.addFloatBound(box);
@@ -2451,6 +2445,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// when reaching here (2026-07-18, an actual NullPointerException
 		// in an empty table cell). Handle this with a null guard
 		// as in flush().
+		this.closedTextBlock = null;
 		if (this.textBuilder != null) {
 			if (this.textSession != null) {
 				// M3c: Choose breakpoints for the accumulated content and replay it (verbatim replay
@@ -2461,11 +2456,57 @@ public class BlockBuilder implements Builder, LayoutContext {
 			if (this.textBuilder != null) {
 				this.textBuilder.finish(fragmentBreak);
 				this.pageAxis += this.textBuilder.getFlowPageAdvance();
+				this.closedTextBlock = this.textBuilder.textBlockBox;
 				this.textBuilder = null;
 			}
 		}
 		final Flow flow = this.getFlow();
 		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
+	}
+
+	/**
+	 * Whether this builder lays out a box of its own (a table cell, a float) with nothing around the text that a line
+	 * depends on besides its line size: no floats, no line clamp, no column of a flex container and no text open. Such
+	 * a layout repeats itself when given its own lines again, which
+	 * {@link net.zamasoft.foliojet.layout.box.impl.TextBlockBox#keepLines} relies on (2026-10-31).
+	 */
+	public final boolean relaysTextAlone() {
+		return this.getClass() == BlockBuilder.class && this.textBuilder == null && this.textSession == null
+				&& !this.hasLineExclusions() && !isStreamedColumnFlex(this.getFlow().box)
+				&& net.zamasoft.foliojet.layout.builder.LineClampState.find(this) == null;
+	}
+
+	/** The block the last {@link #endTextBlock()} closed, null when it closed none. */
+	public final net.zamasoft.foliojet.layout.box.impl.TextBlockBox lastClosedTextBlock() {
+		return this.closedTextBlock;
+	}
+
+	/**
+	 * Puts a block with its lines at the cursor, as laying its text out again here would (2026-10-31): the flow takes
+	 * it as {@link #requireTextBlock()} does, the cursor advances as {@link #endTextBlock(boolean)} does, and a line that
+	 * takes room ends the pending margins as {@link TextBuilder} does.
+	 *
+	 * @param block       the block
+	 * @param token       the token its first line was laid out with
+	 * @param pageAdvance how far its lines advance the cursor
+	 * @param endsMargins whether a line of it takes room
+	 * @return false, with nothing done, when its first line would come out differently here: it was laid out at the
+	 *         start of a flow, and this cursor is in the middle of one
+	 */
+	public final boolean placeTextBlock(final net.zamasoft.foliojet.layout.box.impl.TextBlockBox block,
+			final BreakToken token, final double pageAdvance, final boolean endsMargins) {
+		if (this.breakToken.midFlow() && !token.midFlow() || this.breakToken.midLine() && !token.midLine()) {
+			return false;
+		}
+		final Flow flow = this.getFlow();
+		this.breakToken = BreakToken.MID_FLOW;
+		flow.box.addFlow(block, this.pageAxis - flow.pageAxis);
+		this.pageAxis += pageAdvance;
+		if (endsMargins) {
+			this.poLastMargin = this.neLastMargin = 0;
+		}
+		flow.box.setPageAxis(this.pageAxis - flow.pageAxis);
+		return true;
 	}
 
 	/**

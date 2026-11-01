@@ -114,9 +114,41 @@ public class CSSStyleSheetBuilder {
 	 * Parses a stylesheet and adds it to the CSSStyleSheet under construction.
 	 */
 	public void parse(InputSource source) throws IOException, CSSException {
-		String css = read(source.getReader());
+		final String css = read(source.getReader());
 		// A later pass skips the rules this source added in an earlier pass (CSSStyleSheet.beginPass)
 		this.cssStyleSheet.beginSource(source.getURI() + '\n' + sha256(css));
+		this.addRules(this.toSheet(css), source.getURI(), source.getEncoding());
+	}
+
+	/** A style sheet bundled with the engine as parsed. Nothing writes to it, so conversions can share it. */
+	private record Bundled(String uri, String key, CascadingStyleSheet sheet) {
+	}
+
+	private static final Map<String, Bundled> BUNDLED = new java.util.concurrent.ConcurrentHashMap<>();
+
+	/**
+	 * Adds a style sheet bundled with the engine (2026-10-31). Its rules are added for every pass of every conversion
+	 * and of every chapter of a book, and reading its text was a large part of the time of a small document. It must not
+	 * depend on the conversion when read: no {@code @supports selector()}.
+	 *
+	 * @param resource the name, relative to this class
+	 */
+	public void parseBundled(final String resource) throws IOException, CSSException {
+		Bundled bundled = BUNDLED.get(resource);
+		if (bundled == null) {
+			try (Reader reader = new java.io.InputStreamReader(CSSStyleSheetBuilder.class.getResourceAsStream(resource),
+					java.nio.charset.StandardCharsets.UTF_8)) {
+				final String css = read(reader);
+				final String uri = "net/zamasoft/foliojet/css/" + resource;
+				bundled = new Bundled(uri, uri + '\n' + sha256(css), this.toSheet(css));
+			}
+			BUNDLED.put(resource, bundled);
+		}
+		this.cssStyleSheet.beginSource(bundled.key());
+		this.addRules(bundled.sheet(), bundled.uri(), "UTF-8");
+	}
+
+	private CascadingStyleSheet toSheet(String css) throws CSSException {
 		css = css.replace("{literal}", "").replace("{/literal}", "");
 		// Implicitly close an unclosed comment at the end (see DeclarationParser;
 		// ph-css lexical analysis cannot recover here and discards the entire sheet).
@@ -128,12 +160,17 @@ public class CSSStyleSheetBuilder {
 		if (sheet == null) {
 			throw new CSSException("スタイルシートを解析できません");
 		}
-		final URI uri = URI.create(source.getURI());
+		return sheet;
+	}
+
+	private void addRules(final CascadingStyleSheet sheet, final String sourceUri, final String encoding)
+			throws IOException, CSSException {
+		final URI uri = URI.create(sourceUri);
 		this.uriStack.add(uri);
 		try {
 			for (CSSImportRule importRule : sheet.getAllImportRules()) {
 				this.importStyle(importRule.getLocationString(), toMediaTypes(importRule.getAllMediaQueries()), uri,
-						source.getEncoding());
+						encoding);
 			}
 			for (ICSSTopLevelRule rule : sheet.getAllRules()) {
 				this.rule(rule, uri, true, Rule.NO_LAYER, null);

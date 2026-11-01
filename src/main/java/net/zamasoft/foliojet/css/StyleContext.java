@@ -198,6 +198,12 @@ public class StyleContext {
 		// Sort by specificity, then source order in the document (SPEC CSS2 6.4.1).
 		// Candidates arrive unordered across buckets, so explicitly compare source order (Rule.order).
 		Collections.sort(result, RuleComparator.INSTANCE);
+		// :is(.a, .b) is in two buckets; an element with both classes finds it in each.
+		for (int i = result.size() - 1; i > 0; --i) {
+			if (result.get(i) == result.get(i - 1)) {
+				result.remove(i);
+			}
+		}
 
 		// Merge
 		for (int i = 0; i < result.size(); ++i) {

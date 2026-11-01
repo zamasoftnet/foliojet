@@ -39,6 +39,8 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
  * </p>
  */
 public final class RowSplitContainer extends FlowContainer {
+	/** How many restyles left rows out ({@link #holdRowsBeyondPage}, 2026-10-31, for tests). */
+	public static final java.util.concurrent.atomic.AtomicLong ROWS_HELD = new java.util.concurrent.atomic.AtomicLong();
 
 	/**
 	 * A snapshot of finalized item placement (extended from pageAxis alone on 2026-08-08).
@@ -110,9 +112,31 @@ public final class RowSplitContainer extends FlowContainer {
 			this.movedWhole = true;
 		}
 		final boolean vertical = this.box.getBlockParams().flow.isVertical();
+		List<Flow> held = this.holdRowsBeyondPage(builder, shape, prefix);
 		// When restyling an empty container, flows itself has not been created yet.
 		final List<Flow> restyleFlows = this.flows == null ? List.of() : new ArrayList<>(this.flows);
-		for (final Flow f : restyleFlows) {
+		this.prepareRestyleLineExtents(restyleFlows, vertical);
+		try {
+			super.restyle(builder, shape, restyleAbsolutes, prefix);
+		} finally {
+			clearRestyleLineExtents(restyleFlows);
+		}
+		if (held != null && (this.flows == null || builder.getFlow().box != this.box)) {
+			// A page broke during the restyle (at a table in a row before them, say), so the items went on in the box
+			// after it and this one is finished: put back here, the rows were lost with it (codex, 2026-11-01)
+			this.prepareRestyleLineExtents(held, vertical);
+			try {
+				this.restyleFlows(builder, held);
+			} finally {
+				clearRestyleLineExtents(held);
+			}
+			held = null;
+		}
+		this.restoreAnchoredPageAxis(builder, held);
+	}
+
+	private void prepareRestyleLineExtents(final List<Flow> flows, final boolean vertical) {
+		for (final Flow f : flows) {
 			if (f == null) {
 				continue;
 			}
@@ -121,26 +145,90 @@ public final class RowSplitContainer extends FlowContainer {
 				item.prepareRestyleLineExtent(want.width(), want.height(), vertical);
 			}
 		}
-		try {
-			super.restyle(builder, shape, restyleAbsolutes, prefix);
-		} finally {
-			for (final Flow f : restyleFlows) {
-				if (f == null) {
-					continue;
-				}
-				if (f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item) {
-					item.clearRestyleLineExtent();
-				}
-			}
-		}
-		this.restoreAnchoredPageAxis(builder);
 	}
 
-	private void restoreAnchoredPageAxis(final BlockBuilder builder) {
+	private static void clearRestyleLineExtents(final List<Flow> flows) {
+		for (final Flow f : flows) {
+			if (f == null) {
+				continue;
+			}
+			if (f.box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item) {
+				item.clearRestyleLineExtent();
+			}
+		}
+	}
+
+	/**
+	 * Takes the rows this page and the next cannot reach out of {@link #flows} before the restyle (2026-10-31). Every
+	 * item is anchored, so a row that stays where it is needs nothing from the restyle until the pages come near it:
+	 * laying out all that remains again on each page made a grid of many pages quadratic (12,000 items, 3.1GB
+	 * allocated). The reach is a whole page past the page limit, so that no row a page keeps goes unrestyled whatever
+	 * the limit is when the page breaks. Only the last rows, of items of plain text ({@link #holdsPlainText}): laying
+	 * out anything else has effects of its own, wherever the item is (a forced break in a table, say). When a page
+	 * breaks during the restyle after all, {@link #restyle} lays them out as the items they are.
+	 *
+	 * @return the rows left out, to be put back after the restyle, or null when everything is laid out again
+	 */
+	private List<Flow> holdRowsBeyondPage(final BlockBuilder builder, final OpenShape shape,
+			final List<SourceRange> prefix) {
+		if (!(builder instanceof net.zamasoft.foliojet.layout.builder.impl.RootBuilder root)
+				|| !(shape instanceof OpenShape.Closed) || !prefix.isEmpty() || this.flows == null
+				|| this.hasFloatings() || builder.getFlow().box != this.box
+				|| !(this.box instanceof net.zamasoft.foliojet.layout.box.RowSplitBox rowSplit)
+				|| !rowSplit.hasRowSplitLines() || insideRowSplitBox(builder)) {
+			return null;
+		}
+		final double[][] rows = rowSplit.rowLedgerSnapshot();
+		final double reach = 2 * root.getPageLimit() - builder.getFlow().pageAxis;
+		int from = this.flows.size();
+		for (int r = rows.length - 1; r >= 1; --r) {
+			final int first = (int) rows[r][0];
+			if (first <= 0 || first >= from || LayoutUtils.compare(rows[r][2], reach) < 0
+					|| !this.holdsPlainItems(first, from)) {
+				break;
+			}
+			from = first;
+		}
+		if (from >= this.flows.size()) {
+			return null;
+		}
+		final List<Flow> held = new ArrayList<>(this.flows.subList(from, this.flows.size()));
+		this.flows = new ArrayList<>(this.flows.subList(0, from));
+		ROWS_HELD.incrementAndGet();
+		return held;
+	}
+
+	/** Whether the current flow lies in an item, where the cursor runs over the items stacked and tells no place on the page. */
+	private static boolean insideRowSplitBox(final BlockBuilder builder) {
+		for (int i = builder.getFlowCount() - 2; i >= 0; --i) {
+			if (builder.getFlow(i).box instanceof net.zamasoft.foliojet.layout.box.RowSplitBox) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean holdsPlainItems(final int from, final int to) {
+		for (int i = from; i < to; ++i) {
+			if (!(this.flows.get(i).box instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox item)
+					|| item.getContainer().getClass() != FlowContainer.class
+					|| !((FlowContainer) item.getContainer()).holdsPlainText()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private void restoreAnchoredPageAxis(final BlockBuilder builder, final List<Flow> held) {
 		if (this.anchored == null || this.flows == null) {
 			return;
 		}
 		final double stackedEnd = this.contentEnd();
+		if (held != null) {
+			for (final Flow f : held) {
+				this.addFlow(f.box, f.pageAxis);
+			}
+		}
 		for (int i = 0; i < this.flows.size(); ++i) {
 			final Flow f = this.flows.get(i);
 			final Anchor want = this.anchored.get(f.box);

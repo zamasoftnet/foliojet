@@ -5,7 +5,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -176,20 +175,20 @@ public class PageRef {
 			seq[0]++;
 		}
 		List<Fragment> list = this.uriToFragments.computeIfAbsent(uri, k -> new ArrayList<Fragment>());
-		for (Iterator<Fragment> i = list.iterator(); i.hasNext();) {
-			Fragment f = i.next();
-			if (f.uid == seq[0]) {
-				if (f.isStale() && changed(f, counters, text)) {
-					// The preceding pass's value has already been read in this pass, and the value read
-					// has changed = that reference outputs an incorrect value
-					this.unconverged = true;
-				}
-				f.clearStale();
-				f.counters = counters;
-				f.text = text;
-				f.generation = this.generation;
-				return;
+		// The list is in uid order from 1 (a search here was the square of an id repeated in every table row)
+		if (seq[0] <= list.size()) {
+			Fragment f = list.get(seq[0] - 1);
+			assert f.uid == seq[0];
+			if (f.isStale() && changed(f, counters, text)) {
+				// The preceding pass's value has already been read in this pass, and the value read
+				// has changed = that reference outputs an incorrect value
+				this.unconverged = true;
 			}
+			f.clearStale();
+			f.counters = counters;
+			f.text = text;
+			f.generation = this.generation;
+			return;
 		}
 		Fragment fragment = new Fragment(seq[0], uri, counters);
 		fragment.text = text;

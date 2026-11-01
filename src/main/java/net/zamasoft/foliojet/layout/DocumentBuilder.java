@@ -322,13 +322,6 @@ public class DocumentBuilder implements TableBuilderHost {
 		return (ContainerBuilderEntry) o;
 	}
 
-	/** Records outer placement events in the container queue only when paragraph UBA is enabled. */
-	private void noteBidiBarrier(final Object payload) {
-		if (!this.builderStack.isEmpty() && this.containerBuilder().builder instanceof BlockBuilder blockBuilder) {
-			blockBuilder.noteBidiBarrier(payload);
-		}
-	}
-
 	private ContainerBuilderEntry contextBuilder() {
 		for (int i = this.builderStack.size() - 1; i >= 0; --i) {
 			Object entry = this.builderStack.get(i);
@@ -1126,7 +1119,6 @@ public class DocumentBuilder implements TableBuilderHost {
 			}
 			// Absolute positioning.
 			final AbstractBlockBox stfBox = (AbstractBlockBox) box;
-			this.noteBidiBarrier(stfBox);
 			final Builder builder = this.contextBuilder().builder;
 			if (box.getPos().getType() == PosType.ABSOLUTE) {
 				final AbsolutePos pos = (AbsolutePos) stfBox.getPos();
@@ -1363,7 +1355,6 @@ public class DocumentBuilder implements TableBuilderHost {
 					sealable.sealBodyForRangeBind();
 				}
 				final Builder parentBuilder = this.containerBuilder().builder;
-				this.noteBidiBarrier(box);
 				if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pageFloatPos) {
 					// Page floats (2026-08-02): separate from the body text through the same path
 					// as footnotes and pass to the page ledger. In contexts without a ledger
@@ -1669,7 +1660,6 @@ public class DocumentBuilder implements TableBuilderHost {
 			} else {
 				this.containerBuilder().getStyledTextUnitizer().flushText();
 			}
-			this.noteBidiBarrier(replacedBox);
 			context.addBound(replacedBox);
 			if (pageBreak) {
 				this.startContainer();
@@ -1681,7 +1671,6 @@ public class DocumentBuilder implements TableBuilderHost {
 			// Absolute positioning.
 			final Builder context = this.containerBuilder().builder;
 			final IAbsoluteBox absoluteBox = (IAbsoluteBox) replacedBox;
-			this.noteBidiBarrier(replacedBox);
 			switch (absoluteBox.getAbsolutePos().autoPosition) {
 			case AutoPosition.BLOCK:
 				context.addBound(replacedBox);

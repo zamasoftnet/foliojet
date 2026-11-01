@@ -124,17 +124,27 @@ public final class TableBuildStats {
 	/** Oldest watermark when the maximum lag above was first observed. -1 if no lease has been observed. */
 	public static final AtomicLong SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER = new AtomicLong(-1);
 
-	/** Observation only. Does not throttle or force release based on a retention limit. */
-	public static synchronized void reportSourceRetention(final long leases, final long events,
-			final long oldestWatermark, final long nextId) {
-		SOURCE_LEASE_HIGH_WATER.accumulateAndGet(leases, Math::max);
-		SOURCE_RETAINED_EVENT_HIGH_WATER.accumulateAndGet(events, Math::max);
-		if (leases > 0) {
-			final long lag = Math.max(0, nextId - oldestWatermark);
-			if (lag > SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.get()) {
-				SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.set(lag);
-				SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER.set(oldestWatermark);
-			}
+	/**
+	 * Observation only. Does not throttle or force release based on a retention limit. Called for every event of
+	 * every conversion, so only a new maximum writes: this was the last lock of 16 concurrent conversions (2026-10-31).
+	 */
+	public static void reportSourceRetention(final long leases, final long events, final long oldestWatermark,
+			final long nextId) {
+		if (leases > SOURCE_LEASE_HIGH_WATER.get()) {
+			SOURCE_LEASE_HIGH_WATER.accumulateAndGet(leases, Math::max);
+		}
+		if (events > SOURCE_RETAINED_EVENT_HIGH_WATER.get()) {
+			SOURCE_RETAINED_EVENT_HIGH_WATER.accumulateAndGet(events, Math::max);
+		}
+		if (leases > 0 && nextId - oldestWatermark > SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.get()) {
+			reportWatermarkLag(nextId - oldestWatermark, oldestWatermark);
+		}
+	}
+
+	private static synchronized void reportWatermarkLag(final long lag, final long oldestWatermark) {
+		if (lag > SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.get()) {
+			SOURCE_OLDEST_WATERMARK_LAG_HIGH_WATER.set(lag);
+			SOURCE_OLDEST_WATERMARK_AT_HIGH_WATER.set(oldestWatermark);
 		}
 	}
 

@@ -36,23 +36,23 @@ public final class BidiParagraphLayout {
 	}
 
 	/**
-	 * Ordered paragraph queue of lines and barriers owned by the container builder.
+	 * Ordered paragraph queue of lines owned by the container builder.
 	 * Retention in v1 is O(paragraph); soft wraps and page breaks do not close it.
 	 */
 	public static final class Session {
-		private sealed interface OrderedEvent permits LineEvent, BarrierEvent {
+		private record LineEvent(TextBlockBox block, AbstractLineBox line) {
 		}
 
-		private record LineEvent(TextBlockBox block, AbstractLineBox line) implements OrderedEvent {
-		}
-
-		private record BarrierEvent(Object payload) implements OrderedEvent {
-		}
-
-		private final List<OrderedEvent> events = new ArrayList<>();
+		private final List<LineEvent> events = new ArrayList<>();
 		private BidiReplayPrefix replayPrefix = BidiReplayPrefix.EMPTY;
 		private int estimatedChars;
 		private boolean overCeiling;
+
+		/** How many {@link #events} a preview has dealt with as left to right ({@link #previewLeftToRight}). */
+		private int previewedEvents;
+
+		/** The paragraph ID that preview gave lines, with no replay prefix to take one from. */
+		private long previewedParagraphId;
 
 		public void line(final TextBlockBox block, final AbstractLineBox line) {
 			this.events.add(new LineEvent(block, line));
@@ -64,23 +64,8 @@ public final class BidiParagraphLayout {
 			}
 		}
 
-		public void barrier(final Object payload) {
-			if (!this.events.isEmpty()) {
-				final OrderedEvent last = this.events.get(this.events.size() - 1);
-				if (last instanceof BarrierEvent barrier && barrier.payload() == payload) {
-					return;
-				}
-			}
-			this.events.add(new BarrierEvent(payload));
-		}
-
 		public boolean isEmpty() {
-			for (final OrderedEvent event : this.events) {
-				if (event instanceof LineEvent) {
-					return false;
-				}
-			}
-			return true;
+			return this.events.isEmpty();
 		}
 
 		/** Already laid-out logical lines preceding a replay from the middle of a paragraph. */
@@ -94,6 +79,8 @@ public final class BidiParagraphLayout {
 			this.replayPrefix = BidiReplayPrefix.EMPTY;
 			this.estimatedChars = 0;
 			this.overCeiling = false;
+			this.previewedEvents = 0;
+			this.previewedParagraphId = 0;
 		}
 
 		/**
@@ -101,7 +88,49 @@ public final class BidiParagraphLayout {
 		 * be drawn just before a page break. Resolves all lines again at paragraph end after later fragments join.
 		 */
 		public void preview(final BlockParams params) {
+			if (params.isVerticalTypesetting() || this.previewLeftToRight(params)) {
+				return;
+			}
 			this.resolveLines(params, params.bidiSemanticAlias);
+		}
+
+		/**
+		 * Deals with a preview by looking only at the lines added since the last one, when the paragraph so far needs
+		 * no reordering (2026-10-31): resolving every line again at each page break was quadratic in the pages of a
+		 * paragraph (80,000 words, 2.5GB allocated). What resolving gives such a paragraph is no visual tree, only the
+		 * prefix and the ID on each line, and {@link #staysLeftToRight} tells that it is such a paragraph without
+		 * asking {@link Bidi}: with a left-to-right base direction and neither right-to-left characters nor explicit
+		 * controls, UAX #9 leaves every character at level 0, whatever follows. The paragraph is resolved whole at its
+		 * end all the same.
+		 *
+		 * @return false when the paragraph has to be resolved
+		 */
+		private boolean previewLeftToRight(final BlockParams params) {
+			if (BidiResolver.baseDirectionFlag(params.direction, params.unicodeBidi) != Bidi.DIRECTION_LEFT_TO_RIGHT
+					|| !BidiResolver.rootOpeningControls(params.direction, params.unicodeBidi).isEmpty()
+					|| !this.replayPrefix.staysLeftToRight()) {
+				return false;
+			}
+			final int size = this.events.size();
+			for (int i = this.previewedEvents; i < size; ++i) {
+				if (!staysLeftToRight(this.events.get(i).line().getLogicalContents())) {
+					return false;
+				}
+			}
+			long paragraphId = this.replayPrefix.paragraphId();
+			if (paragraphId == 0) {
+				if (this.previewedParagraphId == 0) {
+					this.previewedParagraphId = NEXT_PARAGRAPH_ID.incrementAndGet();
+				}
+				paragraphId = this.previewedParagraphId;
+			}
+			for (int i = this.previewedEvents; i < size; ++i) {
+				final AbstractLineBox line = this.events.get(i).line();
+				line.setBidiReplayPrefix(this.replayPrefix);
+				line.setBidiParagraphId(paragraphId);
+			}
+			this.previewedEvents = size;
+			return true;
 		}
 
 		private void resolveLines(final BlockParams params, final boolean semanticAlias) {
@@ -113,23 +142,77 @@ public final class BidiParagraphLayout {
 				}
 			}
 			final Map<TextBlockBox, Map<AbstractLineBox, Boolean>> liveLines = new IdentityHashMap<>();
-			for (final OrderedEvent event : this.events) {
-				if (event instanceof LineEvent line) {
-					final AbstractLineBox box = line.line();
-					final Map<AbstractLineBox, Boolean> live = liveLines.computeIfAbsent(line.block(), block -> {
-						final Map<AbstractLineBox, Boolean> members = new IdentityHashMap<>();
-						block.forEachLine(value -> members.put(value, Boolean.TRUE));
-						return members;
-					});
-					if (live.containsKey(box) && seen.put(box, Boolean.TRUE) == null) {
-						lines.add(new LayoutLine(box, true, line.block().getLineSize()));
-					}
+			for (final LineEvent line : this.events) {
+				final AbstractLineBox box = line.line();
+				final Map<AbstractLineBox, Boolean> live = liveLines.computeIfAbsent(line.block(), block -> {
+					final Map<AbstractLineBox, Boolean> members = new IdentityHashMap<>();
+					block.forEachLine(value -> members.put(value, Boolean.TRUE));
+					return members;
+				});
+				if (live.containsKey(box) && seen.put(box, Boolean.TRUE) == null) {
+					lines.add(new LayoutLine(box, true, line.block().getLineSize()));
 				}
-				// BarrierEvent is an ordering marker that prevents crossing already placed outer events.
-				// Line breaking runs immediately in logical order, so do not reexecute outer side effects here.
 			}
 			BidiParagraphLayout.resolve(lines, params, this.replayPrefix, semanticAlias);
 		}
+	}
+
+	/**
+	 * Whether these contents leave a paragraph with a left-to-right base direction at level 0 throughout, what comes
+	 * before and after them being the same: they add no right-to-left or Arabic number character, no explicit
+	 * control, and no {@code unicode-bidi} of an inline or replaced element.
+	 */
+	static boolean staysLeftToRight(final List<Object> contents) {
+		for (final Object content : contents) {
+			if (content instanceof Text text) {
+				if (!staysLeftToRight(text.getChars(), text.getCharCount())) {
+					return false;
+				}
+			} else if (content instanceof Control control) {
+				if (!staysLeftToRight(new char[] { control.getControlChar() }, 1)) {
+					return false;
+				}
+			} else if (content instanceof AbstractTextBox.Inline inline) {
+				if (inline.box.getType() == BoxType.INLINE) {
+					final InlineBox box = (InlineBox) inline.box;
+					final AbstractTextParams ip = box.getTextParams();
+					if (!BidiResolver.openingControls(ip.direction, ip.unicodeBidi).isEmpty()
+							|| !staysLeftToRight(box.getLogicalContents())) {
+						return false;
+					}
+				} else if (inline.box instanceof AbstractReplacedBox && inline.box.getParams() instanceof AbstractTextParams tp
+						&& BidiResolver.atomicCharacter(tp.direction, tp.unicodeBidi) != BidiResolver.OBJECT) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	static boolean staysLeftToRight(final char[] chars, final int count) {
+		for (int i = 0; i < count; ++i) {
+			if (chars[i] < 0x0590) {
+				// Nothing below the Hebrew block is right-to-left, an Arabic number or a control of bidi
+				continue;
+			}
+			final int cp = Character.codePointAt(chars, i, count);
+			if (Character.isSupplementaryCodePoint(cp)) {
+				++i;
+			}
+			switch (Character.getDirectionality(cp)) {
+			case Character.DIRECTIONALITY_LEFT_TO_RIGHT, Character.DIRECTIONALITY_EUROPEAN_NUMBER,
+					Character.DIRECTIONALITY_EUROPEAN_NUMBER_SEPARATOR, Character.DIRECTIONALITY_EUROPEAN_NUMBER_TERMINATOR,
+					Character.DIRECTIONALITY_COMMON_NUMBER_SEPARATOR, Character.DIRECTIONALITY_NONSPACING_MARK,
+					Character.DIRECTIONALITY_BOUNDARY_NEUTRAL, Character.DIRECTIONALITY_PARAGRAPH_SEPARATOR,
+					Character.DIRECTIONALITY_SEGMENT_SEPARATOR, Character.DIRECTIONALITY_WHITESPACE,
+					Character.DIRECTIONALITY_OTHER_NEUTRALS -> {
+			}
+			default -> {
+				return false;
+			}
+			}
+		}
+		return true;
 	}
 
 	/** {@code lineSize} is the line-axis size used to recalculate fragment margin/padding from the uncut frame. */

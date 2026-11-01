@@ -111,8 +111,9 @@ public class ResourceLeakTest extends TestCase {
 		return n;
 	}
 
+	/** Files only: tests running beside this one make directories here, 19 of them during one run (2026-11-01). */
 	private static int countFiles(final File dir) {
-		final File[] fs = dir.listFiles();
+		final File[] fs = dir.listFiles(File::isFile);
 		return fs == null ? 0 : fs.length;
 	}
 

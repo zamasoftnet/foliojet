@@ -37,7 +37,8 @@ public class CSSStyleSheet {
 	final List<Rule> rules = new ArrayList<Rule>();
 
 	/*
-	 * Index by rightmost simple selector. Each rule belongs to exactly one bucket.
+	 * Index by rightmost simple selector. A rule belongs to one bucket, or to one for each argument of an :is()/:where()
+	 * that decides it, so StyleContext can meet it twice on one element and drops the repeat.
 	 * The index is a conservative superset that never omits a potentially matching rule;
 	 * StyleContext performs the actual match.
 	 */
@@ -316,25 +317,79 @@ public class CSSStyleSheet {
 			this.bucket(this.pseudoElementToRules, name).add(rule);
 			return;
 		}
-		ElementSelector element = (ElementSelector) simple;
-		// Use the most selective bucket, in order: ID > class > element name > universal.
+		final List<IndexKey> keys = new ArrayList<IndexKey>(1);
+		if (!this.collectKeys((ElementSelector) simple, keys)) {
+			this.universalRules.add(rule);
+			return;
+		}
+		for (IndexKey key : keys) {
+			final List<Rule> bucket = this.bucket(key.map(), key.name());
+			// :is(.a, p.a) gives the same key twice
+			if (bucket.isEmpty() || bucket.get(bucket.size() - 1) != rule) {
+				bucket.add(rule);
+			}
+		}
+	}
+
+	/** A bucket of a rule. */
+	private record IndexKey(Map<String, List<Rule>> map, String name) {
+	}
+
+	/**
+	 * Collects the most selective keys of a compound selector, in order: ID > class > :is()/:where() > element name.
+	 * An element matching the compound has at least one of them.
+	 *
+	 * @return false if the compound has no key
+	 */
+	private boolean collectKeys(ElementSelector element, List<IndexKey> keys) {
 		for (Condition condition : element.getConditions()) {
 			if (condition.getConditionType() == Condition.ConditionType.ID_CONDITION) {
-				this.bucket(this.idToRules, condition.getValue()).add(rule);
-				return;
+				keys.add(new IndexKey(this.idToRules, condition.getValue()));
+				return true;
 			}
 		}
 		for (Condition condition : element.getConditions()) {
 			if (condition.getConditionType() == Condition.ConditionType.CLASS_CONDITION) {
-				this.bucket(this.classToRules, condition.getValue()).add(rule);
-				return;
+				keys.add(new IndexKey(this.classToRules, condition.getValue()));
+				return true;
+			}
+		}
+		for (Condition condition : element.getConditions()) {
+			final ConditionType type = condition.getConditionType();
+			if (type == ConditionType.IS_CONDITION || type == ConditionType.WHERE_CONDITION) {
+				final int size = keys.size();
+				if (this.collectArgumentKeys((SelectorListCondition) condition, keys)) {
+					return true;
+				}
+				keys.subList(size, keys.size()).clear();
 			}
 		}
 		if (element.getLocalName() != null) {
-			this.bucket(this.nameToRules, element.getLocalName()).add(rule);
-			return;
+			keys.add(new IndexKey(this.nameToRules, element.getLocalName()));
+			return true;
 		}
-		this.universalRules.add(rule);
+		return false;
+	}
+
+	/**
+	 * Collects the keys of every argument of an :is()/:where() (the arguments' rightmost compounds are matched against
+	 * the same element). The recursion follows the selector AST, whose depth comes from the syntax
+	 * ({@link #collectHasConditions}).
+	 *
+	 * @return false if an argument has no key: the condition can then match without any of them
+	 */
+	private boolean collectArgumentKeys(SelectorListCondition condition, List<IndexKey> keys) {
+		if (condition.getSelectors().isEmpty()) {
+			return false;
+		}
+		for (Selector selector : condition.getSelectors()) {
+			final SimpleSelector simple = selector.getSimpleSelector();
+			if (simple.getSelectorType() != SelectorType.ELEMENT_NODE_SELECTOR
+					|| !this.collectKeys((ElementSelector) simple, keys)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private List<Rule> bucket(Map<String, List<Rule>> map, String key) {

@@ -39,6 +39,8 @@ final class SVGWriter {
 	/** Coordinate precision. Matches Batik's default (6 digits). */
 	private static final int PRECISION = 6;
 
+	private static final double SCALE = 1e6;
+
 	private final Writer out;
 
 	/**
@@ -218,6 +220,31 @@ final class SVGWriter {
 	static String number(final double value) {
 		if (value == Math.rint(value) && Math.abs(value) < 1e15) {
 			return Long.toString((long) value);
+		}
+		final double scaled = Math.abs(value) * SCALE;
+		final double floor = Math.floor(scaled);
+		// Below 1e12 the product is within 1e-3 of the exact one: away from a tie it rounds the same way, in a tenth of
+		// the time of the exact expansion (a page has thousands of coordinates)
+		if (scaled < 1e12 && Math.abs(scaled - floor - 0.5) > 1e-3) {
+			final long digits = (long) floor + (scaled - floor > 0.5 ? 1 : 0);
+			if (digits == 0) {
+				return "0";
+			}
+			final StringBuilder s = new StringBuilder(24);
+			if (value < 0) {
+				s.append('-');
+			}
+			s.append(digits / (long) SCALE);
+			final long fraction = digits % (long) SCALE;
+			if (fraction != 0) {
+				final String text = Long.toString(fraction + (long) SCALE);
+				int end = text.length();
+				while (text.charAt(end - 1) == '0') {
+					--end;
+				}
+				s.append('.').append(text, 1, end);
+			}
+			return s.toString();
 		}
 		java.math.BigDecimal d = new java.math.BigDecimal(value)
 				.setScale(PRECISION, java.math.RoundingMode.HALF_UP).stripTrailingZeros();

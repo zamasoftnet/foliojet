@@ -484,6 +484,39 @@ public class FlowContainer implements Container {
 		return this.floatings != null && this.floatings.getCount() > 0;
 	}
 
+	/**
+	 * Whether this container holds only plain blocks of its writing mode and {@linkplain TextBlockBox#holdsPlainText()
+	 * plain text}, however deep: nothing laying it out again would do but give the same lines.
+	 */
+	public final boolean holdsPlainText() {
+		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
+		containers.push(this);
+		while (!containers.isEmpty()) {
+			final FlowContainer container = containers.pop();
+			if (container.floatings != null || container.absolutes != null) {
+				return false;
+			}
+			if (container.flows == null) {
+				continue;
+			}
+			final WritingMode flow = container.box.getBlockParams().flow;
+			for (int i = 0; i < container.flows.size(); ++i) {
+				final IFlowBox box = container.flows.get(i).box;
+				if (box instanceof TextBlockBox text) {
+					if (!text.holdsPlainText()) {
+						return false;
+					}
+				} else if (box instanceof FlowBlockBox block && block.getContainer().getClass() == FlowContainer.class
+						&& block.getBlockParams().flow == flow) {
+					containers.push((FlowContainer) block.getContainer());
+				} else {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
 	public double getFirstAscent() {
 		final Flow flow = this.getFirstFlow();
 		if (flow == null) {
@@ -1403,6 +1436,8 @@ public class FlowContainer implements Container {
 		final double[] flowPageExtents = flowMeasurements.pageExtents();
 		final boolean[] avoidBefore = flowMeasurements.avoidBefore();
 		final boolean[] avoidAfter = flowMeasurements.avoidAfter();
+		// How many flows the two above hold yet: a move looks back from its flow, and only then
+		int avoidsKnown = 0;
 		final double[] flowPageEndFrames = flowMeasurements.pageEndFrames();
 		final FloatMeasurements floatMeasurements = this.measureFloats(params);
 		final double[] floatPageStarts = floatMeasurements.pageStarts();
@@ -1686,6 +1721,14 @@ public class FlowContainer implements Container {
 			if (outcome instanceof ProbeOutcome.Move move) {
 				if (move.reason() == ProbeOutcome.MoveReason.UNFULFILLABLE_AVOID) {
 					relaxInsideIndex = Math.max(relaxInsideIndex, i);
+				}
+				// The avoids walk down each flow, so asking them of every flow of every level on the way to the cut line
+				// was quadratic in the depth and took a third of a cell of many paragraphs (2026-10-31). No flow has
+				// changed since the measurements: a probe that changes one ends the loop.
+				for (; avoidsKnown <= i; ++avoidsKnown) {
+					final IFlowBox flowBox = this.flows.get(avoidsKnown).box;
+					avoidBefore[avoidsKnown] = flowBox.avoidBreakBefore();
+					avoidAfter[avoidsKnown] = flowBox.avoidBreakAfter();
 				}
 				// When splitting is impossible. Resolution rules are pure in FlowCutter (two-phase separation,
 				// increment 4); this code only applies the decision.
@@ -2206,6 +2249,7 @@ public class FlowContainer implements Container {
 	private FlowMeasurements measureFlows(final BlockParams params) {
 		final double[] flowPageStarts = new double[this.flows.size()];
 		final double[] flowPageExtents = new double[this.flows.size()];
+		// Filled in by the caller as it needs them
 		final boolean[] avoidBefore = new boolean[this.flows.size()];
 		final boolean[] avoidAfter = new boolean[this.flows.size()];
 		final double[] flowPageEndFrames = new double[this.flows.size()];
@@ -2213,8 +2257,6 @@ public class FlowContainer implements Container {
 			final Flow flow = (Flow) this.flows.get(i);
 			flowPageStarts[i] = flow.pageAxis;
 			flowPageExtents[i] = flow.box.getPageExtent(params.flow);
-			avoidBefore[i] = flow.box.avoidBreakBefore();
-			avoidAfter[i] = flow.box.avoidBreakAfter();
 			flowPageEndFrames[i] = flow.box.getType() == BoxType.BLOCK
 					? ((AbstractContainerBox) flow.box).getFrame().getFramePageEnd(params.flow)
 					: 0;
@@ -2712,6 +2754,22 @@ public class FlowContainer implements Container {
 			boolean restyleAbsolutes, List<net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange> prefix) {
 		final Deque<WorklistStep> stack = new ArrayDeque<>();
 		this.pushWorklistFrame(stack, builder, shape, restyleAbsolutes, prefix);
+		this.runWorklist(stack, builder);
+	}
+
+	/**
+	 * Lays out flows that were left out of a restyle as what would have been its last items: they go wherever the
+	 * builder is now, and nothing else of this container takes part.
+	 */
+	protected final void restyleFlows(final BlockBuilder builder, final List<Flow> flows) {
+		final Deque<WorklistStep> stack = new ArrayDeque<>();
+		stack.push(new RestyleFrame(new ArrayList<BoxHolder>(flows), null,
+				net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED,
+				net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED.depth()));
+		this.runWorklist(stack, builder);
+	}
+
+	private void runWorklist(final Deque<WorklistStep> stack, final BlockBuilder builder) {
 		while (!stack.isEmpty()) {
 			final WorklistStep step = stack.peek();
 			if (step instanceof MulticolRestyleScope scope) {
@@ -2988,9 +3046,16 @@ public class FlowContainer implements Container {
 						// Measurements for typed TextTail in Phase 2/3.
 						net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordOpenTextHandoff();
 					}
+					final boolean alone = !open && builder.relaysTextAlone();
+					if (alone && textBlock.keepLines(builder)) {
+						break;
+					}
 					textBlock.restyle(builder);
 					if (!open) {
 						builder.endTextBlock();
+					}
+					if (alone && builder.relaysTextAlone() && builder.lastClosedTextBlock() != null) {
+						builder.lastClosedTextBlock().noteLaidOutAlone(builder);
 					}
 				}
 					break;

@@ -173,8 +173,8 @@ final class WebFontSubset {
 	}
 
 	/**
-	 * Discards glyph outlines after building (2026-09-02). In per-page scope, emitted subsets
-	 * are never rebuilt, so there is no reason to retain outlines.
+	 * Discards glyph outlines after building (2026-09-02). Emitted subsets are never rebuilt,
+	 * so there is no reason to retain outlines.
 	 * Keep glyph counts, widths, and code-point order (needed for the manifest and carryover).
 	 */
 	void releaseShapes() {

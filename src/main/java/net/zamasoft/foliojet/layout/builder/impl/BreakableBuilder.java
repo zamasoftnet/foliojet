@@ -182,18 +182,27 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		if (tableBox.getTableFooter() != null) {
 			last += tableBox.getTableFooter().getPageSize();
 		}
-		// Scan extracted into pure TableCutter logic (C4-T3).
+		// Scan extracted into pure TableCutter logic (C4-T3). It stops at the first row past the cut line, so it gets the
+		// rows up to that one: this runs once a page, and all the remaining rows of a 64,000-row table took 36% of the
+		// conversion (2026-10-31).
+		final double pageLimit = this.getPageLimit();
 		final int groupCount = tableBox.getTableBodyCount();
 		final double[][] rowSizes = new double[groupCount][];
 		final PageBreakMode[] groupBefore = new PageBreakMode[groupCount];
 		final PageBreakMode[] groupAfter = new PageBreakMode[groupCount];
 		final PageBreakMode[][] rowBefore = new PageBreakMode[groupCount][];
 		final PageBreakMode[][] rowAfter = new PageBreakMode[groupCount][];
+		double scanned = last;
+		boolean past = false;
 		for (int g = 0; g < groupCount; ++g) {
 			final TableRowGroupBox rowGroupBox = tableBox.getTableBody(g);
 			groupBefore[g] = rowGroupBox.getTableRowGroupPos().pageBreakBefore;
 			groupAfter[g] = rowGroupBox.getTableRowGroupPos().pageBreakAfter;
-			final int rowCount = rowGroupBox.getTableRowCount();
+			int rowCount = 0;
+			while (!past && rowCount < rowGroupBox.getTableRowCount()) {
+				scanned += rowGroupBox.getTableRow(rowCount++).getPageSize();
+				past = LayoutUtils.compare(scanned, pageLimit) > 0;
+			}
 			rowSizes[g] = new double[rowCount];
 			rowBefore[g] = new PageBreakMode[rowCount];
 			rowAfter[g] = new PageBreakMode[rowCount];
@@ -205,7 +214,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			}
 		}
 		final net.zamasoft.foliojet.layout.fragment.TableCutter.ForceBreakAt at = net.zamasoft.foliojet.layout.fragment.TableCutter
-				.firstForceBreak(this.getPageLimit(), last, rowSizes, groupBefore, groupAfter, rowBefore, rowAfter);
+				.firstForceBreak(pageLimit, last, rowSizes, groupBefore, groupAfter, rowBefore, rowAfter);
 		if (at == null) {
 			return null;
 		}

@@ -111,8 +111,6 @@ public class IncrementalTableBuilder implements TableBuilder {
 	private double[] columnSizes = null;
 	// Row group under construction.
 	private TableRowGroupBox rowGroupBox = null;
-	// Mapping from cell boxes (TableCellBox) to original cells (TableRowBox.Cell).
-	private final Map<TableCellBox, Cell> cellToSource = new HashMap<TableCellBox, Cell>();
 
 	// List of cell lists in one unit.
 	private final List<List<CellContent>> cellsUnit = new ArrayList<List<CellContent>>();
@@ -449,7 +447,9 @@ public class IncrementalTableBuilder implements TableBuilder {
 			}
 		}
 
-		// Cell layout
+		// Cell layout. A span never leaves its unit, so the mapping from cell boxes to the row's latest cell lives only
+		// here: as a field it kept every cell of the table, with its content, until the table ended (2026-10-31).
+		final Map<TableCellBox, Cell> cellToSource = new HashMap<TableCellBox, Cell>();
 		for (int row = 0; row < this.cellsUnit.size(); ++row) {
 			final List<CellContent> cells = this.cellsUnit.get(row);
 			final TableRowBox rowBox = this.rowsUnit.get(row);
@@ -458,8 +458,8 @@ public class IncrementalTableBuilder implements TableBuilder {
 				int span = cell.colspan;
 				if (cell.isExtended()) {
 					i += span - 1;
-					Cell rcell = (Cell) this.cellToSource.get(cell.getCellBox());
-					this.cellToSource.put(cell.getCellBox(), rowBox.addTableExtendedCell(rcell, cell.overlapped));
+					Cell rcell = (Cell) cellToSource.get(cell.getCellBox());
+					cellToSource.put(cell.getCellBox(), rowBox.addTableExtendedCell(rcell, cell.overlapped));
 					continue;
 				}
 				final TableCellBox cellBox = cell.getCellBox();
@@ -504,7 +504,7 @@ public class IncrementalTableBuilder implements TableBuilder {
 				cell.bind(cellBindBuilder);
 				cellBindBuilder.close();
 				Cell source = rowBox.addTableSourceCell(cellBox);
-				this.cellToSource.put(cellBox, source);
+				cellToSource.put(cellBox, source);
 			}
 		}
 		if (this.cellsUnit.size() == 1) {
@@ -843,17 +843,20 @@ public class IncrementalTableBuilder implements TableBuilder {
 
 		TableParams tableParams = this.tableBox.getTableParams();
 		if (tableParams.borderCollapse == TableParams.BORDER_COLLAPSE) {
-			// Process collapsed borders
+			// Process collapsed borders. The rows that move take their tails in one copy: a group of a set height is
+			// bound whole, so all its remaining rows move on every page (inserting them one by one at the head was
+			// 95% of the time at 32,000 rows).
 			int nextRowCount = nextRowGroupBox.getTableRowCount();
-			List<Border[]> nextBodyHborders = new ArrayList<Border[]>();
-			List<Border[]> nextBodyVborders = new ArrayList<Border[]>();
-			DoubleList nextBodyRowSizes = new DoubleList();
-			for (int i = 0; i < nextRowCount; ++i) {
-				nextBodyHborders.add(0, this.bodyHborders.remove(this.bodyHborders.size() - 1));
-				nextBodyVborders.add(0, this.bodyVborders.remove(this.bodyVborders.size() - 1));
-				nextBodyRowSizes.add(0, this.bodyRowSizes.remove(this.bodyRowSizes.size() - 1));
-			}
-			nextBodyHborders.add(0, this.bodyHborders.get(this.bodyHborders.size() - 1));
+			final int hbordersLeft = this.bodyHborders.size() - nextRowCount;
+			final int vbordersLeft = this.bodyVborders.size() - nextRowCount;
+			List<Border[]> nextBodyHborders = new ArrayList<Border[]>(nextRowCount + 1);
+			nextBodyHborders.add(this.bodyHborders.get(hbordersLeft - 1));
+			nextBodyHborders.addAll(this.bodyHborders.subList(hbordersLeft, this.bodyHborders.size()));
+			this.bodyHborders.subList(hbordersLeft, this.bodyHborders.size()).clear();
+			List<Border[]> nextBodyVborders = new ArrayList<Border[]>(
+					this.bodyVborders.subList(vbordersLeft, this.bodyVborders.size()));
+			this.bodyVborders.subList(vbordersLeft, this.bodyVborders.size()).clear();
+			DoubleList nextBodyRowSizes = this.bodyRowSizes.cutTail(this.bodyRowSizes.size() - nextRowCount);
 			if (nextRowCount + rowGroupBox.getTableRowCount() > rowCount) {
 				// When split in the middle
 				this.bodyVborders.add(nextBodyVborders.get(0));

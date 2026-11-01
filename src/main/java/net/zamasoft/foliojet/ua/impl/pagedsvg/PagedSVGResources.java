@@ -301,6 +301,10 @@ final class PagedSVGResources {
 	private String document = "";
 	private final List<FontAsset> emittedFonts = new ArrayList<>();
 	private final Map<String, ImageAsset> images = new LinkedHashMap<>();
+	/**
+	 * The original bytes of the image being drawn, from {@link #rememberOriginal} until {@link #image} or
+	 * {@link #sourceImage} takes them: kept longer, every decoded image would stay until the end of the conversion.
+	 */
 	private final Map<RenderedImage, OriginalImage> originalImages = new IdentityHashMap<>();
 	private final List<PageAsset> pages = new ArrayList<>();
 	private final Map<String, FragmentData> fragments = new LinkedHashMap<>();
@@ -598,11 +602,9 @@ final class PagedSVGResources {
 			}
 			this.emitter.emit(subset.uri(), "font/woff2", bytes);
 			this.emittedFonts.add(new FontAsset(subset, subset.uri(), sha256(bytes), bytes.length, false));
-			if (this.fontScope == PagedSvgFontScope.PAGE) {
-				// In per-page scope, never rebuild emitted subsets. Retaining outlines would
-				// grow memory with page count × font count (design review §3-6).
-				subset.releaseShapes();
-			}
+			// Emitted subsets are never rebuilt. Retaining outlines would grow memory with page count × font count in
+			// per-page scope (design review §3-6), and with the chapters of an EPUB × font count in document scope.
+			subset.releaseShapes();
 		}
 		if (this.carriesFonts()) {
 			for (int i = 0; i < scope.size(); ++i) {
@@ -638,7 +640,7 @@ final class PagedSVGResources {
 	 */
 	ImageAsset sourceImage(final URI source, final RenderedImage rendered, final byte[] fallbackPng,
 			final int width, final int height) throws IOException {
-		final OriginalImage original = this.originalImages.get(rendered);
+		final OriginalImage original = this.originalImages.remove(rendered);
 		final byte[] bytes = original == null ? fallbackPng : original.bytes;
 		final String mediaType = original == null ? "image/png" : original.mediaType;
 		final String hash = sha256(bytes);
@@ -713,7 +715,7 @@ final class PagedSVGResources {
 
 	ImageAsset image(final RenderedImage rendered, final byte[] fallbackPng, final int inputWidth,
 			final int inputHeight) throws IOException {
-		final OriginalImage original = this.originalImages.get(rendered);
+		final OriginalImage original = this.originalImages.remove(rendered);
 		byte[] bytes = original == null ? fallbackPng : original.bytes;
 		String mediaType = original == null ? "image/png" : original.mediaType;
 		String extension = original == null ? "png" : original.extension;

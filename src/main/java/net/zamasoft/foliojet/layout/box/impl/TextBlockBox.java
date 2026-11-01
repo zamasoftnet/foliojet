@@ -538,6 +538,7 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			while (this.lines.size() > firstWidow) {
 				this.lines.remove(this.lines.size() - 1);
 			}
+			this.aloneLineSize = Double.NaN;
 			assert !this.lines.isEmpty();
 			assert !nextTextBlock.lines.isEmpty();
 			// M3b Phase 2/3a: Finalize handoff content at the break. Capture the remainder's
@@ -594,6 +595,97 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		final net.zamasoft.foliojet.layout.fragment.TextReplaySlice slice = this.slice != null ? this.slice
 				: this.recordSlice();
 		slice.replay(new BuilderGlyphHandler(builder));
+	}
+
+	/** How many text blocks stayed instead of being laid out again ({@link #keepLines}, 2026-10-31, for tests). */
+	public static final java.util.concurrent.atomic.AtomicLong LINES_KEPT = new java.util.concurrent.atomic.AtomicLong();
+
+	/**
+	 * The line size at which a layout by itself made these lines ({@link #noteLaidOutAlone}), NaN when none did or
+	 * when they are not to be taken for a repeat of it.
+	 */
+	private double aloneLineSize = Double.NaN;
+
+	/**
+	 * Records that the builder that closed this block laid its text out with nothing but its line size to go by
+	 * ({@link BlockBuilder#relaysTextAlone()}), so that the same layout will repeat ({@link #keepLines}) if the lines are
+	 * of text alone ({@link #holdsPlainText()}).
+	 */
+	public final void noteLaidOutAlone(final BlockBuilder builder) {
+		// text-wrap: pretty lays a paragraph out differently depending on whether the page is being resumed
+		if (this.slice == null && !this.lines.isEmpty() && !this.overlaysFollowingBlock()
+				&& this.params.textWrapStyle != BlockParams.TEXT_WRAP_STYLE_PRETTY && this.holdsPlainText()) {
+			this.aloneLineSize = builder.getFlowBox().getLineSize();
+		}
+	}
+
+	/**
+	 * Whether the lines hold what laying them out again at the same line size repeats (2026-10-31): text, control
+	 * characters and inline boxes of the same. Replaced elements, inline blocks and absolutely positioned boxes depend
+	 * on the sizes around them, and so does a line with an inline box off its baseline (vertical-align: top). A soft
+	 * hyphen does not repeat either: a word broken at one on the first layout stays whole on the next (sat-isfaction).
+	 */
+	public final boolean holdsPlainText() {
+		for (int i = 0; i < this.lines.size(); ++i) {
+			if (!holdsPlainText(((Line) this.lines.get(i)).box)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static boolean holdsPlainText(final net.zamasoft.foliojet.layout.box.AbstractTextBox box) {
+		for (final Object content : box.getLogicalContents()) {
+			if (content instanceof net.zamasoft.pdfg2d.gc.text.TextImpl text) {
+				if (text.materializedHyphen) {
+					return false;
+				}
+			} else if (content instanceof net.zamasoft.pdfg2d.gc.text.layout.control.SoftHyphen) {
+				return false;
+			} else if (!(content instanceof net.zamasoft.pdfg2d.gc.text.Text
+					|| content instanceof net.zamasoft.pdfg2d.gc.text.layout.control.Control)) {
+				if (!(content instanceof net.zamasoft.foliojet.layout.box.AbstractTextBox.Inline inline)
+						|| !(inline.box instanceof InlineBox inlineBox) || inline.verticalAlign != 0
+						|| !holdsPlainText(inlineBox)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Takes the lines of this block for what laying them out again here would give (2026-10-31). A table cell or a float
+	 * broken across pages is laid out again at each page, all that remains of it: a body of 6,000 paragraphs in one took
+	 * 30s and 32GB. A paragraph laid out once at this line size with nothing around it comes out the same every time,
+	 * so it stays.
+	 *
+	 * @return true when the block now sits at the cursor of {@code builder}
+	 */
+	public final boolean keepLines(final BlockBuilder builder) {
+		if (this.aloneLineSize != builder.getFlowBox().getLineSize()
+				|| this.params != builder.getFlowBox().getBlockParams()) {
+			return false;
+		}
+		// TextBuilder locates each line from the cursor and back (locateLine): what that rounds is kept too
+		final double start = builder.getPageAxis();
+		double pageAxis = 0;
+		boolean endsMargins = false;
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line line = (Line) this.lines.get(i);
+			pageAxis = start + pageAxis - start;
+			if (pageAxis != line.pageAxis) {
+				this.lines.set(i, new Line(line.box, pageAxis));
+			}
+			final double advance = line.box.getAscent() + line.box.getDescent();
+			pageAxis += advance;
+			endsMargins |= advance > 0;
+		}
+		if (!builder.placeTextBlock(this, this.breakToken, pageAxis, endsMargins)) {
+			return false;
+		}
+		LINES_KEPT.incrementAndGet();
+		return true;
 	}
 
 	/**
