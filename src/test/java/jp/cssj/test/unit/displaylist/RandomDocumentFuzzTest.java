@@ -1982,7 +1982,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §155: on 300x150 pt paper a max-content grid track holds three columns with two textareas and an input, past the
 			// paper in both engines (the input's text at x = 981 pt, Chrome's textareas to 913 pt; on 1300 pt paper the layout stays and fits).
 			new IndividualExclusion(56_987_203, "standard", 56_987_203,
-					"作者の溢れ: max-contentの列の段組に幅広のフォーム部品で紙の右の外(Chromeも)", "2026-11-02"));
+					"作者の溢れ: max-contentの列の段組に幅広のフォーム部品で紙の右の外(Chromeも)", "2026-11-02"),
+			// Triage §156: in a vertical-rl body a 27 pt box holds a list whose 30 pt indent starts past the box, and the box sits at the right
+			// edge of the paper, so the only text starts at x = 595 pt in both engines; with the indent gone or a right margin added they agree.
+			new IndividualExclusion(57_482_440, "fit-v1", 192_273_820,
+					"作者の溢れ: 縦組みの右端の27ptの箱で30ptの字下げが字を紙の右の外へ(Chromeも)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
