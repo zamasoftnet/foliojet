@@ -1966,7 +1966,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §149, as §148 in horizontal writing: a display:table float:right holds an orthogonal grid, and T0 is at the
 			// paper's right edge (x = 300.5 pt). No table, float:left or a block for the grid each put it on the paper.
 			new IndividualExclusion(54_493_273, "standard", 54_493_273,
-					"既知の制限: display:tableのfloat:rightの中に直交のgridがあると行方向の寸法0で置かれ紙の右の外", "2026-11-01"));
+					"既知の制限: display:tableのfloat:rightの中に直交のgridがあると行方向の寸法0で置かれ紙の右の外", "2026-11-01"),
+			// Triage §150, as §143: on 60x60 pt vertical-lr paper a float holds a table with a nested table, 130 pt along the line
+			// (T24 at y = 127 pt, Chrome's screen 122 pt; its print leaves T4, T23 and T24 out on 3 pages as well).
+			new IndividualExclusion(54_368_591, "fit-v1", 1_992_649_937,
+					"作者の溢れ: 紙より長い入れ子の表が行の向きに紙の2倍超、floatの中で紙の下の外(Chromeも)", "2026-11-01"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
