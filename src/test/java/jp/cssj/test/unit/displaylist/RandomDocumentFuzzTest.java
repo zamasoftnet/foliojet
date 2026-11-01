@@ -1986,7 +1986,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §156: in a vertical-rl body a 27 pt box holds a list whose 30 pt indent starts past the box, and the box sits at the right
 			// edge of the paper, so the only text starts at x = 595 pt in both engines; with the indent gone or a right margin added they agree.
 			new IndividualExclusion(57_482_440, "fit-v1", 192_273_820,
-					"作者の溢れ: 縦組みの右端の27ptの箱で30ptの字下げが字を紙の右の外へ(Chromeも)", "2026-11-02"));
+					"作者の溢れ: 縦組みの右端の27ptの箱で30ptの字下げが字を紙の右の外へ(Chromeも)", "2026-11-02"),
+			// Triage §157, a known limit, not the author's overflow: a horizontal box on a vertical page, first on it after margins, counts as at
+			// the page start, and overflowing by under 20 pt is not sliced, so the start of its lines stays off the paper; Chrome shows them.
+			new IndividualExclusion(57_861_579, "fit-v1", 543_284_679,
+					"既知の制限: 余白の後の頁の先頭の横組みの箱が紙の左の外(Chromeは次の頁)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
