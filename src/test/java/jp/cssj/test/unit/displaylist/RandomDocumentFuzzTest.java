@@ -1951,7 +1951,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §143: on vertical-lr 200x200 pt paper a table 91 pt wide in a vertical-rl box of 75 pt runs left of
 			// the paper, and the float after it further; T0 is at x = -9 pt, Chrome's screen at -8.1 pt, its print is blank.
 			new IndividualExclusion(53_170_242, "fit-v1", 681_908_377,
-					"作者の溢れ: 幅75ptの逆進行の箱より広い表が紙の左の外(Chromeも)", "2026-11-01"));
+					"作者の溢れ: 幅75ptの逆進行の箱より広い表が紙の左の外(Chromeも)", "2026-11-01"),
+			// Triage §147: on vertical-lr 300x150 pt paper a vertical-rl box 97 pt wide holds a column-reverse flex that overflows
+			// it to the left in both engines (T0 at x = -267.5 pt, Chrome's screen -161 pt). The last item's horizontal child has
+			// width: calc(35% + 8em) of an indefinite width: Copper takes the percentage from the page (181.5 pt), Chrome keeps
+			// the item's 80 pt, so T17 and T18 reach the paper only there (its print keeps those 2 of 19 tokens).
+			new IndividualExclusion(53_943_580, "fit-v1", 1_033_774_291,
+					"既知の制限: 縦組みのcolumn-reverseのflexが箱より長く左へ溢れ、直交の子の不定の百分率を紙の幅で解く(Chromeも19語中2語しか紙に載らない)", "2026-11-01"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
