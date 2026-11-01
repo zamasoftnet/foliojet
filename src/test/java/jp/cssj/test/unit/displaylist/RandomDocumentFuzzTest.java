@@ -1935,7 +1935,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 			new IndividualExclusion(48_359_836, "fit-v1", 440_656_388,
 					"作者の溢れ: 縦組みの右の浮動体の中の重なるセルの入れ子の表が行の向きに紙の3倍、後ろの字が紙の下の外(Chromeも)", "2026-10-30"),
 			new IndividualExclusion(50_240_847, "fit-v1", 1_264_179_287,
-					"作者の溢れ: 幅110ptのvertical-rlの中のcolumnのflex(96pt)にmin-width:8emのitemが3つ、計約290ptが紙の左の外(Chromeも)", "2026-10-30"));
+					"作者の溢れ: 幅110ptのvertical-rlの中のcolumnのflex(96pt)にmin-width:8emのitemが3つ、計約290ptが紙の左の外(Chromeも)", "2026-10-30"),
+			// Triage §142: on vertical-lr 300x150 pt paper a vertical-rl box 48 pt wide holds a float of its own width
+			// past the box's 32 pt content, and in it a two-column multicol with a float of nested writing modes. T0 is
+			// left of the paper in both engines (Copper x = -14 pt, Chrome's screen -146 pt, its print drops it). Copper
+			// does not split the float over the columns and stacks T1 and T2 past it (x = -21 and -28 pt, 19124 alike);
+			// Chrome's print puts both on the paper at x = 34 pt.
+			new IndividualExclusion(52_998_590, "fit-v1", 2_000_887_688,
+					"既知の制限: 逆進行の箱より広いfloatの中の段組のfloatを段で割らず、全部が紙の左の外", "2026-11-01"),
+			// Triage §143, as §137: on 120x400 pt paper a table cell holds a grid of min-content and max-content columns
+			// with four textareas of the UA size; T7 is at x = 502.5 pt (Chrome's screen 505.5 pt, its print keeps only
+			// T2, T6 and T8).
+			new IndividualExclusion(53_120_648, "fit-v1", 352_187_651,
+					"作者の溢れ: 表のセルのgridのmax-contentの列にUAの寸法のtextareaが並び、表が紙の4倍の幅(Chromeも)", "2026-11-01"),
+			// Triage §143: on vertical-lr 200x200 pt paper a table 91 pt wide in a vertical-rl box of 75 pt runs left of
+			// the paper, and the float after it further; T0 is at x = -9 pt, Chrome's screen at -8.1 pt, its print is blank.
+			new IndividualExclusion(53_170_242, "fit-v1", 681_908_377,
+					"作者の溢れ: 幅75ptの逆進行の箱より広い表が紙の左の外(Chromeも)", "2026-11-01"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
