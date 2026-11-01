@@ -1978,7 +1978,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §153: on vertical-lr 300x150 pt paper a vertical-rl float 93 pt wide holds a vertical-lr table 125 pt wide, which
 			// overflows it to the left in both engines (T0 at x = -32 pt, Chrome's screen -31 pt, its print has no token; A4 paper changes nothing).
 			new IndividualExclusion(56_381_704, "standard", 56_381_704,
-					"作者の溢れ: 幅93ptのvertical-rlのfloatに幅125ptの表で紙の左の外(Chromeも)", "2026-11-02"));
+					"作者の溢れ: 幅93ptのvertical-rlのfloatに幅125ptの表で紙の左の外(Chromeも)", "2026-11-02"),
+			// Triage §155: on 300x150 pt paper a max-content grid track holds three columns with two textareas and an input, past the
+			// paper in both engines (the input's text at x = 981 pt, Chrome's textareas to 913 pt; on 1300 pt paper the layout stays and fits).
+			new IndividualExclusion(56_987_203, "standard", 56_987_203,
+					"作者の溢れ: max-contentの列の段組に幅広のフォーム部品で紙の右の外(Chromeも)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
