@@ -527,11 +527,17 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		// (continuePageAxis): the next split goes on with what is left of that floor, not of the content (2026-10-10,
 		// sweep seed 11599998: a float of width: 0pt in vertical writing grew to its content, 538pt, and each page
 		// carried the rest of that on as a definite width, 732 pages).
+		// A table's wrapper says specified for the table's own size (shrinkToFit reads params.size), which it does not
+		// take: what it holds past floats is the place of the table, and carried on as a definite size that left an
+		// empty box on each page (2026-11-02, triage §158: display: table in columns after floats wider than the page,
+		// 768 pages, Chrome 4). An aspect-ratio is the wrapper's own.
+		final boolean specified = this.isSpecifiedPageSize()
+				&& (this.params.getType() != ParamsType.TABLE || this.params.aspectRatio > 0);
 		final double extent = vertical ? this.width : this.height;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = net.zamasoft.foliojet.layout.fragment.FragmentState
 				.of(this.params.flow, columnSpanning, this.frame, this.size,
 						minSize, Double.isNaN(this.continuedPageAxis) ? extent : Math.min(extent, this.continuedPageAxis),
-						contentLimit, ownerExtent, this.container.getContentSize(), this.isSpecifiedPageSize(),
+						contentLimit, ownerExtent, this.container.getContentSize(), specified,
 						preserveSpecifiedPageSize);
 		if (vertical) {
 			this.width = state.prevPageExtent();
