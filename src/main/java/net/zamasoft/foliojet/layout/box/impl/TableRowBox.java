@@ -855,7 +855,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				continue;
 			}
 			final double lineOffset = this.lineOffsetOf(i);
-			final TableCellBox nextCell = forcedCellRemainder(cellBox, cutPageAxis, BreakMode.DEFAULT_BREAK_MODE,
+			final TableCellBox nextCell = forcedCellRemainder(cellBox, cutPageAxis, BreakMode.AutoBreakMode.DEFAULT,
 					IPageBreakableBox.FLAGS_SPLIT);
 			if (vertical) {
 				cellBox.setWidth(cutPageAxis);
@@ -889,7 +889,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 				}
 				cutPageAxis += xcell.getTableRow().getPageSize();
 			}
-			TableCellBox nextCell = forcedCellRemainder(prevCell, cutPageAxis, BreakMode.DEFAULT_BREAK_MODE,
+			TableCellBox nextCell = forcedCellRemainder(prevCell, cutPageAxis, BreakMode.AutoBreakMode.DEFAULT,
 					IPageBreakableBox.FLAGS_SPLIT);
 			if (vertical) {
 				prevCell.setWidth(cutPageAxis);

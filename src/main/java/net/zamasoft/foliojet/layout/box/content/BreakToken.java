@@ -18,9 +18,6 @@ public sealed interface BreakToken {
 	/** The start of a flow (text-indent and :first-line apply). */
 	public static final BreakToken NONE = new None();
 
-	/** A mid-flow continuation with an unknown position (for combination). */
-	public static final BreakToken MID_FLOW = new MidFlow(-1);
-
 	record None() implements BreakToken {
 	}
 
@@ -30,6 +27,13 @@ public sealed interface BreakToken {
 	 * @param charOffset the source character offset at the resume position (-1 if unknown)
 	 */
 	record MidFlow(int charOffset) implements BreakToken {
+		/**
+		 * A mid-flow continuation with an unknown position (for combination). It is here and not on {@link BreakToken}
+		 * because the interface's default methods make this class initialize the interface first: a thread creating a
+		 * MidFlow would hold this class and wait for the interface, while the interface's initializer waited for this
+		 * class (2026-11-01).
+		 */
+		public static final MidFlow UNKNOWN = new MidFlow(-1);
 	}
 
 	/**

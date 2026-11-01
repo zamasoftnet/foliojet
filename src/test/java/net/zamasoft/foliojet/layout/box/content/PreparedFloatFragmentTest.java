@@ -73,13 +73,13 @@ public class PreparedFloatFragmentTest extends TestCase {
 		final FloatBlockBox deferred = outerWithMovingInnerFloat(outerParams, innerParams);
 
 		// Immediate path.
-		final SplitResult immediateResult = immediate.split(100, BreakMode.DEFAULT_BREAK_MODE,
+		final SplitResult immediateResult = immediate.split(100, BreakMode.AutoBreakMode.DEFAULT,
 				IPageBreakableBox.FLAGS_SPLIT);
 		assertTrue("fixtureはSplitになるはず: " + immediateResult, immediateResult instanceof SplitResult.Split);
 		final IFloatBox immediateRemainder = (IFloatBox) ((SplitResult.Split) immediateResult).remainder();
 
 		// Deferred path.
-		final FloatFragmentSplit deferredResult = deferred.splitFloatFragment(7, 100, BreakMode.DEFAULT_BREAK_MODE,
+		final FloatFragmentSplit deferredResult = deferred.splitFloatFragment(7, 100, BreakMode.AutoBreakMode.DEFAULT,
 				IPageBreakableBox.FLAGS_SPLIT);
 		assertTrue("fixtureはPreparedになるはず: " + deferredResult,
 				deferredResult instanceof FloatFragmentSplit.Prepared);
@@ -111,9 +111,9 @@ public class PreparedFloatFragmentTest extends TestCase {
 		final FloatBlockBox immediate = outerWithMovingInnerFloat(outerParams, innerParams);
 		final FloatBlockBox deferred = outerWithMovingInnerFloat(outerParams, innerParams);
 		// The cut line is beyond the entire box: nothing moves.
-		assertTrue(immediate.split(500, BreakMode.DEFAULT_BREAK_MODE,
+		assertTrue(immediate.split(500, BreakMode.AutoBreakMode.DEFAULT,
 				(byte) 0) instanceof SplitResult.Keep);
-		assertTrue(deferred.splitFloatFragment(1, 500, BreakMode.DEFAULT_BREAK_MODE,
+		assertTrue(deferred.splitFloatFragment(1, 500, BreakMode.AutoBreakMode.DEFAULT,
 				(byte) 0) instanceof FloatFragmentSplit.Keep);
 	}
 
@@ -121,7 +121,7 @@ public class PreparedFloatFragmentTest extends TestCase {
 	public void testMaterializeIsOneShot() {
 		final FloatBlockBox deferred = outerWithMovingInnerFloat(blockParams(WritingMode.TB),
 				blockParams(WritingMode.TB));
-		final FloatFragmentSplit result = deferred.splitFloatFragment(3, 100, BreakMode.DEFAULT_BREAK_MODE,
+		final FloatFragmentSplit result = deferred.splitFloatFragment(3, 100, BreakMode.AutoBreakMode.DEFAULT,
 				IPageBreakableBox.FLAGS_SPLIT);
 		final PreparedFloatFragment fragment = ((FloatFragmentSplit.Prepared) result).fragment();
 		fragment.materialize();

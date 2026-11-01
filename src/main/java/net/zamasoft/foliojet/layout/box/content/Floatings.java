@@ -333,7 +333,7 @@ public class Floatings {
 				// to the receiving Floating (construction uses the same continueFragment
 				// as the old immediate path).
 				final net.zamasoft.foliojet.layout.box.AbstractBlockBox containerBox = (net.zamasoft.foliojet.layout.box.AbstractBlockBox) floating.box;
-				switch (containerBox.splitFloatFragment(floating.serial, innerLimit, BreakMode.DEFAULT_BREAK_MODE,
+				switch (containerBox.splitFloatFragment(floating.serial, innerLimit, BreakMode.AutoBreakMode.DEFAULT,
 						splitFlags)) {
 				case net.zamasoft.foliojet.layout.fragment.FloatFragmentSplit.Keep keep -> {
 					sourceSide.add(floating);

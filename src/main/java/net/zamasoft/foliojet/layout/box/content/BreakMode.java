@@ -17,6 +17,13 @@ public abstract class BreakMode {
 	 * An automatic page break at the specified line.
 	 */
 	public static class AutoBreakMode extends BreakMode {
+		/**
+		 * The mode of no particular box. It is here and not on {@link BreakMode} because a parent's initializer must
+		 * not create its subclass: a thread initializing this class would hold it and wait for the parent, while a
+		 * thread come through {@link ForceBreakMode} held the parent and waited for this class (2026-11-01).
+		 */
+		public static final AutoBreakMode DEFAULT = new AutoBreakMode();
+
 		public final IBox box;
 
 		/**
@@ -110,8 +117,6 @@ public abstract class BreakMode {
 		}
 	};
 
-	public static AutoBreakMode DEFAULT_BREAK_MODE = new AutoBreakMode();
-
 	/**
 	 * How far monolithic content kept at the start of a page runs past the page break's cut line (2026-10-08). The cut
 	 * line excludes the footnotes reserved on the page; content kept past it (a figure with its own call on the same
@@ -170,7 +175,7 @@ public abstract class BreakMode {
 	 */
 	public static BreakMode absorbColumn(final BreakMode mode, final int columnCount) {
 		if (columnCount > 1 && mode instanceof ColumnBreakMode column) {
-			return column.box == null ? DEFAULT_BREAK_MODE : new AutoBreakMode(column.box, column.fragmentCapacity);
+			return column.box == null ? AutoBreakMode.DEFAULT : new AutoBreakMode(column.box, column.fragmentCapacity);
 		}
 		return mode;
 	}

@@ -2244,7 +2244,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			flow.flexTextPlaced = true;
 		}
 		this.textBuilder = new TextBuilder(this, breakToken);
-		this.breakToken = BreakToken.MID_FLOW;
+		this.breakToken = BreakToken.MidFlow.UNKNOWN;
 
 		double localPageAxis = this.pageAxis - flow.pageAxis;
 		flow.box.addFlow(this.textBuilder.textBlockBox, localPageAxis);
@@ -2499,7 +2499,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			return false;
 		}
 		final Flow flow = this.getFlow();
-		this.breakToken = BreakToken.MID_FLOW;
+		this.breakToken = BreakToken.MidFlow.UNKNOWN;
 		flow.box.addFlow(block, this.pageAxis - flow.pageAxis);
 		this.pageAxis += pageAdvance;
 		if (endsMargins) {

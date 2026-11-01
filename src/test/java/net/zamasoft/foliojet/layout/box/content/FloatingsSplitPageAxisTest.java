@@ -243,7 +243,7 @@ public class FloatingsSplitPageAxisTest extends TestCase {
 		assertEquals(1, box.splitCalls);
 		assertEquals(60.0, box.seenPageLimit, 0);
 		assertEquals(IPageBreakableBox.FLAGS_SPLIT, box.seenFlags);
-		assertSame(BreakMode.DEFAULT_BREAK_MODE, box.seenMode);
+		assertSame(BreakMode.AutoBreakMode.DEFAULT, box.seenMode);
 	}
 
 	/** Matrix: mixed MOVE+SPLIT+KEEP (combines prefix transfer, SPLIT, and KEEP). */
