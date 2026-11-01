@@ -1970,6 +1970,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §150, as §143: on 60x60 pt vertical-lr paper a float holds a table with a nested table, 130 pt along the line
 			// (T24 at y = 127 pt, Chrome's screen 122 pt; its print leaves T4, T23 and T24 out on 3 pages as well).
 			new IndividualExclusion(54_368_591, "fit-v1", 1_992_649_937,
+					"作者の溢れ: 紙より長い入れ子の表が行の向きに紙の2倍超、floatの中で紙の下の外(Chromeも)", "2026-11-01"),
+			// Triage §151, as §150: on 60x60 pt vertical-lr paper a float holds tables nested three deep, 142 pt along the line
+			// (T27 at y = 132 pt on page 1; Chrome's screen has T8 at 114 pt to Copper's 119 pt).
+			new IndividualExclusion(54_721_231, "fit-v1", 2_079_944_939,
 					"作者の溢れ: 紙より長い入れ子の表が行の向きに紙の2倍超、floatの中で紙の下の外(Chromeも)", "2026-11-01"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
