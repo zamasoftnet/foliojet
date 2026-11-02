@@ -18,6 +18,7 @@ import net.zamasoft.foliojet.layout.box.TextShapeStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
 import net.zamasoft.foliojet.layout.box.IFlowBox;
 import net.zamasoft.foliojet.layout.box.IFramedBox;
+import net.zamasoft.foliojet.layout.box.IPageBreakableBox;
 import net.zamasoft.foliojet.layout.box.impl.PageBox;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.box.params.TypesettingMode;
@@ -111,6 +112,13 @@ public class ColumnsContainer implements Container {
 			}
 		}
 		return end;
+	}
+
+	/** Whether the last column has floats and nothing else, in a wrapper or not. */
+	public final boolean lastColumnHoldsFloatsAlone() {
+		final FlowContainer last = this.getLastColumn();
+		return LayoutUtils.compare(last.getContentSize(), 0) <= 0
+				&& LayoutUtils.compare(last.nestedFloatingPageEnd(), 0) > 0;
 	}
 
 	public void addFlow(IFlowBox box, double pageAxis) {
@@ -318,6 +326,10 @@ public class ColumnsContainer implements Container {
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(final double pageLimit,
 			final BreakMode mode, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnsSplitAttempt();
+		if (plan == null && mode instanceof BreakMode.AutoBreakMode && this.overrunsBeforeLastColumn(pageLimit)
+				&& !net.zamasoft.foliojet.layout.fragment.OpenBoxes.isOpen(this.box)) {
+			this.fill(this.box.layOutInOneStack(this), pageLimit, flags);
+		}
 		final FlowContainer lastColumn = this.getLastColumn();
 		final net.zamasoft.foliojet.layout.fragment.ContainerCut cut = lastColumn.splitPageAxis(pageLimit, mode,
 				flags, plan);
@@ -327,6 +339,45 @@ public class ColumnsContainer implements Container {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnMoveCandidate();
 		}
 		return cut;
+	}
+
+	/** Whether a column before the last runs past {@code pageLimit}: a cut goes through the last column only. */
+	private boolean overrunsBeforeLastColumn(final double pageLimit) {
+		if (LayoutUtils.compare(pageLimit, 0) <= 0) {
+			return false;
+		}
+		for (int i = 0; i < this.columns.size() - 1; ++i) {
+			if (LayoutUtils.compare(this.columns.get(i).getContentSize(), pageLimit) > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Fills the columns from {@code stack}, one stack of this box's contents, up to {@code capacity} each, and leaves
+	 * the rest in the last column (2026-11-02). A multicol taller than the fragmentainer used to keep its height, and
+	 * a page break cuts the last column only: what the earlier columns held past the cut ran off the paper. This works
+	 * without a page context, where a column break cannot resume ({@code BreakableBuilder.columnBreak}), so it takes
+	 * cuts of the stack; what a cut leaves has lost its positions and goes through another layout.
+	 *
+	 * @param flags the flags of the box for the first cut
+	 */
+	public void fill(FlowContainer stack, final double capacity, final byte flags) {
+		this.columns.clear();
+		final BreakMode mode = BreakMode.AutoBreakMode.withCapacity(capacity);
+		for (int i = 1; i < this.box.getColumnCount(); ++i) {
+			final byte cutFlags = i == 1 ? (byte) (flags & ~IPageBreakableBox.FLAGS_LAST) : IPageBreakableBox.FLAGS_FIRST;
+			final Container rest = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) stack
+					.splitPageAxis(capacity, mode, cutFlags, null)).container();
+			if (rest == null || rest == stack) {
+				break;
+			}
+			((FlowContainer) rest).setBox(this.box);
+			this.columns.add(stack);
+			stack = this.box.layOutInOneStack(rest);
+		}
+		this.columns.add(stack);
 	}
 
 	public FloatTransferResult splitFloatings(FloatTransferTarget target, double pageLimit, byte flags) {

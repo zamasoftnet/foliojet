@@ -144,7 +144,7 @@ public class FloatProgressGuardTest extends TestCase {
 	 * seed 37576227 cut down; since 8abc2bb0). A float with a min-size of 80pt on 40pt pages holds a multicol with a
 	 * column flex of 98pt and a float in it; each resume broke again, 10 to 20 times lower and lower and then higher
 	 * again, so the count over the lower of the last two breaks went back to 0 at every wave and the guard fired only
-	 * after about 100 nested breaks (59 s). Counted over the least cursor of the run, it fires after 32: five pages,
+	 * after about 100 nested breaks (59 s). Counted over the least cursor of the run, it fires after 32: three pages,
 	 * each text drawn once.
 	 */
 	public void testCursorInLongWaves() throws Exception {
@@ -180,7 +180,7 @@ public class FloatProgressGuardTest extends TestCase {
 		for (final String text : new String[] { "T187", "T189", "T197", "T198" }) {
 			assertEquals(text + " drawn once", 1, count(all, "Text[\"" + text + "\""));
 		}
-		assertEquals("pages", 5, pages.length);
+		assertEquals("pages", 3, pages.length);
 	}
 
 	private static int count(final StringBuilder text, final String part) {

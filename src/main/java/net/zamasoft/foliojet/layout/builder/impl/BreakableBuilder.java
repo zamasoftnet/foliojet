@@ -899,10 +899,42 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		}
 	}
 
+	/** Whether the open column of a multicol holds floats that run past the page. */
+	private boolean floatsPastPage(final Flow flow) {
+		final net.zamasoft.foliojet.layout.box.content.Container owner = flow.box.getContainer();
+		final net.zamasoft.foliojet.layout.box.content.FlowContainer column = owner instanceof net.zamasoft.foliojet.layout.box.content.ColumnsContainer columns
+				? columns.getLastColumn()
+				: owner instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer flows ? flows : null;
+		if (column == null) {
+			return false;
+		}
+		// In a wrapper only with no lines: a block with content in the column has its own breaks to come (a float in one
+		// reached by this loop was laid out again and again and its text drawn 11 times, FloatProgressGuardTest)
+		final double floatsEnd = LayoutUtils.compare(column.getContentSize(), 0) <= 0 ? column.nestedFloatingPageEnd()
+				: column.floatingPageEnd();
+		return LayoutUtils.compare(flow.pageAxis + floatsEnd, this.getPageLimit()) > 0;
+	}
+
 	private void endBreakableFlowBlock() {
 		this.requireNoOpenTextBuilder("(no context)");
 		assert !this.flowStack.isEmpty();
 		Flow flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
+
+		// Floats in a multicol are placed in the coordinates of the one band before the columns (classifyFloatPlacement)
+		// and only a line below them reaches a break: a multicol ending in floats past the page stayed on it, off the
+		// paper (2026-11-02). Do what that line would do.
+		while (this.mode != MODE_NO_BREAK && this.breakDepth == -1 && flow.box.getColumnCount() > 1
+				&& this.floatsPastPage(flow)) {
+			this.checkAbort();
+			this.pageAxis = this.getPageLimit() + 1;
+			if (!this.autoBreak()) {
+				break;
+			}
+			if (this.textBuilder != null) {
+				this.endTextBlock();
+			}
+			flow = (Flow) this.flowStack.get(this.flowStack.size() - 1);
+		}
 
 		if (this.breakDepth == -1 && flow.box.canColumnBreak()) {
 			// Break the page if the bottom border of the multi-column layout extends beyond the page.

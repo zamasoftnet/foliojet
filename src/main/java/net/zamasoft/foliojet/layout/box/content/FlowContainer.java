@@ -714,6 +714,13 @@ public class FlowContainer implements Container {
 		// (2026-10-09, sweep defect R2, seed 12679054). The capacity search counts only the flows, so a multicol
 		// holding only floats got the least capacity and stayed where the rest of the page was too small for them:
 		// a vertical-lr float in vertical-rl columns ran 133pt off the page. With the floor, the multicol moves on.
+		//
+		// Columns of floats alone have nothing for the capacity search to cut: they are one column as tall as the floats,
+		// which the box holds as a formatting context does (2026-11-02). At no height, what follows the multicol went
+		// beside the floats, and a second multicol took the width they left.
+		if (!this.hasFlows()) {
+			return this.floatingPageEnd();
+		}
 		final WritingMode outer = this.box.getBlockParams().flow;
 		double floor = 0;
 		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
@@ -790,6 +797,35 @@ public class FlowContainer implements Container {
 		for (int i = 0; i < this.floatings.getCount(); ++i) {
 			final Floating floating = this.floatings.getFloating(i);
 			end = Math.max(end, floating.pageAxis + floating.box.getPageExtent(flow));
+		}
+		return end;
+	}
+
+	/**
+	 * Where the floats of this container and of the plain blocks in its flows end, whichever is farthest (2026-11-02):
+	 * a multicol of floats in a wrapper holds them no less than one that holds them directly.
+	 */
+	public double nestedFloatingPageEnd() {
+		final WritingMode outer = this.box.getBlockParams().flow;
+		double end = 0;
+		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
+		final Deque<Double> offsets = new ArrayDeque<Double>();
+		containers.push(this);
+		offsets.push(0.0);
+		while (!containers.isEmpty()) {
+			final FlowContainer container = containers.pop();
+			final double offset = offsets.pop();
+			end = Math.max(end, offset + container.floatingPageEnd());
+			if (container.flows == null) {
+				continue;
+			}
+			for (final Flow flow : container.flows) {
+				if (flow.box instanceof FlowBlockBox block && block.getBlockParams().flow == outer
+						&& block.getContainer() instanceof FlowContainer inner) {
+					containers.push(inner);
+					offsets.push(offset + flow.pageAxis + block.getFrame().getFramePageStart(outer));
+				}
+			}
 		}
 		return end;
 	}

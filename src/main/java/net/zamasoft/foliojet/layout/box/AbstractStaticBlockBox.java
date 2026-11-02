@@ -621,6 +621,10 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		return type == PosType.INLINE || type == PosType.FLOAT || type == PosType.ABSOLUTE;
 	}
 
+	private boolean orthogonalTo(final AbstractContainerBox containerBox) {
+		return containerBox.getBlockParams().flow.isVertical() != this.params.flow.isVertical();
+	}
+
 	/**
 	 * Derives the constraint space for fit-content sizing from the containing context.
 	 * specifiedPageAxis must be determined before this call.
@@ -646,10 +650,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 		final double cPage = (cParams.flow.isVertical() != flow.isVertical())
 				? containerBox.getInnerLineExtent(cParams.flow)
 				: fixedPageBox.getInnerPageExtent(flow);
-		double cLine = table || sizedShrinkToFitRoot(layoutStack, containerBox, flow)
-				? containerBox.getInnerLineExtent(flow)
-				// Same as above (0 in orthogonal flow makes fit-content produce zero width)
-				: layoutStack.getOrthogonalLineBasis(flow);
+		// A column is the containing block of what is in it: a float of width: 90% in three columns was 90% of all three
+		// and ran over the next column (2026-11-02).
+		final boolean inColumn = containerBox.getColumnCount() > 1 && !orthogonalTo(containerBox)
+				&& this.getPos().getType() == PosType.FLOAT;
+		double cLine = inColumn ? containerBox.getLineSize()
+				: table || sizedShrinkToFitRoot(layoutStack, containerBox, flow)
+						? containerBox.getInnerLineExtent(flow)
+						// Same as above (0 in orthogonal flow makes fit-content produce zero width)
+						: layoutStack.getOrthogonalLineBasis(flow);
 		if (LayoutUtils.isNone(cLine) || LayoutUtils.compare(cLine, 0) <= 0) {
 			// Even in a table context, the containing block's inner line-axis size cannot be the basis in orthogonal
 			// flow (the "width" of a body in vertical writing is passed as 0). Using 0 as the line-axis percentage

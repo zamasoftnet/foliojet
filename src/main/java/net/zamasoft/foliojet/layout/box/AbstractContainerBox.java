@@ -358,6 +358,22 @@ public abstract class AbstractContainerBox extends AbstractBox
 				: 0;
 	}
 
+	/**
+	 * Lays {@code content} out again as one stack at this box's line size, with no page context, and returns the stack.
+	 * This box's container stays as it was.
+	 */
+	public final FlowContainer layOutInOneStack(final Container content) {
+		final Container owner = this.container;
+		final FlowContainer stack = new FlowContainer();
+		stack.setBox(this);
+		this.container = stack;
+		final ColumnBuilder builder = new ColumnBuilder(null, this);
+		content.restyle(builder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
+		builder.finish();
+		this.container = owner;
+		return stack;
+	}
+
 	public final void balance(final BlockBuilder builder) {
 		this.balance(builder, Double.NaN, Double.NaN);
 	}
@@ -370,6 +386,17 @@ public abstract class AbstractContainerBox extends AbstractBox
 		final Container oldCont = this.container;
 
 		final int acc = this.getActualColumnCount();
+		if (oldCont instanceof ColumnsContainer columns && columns.lastColumnHoldsFloatsAlone()) {
+			// The flows that balancing measures say nothing of the floats, and laid out again they all went back to the
+			// first column (2026-11-02). They stay, cut where the page cut them.
+			final double end = Math.max(this.minPageAxis, columns.longestColumnEnd());
+			if (this.getBlockParams().flow.isVertical()) {
+				this.maxPageAxis = this.width = end;
+			} else {
+				this.maxPageAxis = this.height = end;
+			}
+			return;
+		}
 		final int columnCount = this.getColumnCount();
 		final boolean vertical = this.getBlockParams().flow.isVertical();
 		double pageSize;
@@ -428,6 +455,12 @@ public abstract class AbstractContainerBox extends AbstractBox
 			if (!replayed) {
 				oldCont.restyle(columnBuilder, net.zamasoft.foliojet.layout.fragment.OpenShape.CLOSED, true);
 			}
+		}
+		if (root == null && this.container instanceof FlowContainer stack) {
+			final ColumnsContainer columns = new ColumnsContainer(stack);
+			columns.setBox(this);
+			this.container = columns;
+			columns.fill(stack, pageSize, net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_FIRST);
 		}
 		// The box ends at its longest column (2026-10-23). The one-shot estimate for columns already built counts the
 		// space left at the end of a full column (where the next block did not fit) as content: in a two-column A4

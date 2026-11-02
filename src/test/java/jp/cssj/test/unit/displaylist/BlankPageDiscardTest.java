@@ -237,7 +237,8 @@ public class BlankPageDiscardTest extends TestCase {
 		final Pages pages = convert("auto-trailing", AUTO_TRAILING);
 		pages.assertNoBlank();
 		pages.assertTokens(19);
-		assertEquals("auto-trailing: ページ数", 1, pages.count());
+		// 2026-11-02: the columns in the float go on to a second page, with T15 and T16, whose digits ran off the paper.
+		assertEquals("auto-trailing: ページ数", 2, pages.count());
 	}
 
 	public void testAutomaticMidDocumentBlankPageIsNotEmitted() throws Exception {

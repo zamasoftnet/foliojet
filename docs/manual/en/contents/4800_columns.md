@@ -256,11 +256,10 @@ It can span the columns of a multi-column layout inside the flex or grid item.
 When multi-column content extends beyond the end of the page, a column break occurs if possible; otherwise, a page break occurs.
 For example, within a three-column element, overflow in the first or second column causes a column break, while overflow in the third causes a page break.
 Column breaks split content in the same way as page breaks.
-Floating boxes inside a multi-column element, however, are not split by columns: a floating box taller than the rest of
-the page stays in the last column and can overflow the page.
+Floating boxes inside a multi-column element are also split by column and page breaks when they do not fit in the rest of the page.
 
-Page breaks occur within floating boxes and table cells,
-but not within floating boxes or table cells that have a multi-column layout. They also do not occur within boxes with a specified height.
+Multi-column layouts inside floating boxes, table cells and grid items also break across pages.
+The columns are laid out again on each page, so a long one takes more time.
 In a box with a specified height, even when the last column fills up,
 a column break occurs instead of a page break, so the actual number of columns may exceed the specified count.
 
