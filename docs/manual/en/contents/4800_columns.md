@@ -246,6 +246,9 @@ Spanning all columns interrupts the multi-column layout at that point. If an anc
 However, the columns immediately before the spanning element are balanced regardless of the
 <span class="cssprop">column-fill</span> setting.
 
+An element inside a flex or grid container cannot span the columns of a multi-column layout outside that container (it stays in one column).
+It can span the columns of a multi-column layout inside the flex or grid item.
+
 ### Column breaks and page breaks
 
 #### Automatic column breaks and page breaks

@@ -16,6 +16,15 @@ public interface LayoutStack {
 
 	public AbstractContainerBox getMulticolumnBox();
 
+	/**
+	 * Returns the multi-column box that a {@code column-span: all} box in the current flow spans (2026-11-01): the nearest
+	 * one, unless a flex or grid container lies between, which leaves the box in one column as in Chrome (the box is not
+	 * in the multi-column box's formatting context). An item is first laid out by a builder of its own, which sees no
+	 * multi-column box, and its remainder by the page's builder, which does: a heading spanned on some pages only and
+	 * overprinted the item's lines. Null when the box spans nothing.
+	 */
+	public AbstractContainerBox getSpannedMulticolumnBox();
+
 	public double getFixedWidth();
 
 	public double getFixedHeight();

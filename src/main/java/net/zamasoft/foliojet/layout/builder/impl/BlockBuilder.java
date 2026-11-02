@@ -650,6 +650,22 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return null;
 	}
 
+	public AbstractContainerBox getSpannedMulticolumnBox() {
+		if (this.flowStack != null) {
+			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
+				final AbstractContainerBox box = ((Flow) this.flowStack.get(i)).box;
+				if (box.getColumnCount() > 1) {
+					return box;
+				}
+				if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
+						|| box instanceof net.zamasoft.foliojet.layout.box.impl.GridBox) {
+					return null;
+				}
+			}
+		}
+		return null;
+	}
+
 	/**
 	 * Returns the first box with position specified between the current flow and root.
 	 *

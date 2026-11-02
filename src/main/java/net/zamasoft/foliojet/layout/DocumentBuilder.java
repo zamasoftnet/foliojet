@@ -818,7 +818,7 @@ public class DocumentBuilder implements TableBuilderHost {
 
 	private void startColumnSpan(FlowPos pos) {
 		final Builder builder = this.containerBuilder().builder;
-		if (builder.getMulticolumnBox() == null) {
+		if (builder.getSpannedMulticolumnBox() == null) {
 			return;
 		}
 
@@ -847,6 +847,10 @@ public class DocumentBuilder implements TableBuilderHost {
 		for (;;) {
 			final AbstractBlockBox blockBox = (AbstractBlockBox) builder.getFlowBox();
 			flows.add(blockBox);
+			// What is laid out so far is all this box keeps: the rest of its element goes to the box endColumnSpan opens.
+			// Its source range holds that rest too, and where the range is already complete (a multicol in a flex or grid
+			// item or a cell, laid out from its record) balancing replayed it all and printed it twice (2026-11-01).
+			blockBox.invalidateSourceReplay();
 			if (blockBox.getColumnCount() > 1) {
 				final BlockParams colParams = blockBox.getBlockParams();
 				final Columns oldColumns = colParams.columns;

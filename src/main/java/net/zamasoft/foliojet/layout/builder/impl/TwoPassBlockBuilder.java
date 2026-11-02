@@ -607,6 +607,22 @@ public class TwoPassBlockBuilder implements Builder, LayoutStack, TwoPass {
 		return null;
 	}
 
+	public AbstractContainerBox getSpannedMulticolumnBox() {
+		if (this.flowStack != null) {
+			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
+				final AbstractContainerBox box = (AbstractContainerBox) this.flowStack.get(i);
+				if (box.getColumnCount() > 1) {
+					return box;
+				}
+				if (box instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
+						|| box instanceof net.zamasoft.foliojet.layout.box.impl.GridBox) {
+					return null;
+				}
+			}
+		}
+		return null;
+	}
+
 	public AbstractContainerBox getRootBox() {
 		return (AbstractContainerBox) this.flowStack.get(0);
 	}
