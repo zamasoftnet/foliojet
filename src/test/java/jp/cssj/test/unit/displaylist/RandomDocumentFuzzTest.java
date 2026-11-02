@@ -1990,7 +1990,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §160, the author's overflow: on a 60 pt vertical-lr sheet a table in a grid item takes 95 pt along the line from y=40, Chrome the same
 			// (T21 at y=123, Copper 124). tableColumnBeyondPage does not look inside grid items. On 60x140 pt both give the same two pages, all on the paper.
 			new IndividualExclusion(61_070_234, "standard", 61_070_234,
-					"作者の溢れ: gridの項目の中の表が紙の行長の1.6倍で後ろの字が紙の外(Chromeも同じ位置)", "2026-11-02"));
+					"作者の溢れ: gridの項目の中の表が紙の行長の1.6倍で後ろの字が紙の外(Chromeも同じ位置)", "2026-11-02"),
+			// Triage §162, the author's overflow: a box of width 129pt in vertical-rl holds a flex 725pt wide in Chrome (T70 at x=-757, Copper -534): it grows to the left
+			// of the box, off the paper however wide the paper is. The same before the fixes of §161 (1bc81c38).
+			new IndividualExclusion(62_285_877, "fit-v1", 719_296_485,
+					"作者の溢れ: 幅129ptの縦組みの箱の中のflexが左へ伸びて紙の外(Chromeも、紙の幅によらない)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
