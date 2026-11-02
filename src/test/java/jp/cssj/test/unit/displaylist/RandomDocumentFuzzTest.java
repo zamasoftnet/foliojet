@@ -1994,7 +1994,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §162, the author's overflow: a box of width 129pt in vertical-rl holds a flex 725pt wide in Chrome (T70 at x=-757, Copper -534): it grows to the left
 			// of the box, off the paper however wide the paper is. The same before the fixes of §161 (1bc81c38).
 			new IndividualExclusion(62_285_877, "fit-v1", 719_296_485,
-					"作者の溢れ: 幅129ptの縦組みの箱の中のflexが左へ伸びて紙の外(Chromeも、紙の幅によらない)", "2026-11-02"));
+					"作者の溢れ: 幅129ptの縦組みの箱の中のflexが左へ伸びて紙の外(Chromeも、紙の幅によらない)", "2026-11-02"),
+			// Triage §163, the author's overflow: a table of nested tables in a vertical-lr float, 316pt long at its min-content on a line of 130pt. Chrome has it about 310pt long on
+			// tall paper and off the 150pt paper too (T20, T23, T24, T27, T28 lost). The same before the fixes of 19163 (2bb7e641).
+			new IndividualExclusion(63_110_376, "fit-v1", 1_805_211_365,
+					"作者の溢れ: 縦組みのfloatの中の表の長さ316ptが紙の高さ150ptより長い(Chromeも紙の外、高い紙で同じ長さ)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
