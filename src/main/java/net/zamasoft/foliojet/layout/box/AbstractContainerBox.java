@@ -374,6 +374,27 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return stack;
 	}
 
+	/** Which fragment of its multicol this box is, and how long the columns were in the one before and in this one. */
+	protected int columnFragment = 0;
+	protected double columnsBefore = Double.POSITIVE_INFINITY, columnsHere = Double.POSITIVE_INFINITY;
+
+	/**
+	 * Whether the columns are shorter than the fragment before had them (2026-11-03). What is cut does not join again, and
+	 * laid out again some of it came out no shorter: a multicol that grew from page to page ran to thousands of pages of
+	 * slices (sweep seed 64388451). Then the page cuts the last column, as it did before it filled them. The first
+	 * fragment says nothing: its columns come from the page, those after it from a layout where no page is known.
+	 */
+	public final boolean columnsShrank(final double extent) {
+		if (this.columnFragment == 0) {
+			return true;
+		}
+		if (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(extent, this.columnsBefore) >= 0) {
+			return false;
+		}
+		this.columnsHere = extent;
+		return true;
+	}
+
 	public final void balance(final BlockBuilder builder) {
 		this.balance(builder, Double.NaN, Double.NaN);
 	}

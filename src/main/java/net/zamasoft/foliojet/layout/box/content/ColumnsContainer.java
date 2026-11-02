@@ -330,7 +330,8 @@ public class ColumnsContainer implements Container {
 			final BreakMode mode, final byte flags, final net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordColumnsSplitAttempt();
 		if (plan == null && mode instanceof BreakMode.AutoBreakMode && this.overrunsBeforeLastColumn(pageLimit)
-				&& !net.zamasoft.foliojet.layout.fragment.OpenBoxes.isOpen(this.box)) {
+				&& !net.zamasoft.foliojet.layout.fragment.OpenBoxes.isOpen(this.box)
+				&& this.box.columnsShrank(this.columnsExtent())) {
 			this.fill(this.box.layOutInOneStack(this), pageLimit, flags);
 		}
 		final FlowContainer lastColumn = this.getLastColumn();
@@ -342,6 +343,15 @@ public class ColumnsContainer implements Container {
 			net.zamasoft.foliojet.layout.fragment.ContinuationStats.recordLastColumnMoveCandidate();
 		}
 		return cut;
+	}
+
+	/** The length of all the columns, what runs past their boxes included: a block of max-height holds less than it paints. */
+	private double columnsExtent() {
+		double extent = 0;
+		for (final Container column : this.columns) {
+			extent += columnEnd(column);
+		}
+		return extent;
 	}
 
 	/** Whether a column before the last runs past {@code pageLimit}: a cut goes through the last column only. */

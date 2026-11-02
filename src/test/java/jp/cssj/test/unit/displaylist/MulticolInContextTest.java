@@ -224,6 +224,41 @@ public class MulticolInContextTest extends TestCase {
 		assertTrue(name + ": 頁が無い", convertPages(name, html, "text/html").size() > 10);
 	}
 
+	/**
+	 * The head of a cut takes its given size back when it is laid out again, so 112pt came to 400pt, one cut after another,
+	 * and the page breaks did not end (sweep seed 64251976).
+	 */
+	public void testGivenSizeIsCutOnce() throws Exception {
+		final String name = "given-size-cut-once";
+		assertTrue(name + ": 頁が増えた", fixture(name, "columns-given-size-in-a-table").size() <= 4);
+	}
+
+	/** Columns that come out no shorter are not filled again: this form ran to 1,018 pages (sweep seed 64388451). */
+	public void testColumnsThatDoNotShrink() throws Exception {
+		final String name = "columns-do-not-shrink";
+		assertTrue(name + ": 頁が増えた", fixture(name, "columns-that-grow-in-a-table").size() < 100);
+	}
+
+	/**
+	 * What a block of max-height paints past its box counts in the length of the columns: taken for no shrinking, it
+	 * left five paragraphs of sixty off the paper.
+	 */
+	public void testMaxHeightBlockInColumnsInACell() throws Exception {
+		final String name = "max-height-in-columns";
+		final String html = document("@page { size: 300pt 100pt } body { font: 8pt/10pt serif }",
+				"<table><tr><td>" + MULTICOL + "<div style='max-height:400pt'>" + paragraphs(60) + "</div></div></td></tr></table>");
+		final List<double[]> found = tokens(name, convertPages(name, html), 2);
+		assertEquals(name + ": 語の数", 60, found.size());
+		for (final double[] token : found) {
+			assertTrue(name + ": 紙の外: T" + (int) token[3] + " y=" + token[1], token[1] < 100);
+		}
+	}
+
+	private static List<String> fixture(final String name, final String file) throws Exception {
+		return convertPages(name, java.nio.file.Files.readString(new File("files/fuzz-repro/" + file + ".html").toPath(),
+				StandardCharsets.UTF_8), "text/html");
+	}
+
 	/** What the inner multicol holds stays on the paper in the columns of the outer one. */
 	public void testLongMulticolInColumnsInACell() throws Exception {
 		final String name = "long-columns-in-columns";

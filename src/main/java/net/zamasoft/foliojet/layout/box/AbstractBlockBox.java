@@ -321,7 +321,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		final double crossExtent = vertical ? this.height : this.width;
 		final net.zamasoft.foliojet.layout.fragment.FragmentState state = this.splitPageState(contentLimit,
 				ownerExtent, columnSpanning, this.shouldPreserveSpecifiedPageSize(container));
-		return this.continueFragment(state, container, crossExtent);
+		final AbstractContainerBox next = this.continueFragment(state, container, crossExtent);
+		next.columnFragment = this.columnFragment + 1;
+		next.columnsBefore = Math.min(this.columnsBefore, this.columnsHere);
+		return next;
 	}
 
 	/**
