@@ -290,6 +290,20 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
+	 * A forced column break in a multicol of definite size, laid out by a {@link ColumnBuilder} (2026-11-02):
+	 * break-after: column worked there, break-before: column did nothing (Chrome breaks). A multicol of auto size
+	 * breaks its first layout in the page's builder; balancing lays it out again as one stack. Past the last column it
+	 * stays in that column: the next one would be off the paper, as the line axis cannot be fragmented.
+	 */
+	private void forceColumnBreakBefore(final PageBreakMode pageBreakBefore) {
+		final AbstractContainerBox multicol = (AbstractContainerBox) this.contextFlow.box;
+		if (pageBreakBefore == PageBreakMode.COLUMN && this.canBreakBefore && multicol.isFixedMulticolumn()
+				&& multicol.getActualColumnCount() < multicol.getColumnCount()) {
+			this.forceBreak(pageBreakBefore);
+		}
+	}
+
+	/**
 	 * Decides page-break-after (2026-08-01: unified the inconsistent switches in
 	 * {@code addBound} and {@code endFlowBlock}). Defer PAGE/COLUMN and same-side
 	 * VERSO/RECTO until the next boundary ({@code breakAfter}); break immediately for
@@ -401,6 +415,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 					// (N2b). If it already has visible ink, retain it as a page.
 					this.namedTransitionBreak();
 				}
+			} else {
+				this.forceColumnBreakBefore(pos.pageBreakBefore);
 			}
 		}
 
@@ -571,6 +587,8 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			if (namedTransition && !forcedBreak) {
 				this.namedTransitionBreak();
 			}
+		} else {
+			this.forceColumnBreakBefore(pageBreakBefore);
 		}
 
 		super.addBound(box);

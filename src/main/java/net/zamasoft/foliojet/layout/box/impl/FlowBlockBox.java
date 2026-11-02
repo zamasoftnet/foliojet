@@ -507,22 +507,12 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	}
 
 	/**
-	 * Whether a percentage min/max page-axis size has a basis in {@code containerBox} (2026-11-02). An absolutely
-	 * positioned box answers {@link #isSpecifiedPageSize} yes but takes its size after its content, so the limit came
-	 * out 0: max-width: 100% with overflow: hidden in vertical writing clipped all the text. It is ignored there. Chrome
-	 * ignores it when the box's own size is auto, and resolves it when it is definite.
-	 */
-	private static boolean hasPercentBasis(final AbstractContainerBox containerBox) {
-		return containerBox.isSpecifiedPageSize() && !(containerBox instanceof AbsoluteBlockBox);
-	}
-
-	/**
 	 * Whether a percentage min/max-height applies (2026-11-02). Only to a box of definite height, the existing intentional
 	 * behavior, and not against a container without a basis: height: 66pt; max-height: 90% in a parent of auto height came
 	 * out 0 high and what followed ran over it (Chrome 66). The page is a basis for the root box, though it says no.
 	 */
 	private boolean resolvesPercentHeightLimit(final AbstractContainerBox containerBox) {
-		return this.isSpecifiedPageSize() && (hasPercentBasis(containerBox) || containerBox instanceof PageBox);
+		return this.isSpecifiedPageSize() && (containerBox.isSpecifiedPageSize() || containerBox instanceof PageBox);
 	}
 
 	public void calculateSize(LayoutStack layoutStack, double xmargin, double lineSize) {
@@ -680,7 +670,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			// (size definiteness), so max-width:90% on a width:66pt (definite) box collapsed to 0
 			// against an indefinite parent width (0) (2026-08-23, v2 sweep seed 2006804).
 			case RELATIVE:
-				if (hasPercentBasis(containerBox)) {
+				if (containerBox.isSpecifiedPageSize()) {
 					minWidth = this.minSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
@@ -692,7 +682,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				minWidth = this.minSize.getWidth();
 				break;
 			case MIXED:
-				if (hasPercentBasis(containerBox)) {
+				if (containerBox.isSpecifiedPageSize()) {
 					minWidth = this.minSize.getWidth() + this.minSize.getWidthRatio() * containerBox.getInnerWidth();
 					break;
 				}
@@ -703,7 +693,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			}
 			switch (this.params.maxSize.getWidthType()) {
 			case RELATIVE:
-				if (hasPercentBasis(containerBox)) {
+				if (containerBox.isSpecifiedPageSize()) {
 					maxWidth = this.params.maxSize.getWidth() * containerBox.getInnerWidth();
 					break;
 				}
@@ -715,7 +705,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 				maxWidth = this.params.maxSize.getWidth();
 				break;
 			case MIXED:
-				if (hasPercentBasis(containerBox)) {
+				if (containerBox.isSpecifiedPageSize()) {
 					maxWidth = this.params.maxSize.getWidth()
 							+ this.params.maxSize.getWidthRatio() * containerBox.getInnerWidth();
 					break;

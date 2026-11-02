@@ -65,8 +65,14 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		return this.pos;
 	}
 
+	/**
+	 * Whether the size is independent of the contents ({@link #getDefinitePageAxis}). It always said yes, while the box
+	 * took its size only after its contents: a percentage in them resolved against 0 and what followed ran over it
+	 * (2026-11-02). Unknown before {@link #shrinkToFit}, so no while its body is recorded. A table's wrapper takes none
+	 * of the table's page-axis sizes, and the table does not wait for the containing block.
+	 */
 	public final boolean isSpecifiedPageSize() {
-		return true;
+		return this.isPageAxisDefinite() && this.params.getType() != ParamsType.TABLE;
 	}
 
 	/**
@@ -197,6 +203,15 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 			this.height = 0;
 		}
 		this.resolveDefinitePageAxis(containerBox);
+		if (this.isSpecifiedPageSize()) {
+			// Before the contents, whose percentages it is the basis of; what overflows does not move that basis.
+			if (vertical) {
+				this.width = this.definitePageAxis;
+			} else {
+				this.height = this.definitePageAxis;
+			}
+			this.maxPageAxis = this.definitePageAxis;
+		}
 		assert !LayoutUtils.isNone(this.width);
 		assert !LayoutUtils.isNone(this.height);
 	}
@@ -264,10 +279,8 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 	 *
 	 * <p>
 	 * Percentage heights (widths in vertical writing) of replaced elements inside use this as their
-	 * basis ({@code LayoutUtils}). The box's page-axis size is finalized after laying out its contents
-	 * and is 0 during layout, so {@code height: 100%} images became 0 and were not drawn
-	 * (images inside frames in a publishing cover template). Do not set the box size itself before
-	 * layout (multi-column layout in vertical writing read that page-axis size and changed column placement).
+	 * basis ({@code LayoutUtils}): an auto size, 0 during layout, made {@code height: 100%} images 0 and
+	 * they were not drawn (images inside frames in a publishing cover template).
 	 * </p>
 	 */
 	private double definitePageAxis = LayoutUtils.NONE;
@@ -285,6 +298,31 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 		return !LayoutUtils.isNone(this.definitePageAxis);
 	}
 
+	/**
+	 * Whether the page-axis size comes from the containing block (a percentage size or limit, or positions at both
+	 * ends), which may still be growing as this box starts: its body waits for the block like one of auto line size
+	 * (2026-11-02, {@code LayoutUtils.needsIntrinsicSizing}).
+	 */
+	public final boolean isPageAxisFromContainer() {
+		final AbsolutePos pos = this.getAbsolutePos();
+		if (pos.fiducial != Fiducial.CONTEXT) {
+			return false;
+		}
+		final WritingMode flow = this.params.flow;
+		if (this.size.getPageType(flow).needsReference() || this.minSize.getPageType(flow).needsReference()
+				|| this.params.maxSize.getPageType(flow).needsReference()) {
+			return true;
+		}
+		if (this.size.getPageType(flow) != LengthType.AUTO) {
+			return false;
+		}
+		final boolean vertical = flow.isVertical();
+		return !LayoutUtils.isNone(vertical ? LayoutUtils.computeInsetsLeft(pos.location, 0)
+				: LayoutUtils.computeInsetsTop(pos.location, 0))
+				&& !LayoutUtils.isNone(vertical ? LayoutUtils.computeInsetsRight(pos.location, 0)
+						: LayoutUtils.computeInsetsBottom(pos.location, 0));
+	}
+
 	private void resolveDefinitePageAxis(final IFramedBox containerBox) {
 		final double cWidth = containerBox.getInnerWidth() + containerBox.getFrame().padding.getFrameWidth();
 		final double cHeight = containerBox.getInnerHeight() + containerBox.getFrame().padding.getFrameHeight();
@@ -296,7 +334,11 @@ public class AbsoluteBlockBox extends AbstractBlockBox implements IAbsoluteBox {
 				: LayoutUtils.computeInsetsTop(pos.location, cHeight);
 		final double end = vertical ? LayoutUtils.computeInsetsRight(pos.location, cWidth)
 				: LayoutUtils.computeInsetsBottom(pos.location, cHeight);
-		if (LayoutUtils.isNone(size) && (LayoutUtils.isNone(start) || LayoutUtils.isNone(end))) {
+		// A containing block of no size yet is no basis for a size from it: the footnote scan binds this body before an
+		// absolutely positioned block has taken its min-height, and a size of 0 would clip what a percentage limit holds.
+		if (LayoutUtils.isNone(size) && (LayoutUtils.isNone(start) || LayoutUtils.isNone(end))
+				|| LayoutUtils.compare(vertical ? cWidth : cHeight, 0) <= 0
+						&& (LayoutUtils.isNone(size) || this.size.getPageType(this.params.flow).needsReference())) {
 			this.definitePageAxis = LayoutUtils.NONE;
 			return;
 		}

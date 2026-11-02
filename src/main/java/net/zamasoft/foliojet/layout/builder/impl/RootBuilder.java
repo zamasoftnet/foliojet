@@ -1978,17 +1978,24 @@ public class RootBuilder extends BreakableBuilder {
 		final java.util.function.DoubleSupplier capacityBase;
 		final java.util.function.DoubleSupplier lineSize;
 		final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner;
+		/**
+		 * The containing block of absolutely positioned boxes in the column: the owner need not be one, and boxes inside
+		 * the column stay open as a column break opens the next one.
+		 */
+		final net.zamasoft.foliojet.layout.box.AbstractContainerBox context;
 		final double lineOrigin;
 		final double pageOrigin;
 
 		FootnoteHost(final java.util.function.Supplier<net.zamasoft.foliojet.layout.box.content.Container> container,
 				final java.util.function.DoubleSupplier capacityBase, final java.util.function.DoubleSupplier lineSize,
 				final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner,
+				final net.zamasoft.foliojet.layout.box.AbstractContainerBox context,
 				final double lineOrigin, final double pageOrigin) {
 			this.container = container;
 			this.capacityBase = capacityBase;
 			this.lineSize = lineSize;
 			this.owner = owner;
+			this.context = context;
 			this.lineOrigin = lineOrigin;
 			this.pageOrigin = pageOrigin;
 		}
@@ -2001,7 +2008,7 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** One page host per document. Bottom floats and fixed bands share only state and use the existing paths. */
 	private final FootnoteHost pageFootnoteHost = new FootnoteHost(
-			() -> this.pageBox.getContainer(), super::getPageLimit, () -> this.pageBox.getLineSize(), null, 0, 0);
+			() -> this.pageBox.getContainer(), super::getPageLimit, () -> this.pageBox.getLineSize(), null, null, 0, 0);
 	/** Current column. Do not reserve space or perform additional scans until a relevant note arrives. */
 	private FootnoteHost columnFootnoteHost;
 	/**
@@ -2046,7 +2053,7 @@ public class RootBuilder extends BreakableBuilder {
 				+ (owner.getActualColumnCount() - 1) * (owner.getLineSize() + owner.getBlockParams().columns.gap);
 		this.columnFootnoteHost = new FootnoteHost(() -> column,
 				() -> this.getPageOwnerLimit() - flow.pageAxis - lastFrame, owner::getLineSize,
-				owner, lineOrigin, flow.pageAxis);
+				owner, builder.contextBoxFrom(builder.getFlowCount() - depth - 1), lineOrigin, flow.pageAxis);
 		if (!this.columnFootnoteCarry.isEmpty() && builder == this && this.isRestyling()
 				&& this.flowStack.size() - 1 == this.columnFootnoteCarryChainIndex) {
 			// Notes carried from the previous page's last column go to the first column of the owner's
@@ -2065,7 +2072,7 @@ public class RootBuilder extends BreakableBuilder {
 	/** Returns carry-over to the page host when a note arrives or the page ends without a column opening. */
 	private void flushColumnFootnoteCarry() {
 		if (this.columnFootnoteCarry.isEmpty()) return;
-		final FootnoteHost carrier = new FootnoteHost(() -> null, () -> 0, () -> 0, null, 0, 0);
+		final FootnoteHost carrier = new FootnoteHost(() -> null, () -> 0, () -> 0, null, null, 0, 0);
 		carrier.pendingFootnotes.addAll(this.columnFootnoteCarry);
 		this.columnFootnoteCarry.clear();
 		this.transferColumnFootnotes(carrier);
@@ -2167,7 +2174,7 @@ public class RootBuilder extends BreakableBuilder {
 
 	/** Scans and finally attaches only in the committed old column. Does not resolve numbers here. */
 	private void attachColumnFootnotes(final FootnoteHost host, final double capacity) {
-		final FootnoteCallScan scan = scanFootnoteCalls(host.container.get(), host.owner, true);
+		final FootnoteCallScan scan = scanFootnoteCalls(host.container.get(), host.context, true);
 		this.columnPageLabels.addAll(scan.labels());
 		int count = 0;
 		double extent = 0;
@@ -4167,22 +4174,34 @@ public class RootBuilder extends BreakableBuilder {
 			final net.zamasoft.foliojet.layout.box.AbstractContainerBox root, final boolean bindAbsolute) {
 		final java.util.ArrayDeque<Object> work = new java.util.ArrayDeque<>();
 		work.push(root);
-		return scanFootnoteCalls(work, bindAbsolute);
+		return scanFootnoteCalls(work, root, bindAbsolute);
 	}
 
 	private static FootnoteCallScan scanFootnoteCalls(final net.zamasoft.foliojet.layout.box.content.Container source,
-			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner, final boolean bindAbsolute) {
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox context, final boolean bindAbsolute) {
 		final java.util.ArrayDeque<Object> work = new java.util.ArrayDeque<>();
-		pushFootnoteChildren(source, owner, bindAbsolute, work);
-		return scanFootnoteCalls(work, bindAbsolute);
+		pushFootnoteChildren(source, context, bindAbsolute, work);
+		return scanFootnoteCalls(work, context, bindAbsolute);
 	}
 
-	private static FootnoteCallScan scanFootnoteCalls(final java.util.ArrayDeque<Object> work, final boolean bindAbsolute) {
+	/** Popped after the children of a containing block: the block in force again. */
+	private record FootnoteScanContext(net.zamasoft.foliojet.layout.box.AbstractContainerBox outer) {
+	}
+
+	private static FootnoteCallScan scanFootnoteCalls(final java.util.ArrayDeque<Object> work,
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox root, final boolean bindAbsolute) {
+		// As in finishLayout: an absolutely positioned box in a block that is not its containing block gets that one, or
+		// a percentage size came from the block, 0 high, and clipped the content (2026-11-02, codex)
+		net.zamasoft.foliojet.layout.box.AbstractContainerBox context = root;
 		final java.util.Set<Long> ids = new java.util.HashSet<>();
 		final java.util.List<net.zamasoft.foliojet.layout.box.impl.FootnoteLabelImage> labels = new java.util.ArrayList<>();
 		boolean contentful = false;
 		while (!work.isEmpty()) {
 			final Object node = work.pop();
+			if (node instanceof FootnoteScanContext end) {
+				context = end.outer();
+				continue;
+			}
 			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractReplacedBox
 					|| node instanceof net.zamasoft.foliojet.layout.box.AbstractLineBox) {
 				contentful = true;
@@ -4199,7 +4218,11 @@ public class RootBuilder extends BreakableBuilder {
 				labels.add(label);
 			}
 			if (node instanceof net.zamasoft.foliojet.layout.box.AbstractContainerBox container) {
-				pushFootnoteChildren(container.getContainer(), container, bindAbsolute, work);
+				if (container.isContextBox()) {
+					work.push(new FootnoteScanContext(context));
+					context = container;
+				}
+				pushFootnoteChildren(container.getContainer(), context, bindAbsolute, work);
 			} else if (node instanceof net.zamasoft.foliojet.layout.box.impl.TableBox table) {
 				// Tables: row groups in header → body → footer order, rows, and original cells
 				// (skip extended cells because they refer to the same box).
@@ -4233,16 +4256,16 @@ public class RootBuilder extends BreakableBuilder {
 		return new FootnoteCallScan(ids, labels, contentful);
 	}
 
-	/** Shares the container entry point. Binds deferred absolute boxes through that container's owner. */
+	/** Shares the container entry point. Binds deferred absolute boxes against {@code context}. */
 	private static void pushFootnoteChildren(final net.zamasoft.foliojet.layout.box.content.Container source,
-			final net.zamasoft.foliojet.layout.box.AbstractContainerBox owner, final boolean bindAbsolute,
+			final net.zamasoft.foliojet.layout.box.AbstractContainerBox context, final boolean bindAbsolute,
 			final java.util.ArrayDeque<Object> work) {
 		source.eachFlowBox(work::push);
 		source.eachFloatingBox(work::push);
 		source.eachAbsoluteBox(box -> {
 			if (!bindAbsolute) return;
 			if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute) {
-				absolute.bindDeferredContent(owner);
+				absolute.bindDeferredContent(context);
 			}
 			work.push(box);
 		});

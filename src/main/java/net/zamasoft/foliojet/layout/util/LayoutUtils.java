@@ -168,7 +168,9 @@ public final class LayoutUtils {
 		}
 		final LengthType lineType = params.size.getLineType(params.flow);
 		if (blockBox.getPos().getType() == PosType.ABSOLUTE) {
-			return lineType != LengthType.ABSOLUTE;
+			return lineType != LengthType.ABSOLUTE
+					|| blockBox instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
+							&& absolute.isPageAxisFromContainer();
 		}
 		if (net.zamasoft.foliojet.layout.sizing.CyclicPercent.active()
 				&& (lineType == LengthType.RELATIVE || lineType == LengthType.MIXED)) {
@@ -854,8 +856,8 @@ public final class LayoutUtils {
 
 	/**
 	 * Containing block's inner page-axis size used as the percentage-size reference for replaced elements
-	 * (2026-10-04). An absolutely positioned box determines its page-axis size after laying out its content,
-	 * and its inner size is zero during layout, so use a size determined independently of the content
+	 * (2026-10-04). An absolutely positioned box of auto size has only the content so far as its inner size
+	 * during layout, so use a size determined independently of the content
 	 * (if unavailable, resolve as NONE=auto). Using the inner size directly as the reference made
 	 * {@code height: 100%} images zero-sized and invisible.
 	 */

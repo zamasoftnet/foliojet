@@ -619,13 +619,16 @@ public class BlockBuilder implements Builder, LayoutContext {
 	 * Returns the first box with position specified, starting at the current flow and searching ancestors.
 	 */
 	public AbstractContainerBox getContextBox() {
-		if (this.flowStack != null) {
-			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
-				Flow flow = (Flow) this.flowStack.get(i);
-				AbstractContainerBox box = flow.box;
-				if (box.isContextBox()) {
-					return flow.box;
-				}
+		return this.contextBoxFrom(this.flowStack == null ? -1 : this.flowStack.size() - 1);
+	}
+
+	/** {@link #getContextBox()} from the flow at {@code top} of the stack outward; below 0, from the context flow. */
+	final AbstractContainerBox contextBoxFrom(final int top) {
+		for (int i = top; i >= 0; --i) {
+			Flow flow = (Flow) this.flowStack.get(i);
+			AbstractContainerBox box = flow.box;
+			if (box.isContextBox()) {
+				return flow.box;
 			}
 		}
 		AbstractContainerBox box = this.contextFlow.box;

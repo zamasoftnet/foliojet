@@ -13,6 +13,8 @@ public class ColumnBuilder extends BreakableBuilder {
 
 	public ColumnBuilder(LayoutStack layoutStack, AbstractContainerBox contextBox) {
 		super(layoutStack, contextBox, MODE_AUTO);
+		// A forced break on the first child would leave the first column empty (BreakableBuilder.forceColumnBreakBefore)
+		this.canBreakBefore = false;
 	}
 
 	/**
