@@ -1994,7 +1994,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §159, a known limit, not the author's overflow: a vertical-rl flex on a horizontal page holding columns stops at the height of
 			// the paper (150 pt, Chrome 286), its last item past it, so no page break comes; the text below the paper is lost, Chrome has it on page 2.
 			new IndividualExclusion(58_159_393, "fit-v1", 809_201_200,
-					"既知の制限: 横組みの頁の縦組みのflexが段組の項目で紙の高さに止まり字が紙の下(Chromeは次の頁)", "2026-11-02"));
+					"既知の制限: 横組みの頁の縦組みのflexが段組の項目で紙の高さに止まり字が紙の下(Chromeは次の頁)", "2026-11-02"),
+			// Triage §160, the author's overflow: on a 60 pt vertical-lr sheet a table in a grid item takes 95 pt along the line from y=40, Chrome the same
+			// (T21 at y=123, Copper 124). tableColumnBeyondPage does not look inside grid items. On 60x140 pt both give the same two pages, all on the paper.
+			new IndividualExclusion(61_070_234, "standard", 61_070_234,
+					"作者の溢れ: gridの項目の中の表が紙の行長の1.6倍で後ろの字が紙の外(Chromeも同じ位置)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
