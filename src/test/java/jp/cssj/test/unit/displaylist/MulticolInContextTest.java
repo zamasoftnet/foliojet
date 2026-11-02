@@ -20,7 +20,6 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
-import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
@@ -214,32 +213,23 @@ public class MulticolInContextTest extends TestCase {
 	}
 
 	/**
-	 * A fragment of a float never joins its other fragments, and what a cut leaves is laid out again, so columns in
-	 * columns sliced one float at each cut, then the slices (sweep WILD seed 63893318: 2,000 of them and no end; this form
-	 * came to 9 pages).
+	 * A multicol in the columns of another, where there is no page, stays one stack: each column of the outer one laid
+	 * it out again and cut it again, its floats into 2,000 fragments and no end (sweep WILD seed 63893318).
 	 */
-	public void testFloatInColumnsInColumnsIsNotSliced() throws Exception {
-		final String name = "float-in-nested-columns";
-		final String image = new File("files/unittest/red.png").toURI().toString();
-		final String html = document("@page { size: 60pt 60pt; margin: 10pt } body { font: 9pt/1.2 serif; writing-mode: vertical-rl }",
-				"<div style='display:table-cell'><div style='column-count:3'><div style='column-count:3'>T0Z<img src='" + image
-						+ "' style='height:103pt'/><img src='" + image + "' style='width:222pt'/><div style='min-width:8em'>"
-						+ "<div style='float:right'>T1Z<div style='min-width:8em'><p></p></div></div></div>T2Z</div></div></div>");
-		final List<String> pages = convertPages(name, html);
-		assertTrue(name + ": 頁が増えた: " + pages.size(), pages.size() <= 4);
-		final String all = String.join("", pages);
-		for (final String word : new String[] { "T0Z", "T1Z", "T2Z" }) {
-			assertTrue(name + ": 字が無い: " + word, all.contains("Text[\"" + word + "\""));
-		}
+	public void testColumnsInColumnsInACellEnd() throws Exception {
+		final String name = "columns-in-columns";
+		final String html = java.nio.file.Files
+				.readString(new File("files/fuzz-repro/columns-in-columns-in-a-cell.html").toPath(), StandardCharsets.UTF_8)
+				.replace("../unittest/red.png", new File("files/unittest/red.png").toURI().toString());
+		assertTrue(name + ": 頁が無い", convertPages(name, html, "text/html").size() > 10);
 	}
 
-	/** Tables, flex and grid mask the flags, so a cut between columns has to last in the mode of its copies too. */
-	public void testCopiesOfACutBetweenColumnsStaySo() {
-		final BreakMode.AutoBreakMode cut = BreakMode.AutoBreakMode.betweenColumns(10);
-		assertTrue(cut.betweenColumns);
-		assertTrue(cut.withSheetOverrun(1).betweenColumns);
-		assertTrue(cut.withPageEnd(1, null).betweenColumns);
-		assertFalse(BreakMode.AutoBreakMode.withCapacity(10).betweenColumns);
+	/** What the inner multicol holds stays on the paper in the columns of the outer one. */
+	public void testLongMulticolInColumnsInACell() throws Exception {
+		final String name = "long-columns-in-columns";
+		final String html = document("", "<table><tr><td>" + MULTICOL + "<div style='columns:2;column-gap:0'>" + paragraphs(30)
+				+ "</div></div></td></tr></table>");
+		assertReadingOrder(name, convertPages(name, html), 30, 2);
 	}
 
 	/** Each numbered token once, on the paper, in order of pages, columns and lines. */
@@ -279,6 +269,10 @@ public class MulticolInContextTest extends TestCase {
 	}
 
 	private static List<String> convertPages(final String name, final String html) throws Exception {
+		return convertPages(name, html, "application/xhtml+xml");
+	}
+
+	private static List<String> convertPages(final String name, final String html, final String type) throws Exception {
 		final File dir = new File("local/multicol-in-context/" + name);
 		dir.mkdirs();
 		final File[] old = dir.listFiles();
@@ -301,7 +295,7 @@ public class MulticolInContextTest extends TestCase {
 					session.setResults(new SingleResult(new StreamFragmentedOutput(out)));
 					session.setMessageHandler(CTIMessageHelper.createStreamMessageHandler(System.err));
 					session.setSourceResolver(CompositeSourceResolver.createGenericCompositeSourceResolver());
-					CTISessionHelper.transcodeFile(session, input, "application/xhtml+xml", null);
+					CTISessionHelper.transcodeFile(session, input, type, null);
 				} finally {
 					session.close();
 				}

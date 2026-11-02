@@ -1378,10 +1378,7 @@ public class FlowContainer implements Container {
 	 * (always the last flow) propagate to the parent in a WithFrame return value.
 	 */
 	public net.zamasoft.foliojet.layout.fragment.ContainerCut splitPageAxis(double pageLimit, final BreakMode mode,
-			final byte flagsGiven, net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
-		final byte flags = mode instanceof BreakMode.AutoBreakMode auto && auto.betweenColumns
-				? (byte) (flagsGiven | IPageBreakableBox.FLAGS_WHOLE_FLOATS)
-				: flagsGiven;
+			final byte flags, net.zamasoft.foliojet.layout.fragment.BreakPlan plan) {
 		if (plan != null && plan.columnLimit() != null && plan.columnLimit().owner() == this.box) {
 			pageLimit = plan.contentLimit(this.box, pageLimit);
 			// ColumnsContainer delegates to the last column. Subtract once in that column; do not pass it to children.

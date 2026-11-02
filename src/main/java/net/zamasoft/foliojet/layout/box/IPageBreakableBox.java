@@ -65,14 +65,6 @@ public interface IPageBreakableBox extends IBox {
 	public static final byte FLAGS_AVOID_SPENT = 64;
 
 	/**
-	 * The cut goes between two columns of {@code ColumnsContainer.fill} (2026-11-03): a float that crosses it goes on
-	 * whole to the rest. The rest is laid out again and a fragment of a float never joins its other fragments, so each
-	 * cut left one more float for the next cut to slice: 2,000 of them from one float, in columns in columns in a cell.
-	 * Set by {@code FlowContainer} from {@link net.zamasoft.foliojet.layout.box.content.BreakMode.AutoBreakMode#betweenColumns}.
-	 */
-	public static final byte FLAGS_WHOLE_FLOATS = (byte) 128;
-
-	/**
 	 * Splits the box along the page axis (M4-A3: native SplitResult).
 	 *
 	 * @param pageLimit the distance from the box's outer edge (page-axis start) to the split position.

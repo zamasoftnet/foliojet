@@ -457,10 +457,22 @@ public abstract class AbstractContainerBox extends AbstractBox
 			}
 		}
 		if (root == null && this.container instanceof FlowContainer stack) {
-			final ColumnsContainer columns = new ColumnsContainer(stack);
-			columns.setBox(this);
-			this.container = columns;
-			columns.fill(stack, pageSize, net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_FIRST);
+			if (inColumns(builder)) {
+				// A multicol in the columns of another stays one stack (2026-11-03). Each column of the outer one laid it
+				// out again and cut it again, so its floats went into 2,000 fragments and the conversion did not end
+				// (sweep seed 63893318).
+				final double end = Math.max(this.minPageAxis, ColumnsContainer.columnEnd(stack));
+				if (vertical) {
+					this.maxPageAxis = this.width = end;
+				} else {
+					this.maxPageAxis = this.height = end;
+				}
+			} else {
+				final ColumnsContainer columns = new ColumnsContainer(stack);
+				columns.setBox(this);
+				this.container = columns;
+				columns.fill(stack, pageSize, net.zamasoft.foliojet.layout.box.IPageBreakableBox.FLAGS_FIRST);
+			}
 		}
 		// The box ends at its longest column (2026-10-23). The one-shot estimate for columns already built counts the
 		// space left at the end of a full column (where the next block did not fit) as content: in a two-column A4
@@ -468,7 +480,9 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// to a page of their own (cti.li sample, settleRecoveredFootnotes). A capacity too small is left as it was.
 		if (this.container instanceof ColumnsContainer columns) {
 			final double end = Math.max(this.minPageAxis, columns.longestColumnEnd());
-			if (net.zamasoft.foliojet.layout.util.LayoutUtils.compare(end, pageSize) < 0) {
+			// Where no page is known a column break cannot follow, and what the last column holds past the capacity stays in
+			// it: the box holds that too, or the page does not cut it and it runs off the paper (2026-11-03).
+			if (root == null || net.zamasoft.foliojet.layout.util.LayoutUtils.compare(end, pageSize) < 0) {
 				if (vertical) {
 					this.maxPageAxis = this.width = end;
 				} else {
@@ -476,6 +490,18 @@ public abstract class AbstractContainerBox extends AbstractBox
 				}
 			}
 		}
+	}
+
+	/** Whether {@code builder} lays out the contents of a column. */
+	private static boolean inColumns(final BlockBuilder builder) {
+		for (net.zamasoft.foliojet.layout.builder.Builder b = builder; b != null; b = b instanceof BlockBuilder block
+				? block.getParentBuilder()
+				: null) {
+			if (b instanceof net.zamasoft.foliojet.layout.builder.impl.ColumnBuilder) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override

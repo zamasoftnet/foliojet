@@ -106,12 +106,15 @@ public class ColumnsContainer implements Container {
 	public final double longestColumnEnd() {
 		double end = 0;
 		for (final Container column : this.columns) {
-			end = Math.max(end, Math.max(column.getContentSize(), column.paintedPageEnd()));
-			if (column instanceof FlowContainer flows) {
-				end = Math.max(end, flows.floatingPageEnd());
-			}
+			end = Math.max(end, columnEnd(column));
 		}
 		return end;
+	}
+
+	/** Where {@code column} ends, floats and what it paints past its flows included. */
+	public static double columnEnd(final Container column) {
+		final double end = Math.max(column.getContentSize(), column.paintedPageEnd());
+		return column instanceof FlowContainer flows ? Math.max(end, flows.floatingPageEnd()) : end;
 	}
 
 	/** Whether the last column has floats and nothing else, in a wrapper or not. */
@@ -365,7 +368,7 @@ public class ColumnsContainer implements Container {
 	 */
 	public void fill(FlowContainer stack, final double capacity, final byte flags) {
 		this.columns.clear();
-		final BreakMode mode = BreakMode.AutoBreakMode.betweenColumns(capacity);
+		final BreakMode mode = BreakMode.AutoBreakMode.withCapacity(capacity);
 		for (int i = 1; i < this.box.getColumnCount(); ++i) {
 			final byte cutFlags = i == 1 ? (byte) (flags & ~IPageBreakableBox.FLAGS_LAST) : IPageBreakableBox.FLAGS_FIRST;
 			final Container rest = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) stack
