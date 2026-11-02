@@ -60,8 +60,8 @@ public class FramesBeforeBoxTest extends TestCase {
 				+ WORDS + "</div><p>T9</p>")));
 	}
 
-	/** With room on the sheet the box still crosses the cut line after its margin goes: each new cut took the margin again. */
-	public void testOwnMarginGoesOnce() throws Exception {
+	/** With room on the sheet: the margin goes, and the box stands at the start of the page area, past the end of it. */
+	public void testOwnMarginWithRoomOnTheSheet() throws Exception {
 		final File dir = dump("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>@page { size: 140pt 300pt; margin: 20pt }"
 				+ "body { margin: 0; font: 10pt/1.2 serif; writing-mode: vertical-rl } p, div { margin: 0; padding: 0 }</style>"
 				+ "</head><body><div style=\"margin-right: 10pt; writing-mode: horizontal-tb; width: 115pt\">T1</div><p>T9</p>"
@@ -111,12 +111,19 @@ public class FramesBeforeBoxTest extends TestCase {
 		assertEquals(1, pages(dir).length);
 	}
 
-	/** The content of a cell stays with the other cells: only part of a row moved on, for 1pt past the cut line. */
-	public void testCellStaysInItsRow() throws Exception {
+	/** Past the cut line but on the sheet, which the frames after the box move: the row stays where it is. */
+	public void testCellPastTheCutLineOnly() throws Exception {
 		final File dir = dump(page("<table style=\"border-collapse: collapse\"><tr><td style=\"padding: 40pt\">"
 				+ "<div style=\"writing-mode: horizontal-tb; width: 540pt\">" + WORDS + "</div></td><td>T2</td></tr></table>"));
 		assertEquals(1, pageOf(dir, "T1"));
 		assertEquals(1, pageOf(dir, "T2"));
+	}
+
+	/** Chrome moves it too, and with the other cell in the same way the whole row goes. */
+	public void testBoxInACellPastItsPadding() throws Exception {
+		final String cell = "<td style=\"padding: 0 50pt 0 0\"><div style=\"" + BOX + "\">" + WORDS + "</div></td>";
+		assertOnTheSheet(dump(page("<table style=\"border-collapse: collapse\"><tr>" + cell + "</tr></table><p>T9</p>")));
+		assertOnTheSheet(dump(page("<table style=\"border-collapse: collapse\"><tr>" + cell + cell + "</tr></table><p>T9</p>")));
 	}
 
 	private static String page(final String body) {

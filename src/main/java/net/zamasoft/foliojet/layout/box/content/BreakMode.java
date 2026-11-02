@@ -191,15 +191,10 @@ public abstract class BreakMode {
 	}
 
 	/**
-	 * {@link AutoBreakMode#sheetOverrun} where nothing goes on past the frames before it (2026-11-02): in a table row,
-	 * whose cells stay together, and in columns, where the frames of the multi-column box are not cut.
+	 * {@link AutoBreakMode#sheetOverrun} where nothing goes on past the frames before it (2026-11-02): in columns, where
+	 * the frames of the multi-column box are not cut.
 	 */
 	private static final double KEEPS_FLOWS = Double.NEGATIVE_INFINITY;
-
-	/** The page break for the content of a cell ({@link #KEEPS_FLOWS}). */
-	public static BreakMode keepingFlows(final BreakMode mode) {
-		return mode instanceof AutoBreakMode auto ? auto.withSheetOverrun(KEEPS_FLOWS) : mode;
-	}
 
 	/**
 	 * Absorbs a column break that has reached the multi-column box itself,
