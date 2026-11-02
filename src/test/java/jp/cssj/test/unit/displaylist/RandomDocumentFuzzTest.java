@@ -1998,7 +1998,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §163, the author's overflow: a table of nested tables in a vertical-lr float, 316pt long at its min-content on a line of 130pt. Chrome has it about 310pt long on
 			// tall paper and off the 150pt paper too (T20, T23, T24, T27, T28 lost). The same before the fixes of 19163 (2bb7e641).
 			new IndividualExclusion(63_110_376, "fit-v1", 1_805_211_365,
-					"作者の溢れ: 縦組みのfloatの中の表の長さ316ptが紙の高さ150ptより長い(Chromeも紙の外、高い紙で同じ長さ)", "2026-11-02"));
+					"作者の溢れ: 縦組みのfloatの中の表の長さ316ptが紙の高さ150ptより長い(Chromeも紙の外、高い紙で同じ長さ)", "2026-11-02"),
+			// Triage §164, the author's overflow: a table 128pt wide in a vertical-lr float 82pt wide, which a vertical-rl body sets at the right edge of the paper, so the table runs
+			// past the paper to the right and takes all the text with it. Chrome has every word at the same place and none on the paper. The same before the fixes of 19163 (2bb7e641).
+			new IndividualExclusion(63_979_265, "fit-v1", 967_260_226,
+					"作者の溢れ: 幅82ptの縦組みfloatの中の幅128ptの表が紙の右端から外へ出る(Chromeも同じ位置で紙の外)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
