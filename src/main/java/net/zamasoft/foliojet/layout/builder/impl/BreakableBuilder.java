@@ -1181,6 +1181,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				LayoutUtils.compare(pageStart - owner.pageAxis, 0) <= 0);
 	}
 
+	/** How far the sheet reaches past the end of the page area: what overflows that far stays on the paper. */
+	private double sheetPastPageArea() {
+		final RootBuilder root = this.getPageContext();
+		return root == null ? 0
+				: root.getCurrentPageBox().getFrame().getFramePageEnd(this.getRootBox().getBlockParams().flow);
+	}
+
 	/** Effective end applied only to indivisible floats. Normally the fragment end itself. */
 	protected double getUnsplittableFloatPageLimit() {
 		return this.getPageLimit();
@@ -1268,8 +1275,12 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				}
 				return FloatCommitKind.MOVE_TO_NEXT;
 			}
-			if (first) {
-				// Even if indivisible, retain it with overflow when at page start.
+			if (first && (boxType != BoxType.BLOCK
+					|| FloatMeasurement.fitsPageUnsplittable(occupiedEnd, pageLimit + this.sheetPastPageArea())
+					|| !FloatMeasurement.fitsPageUnsplittable(occupiedEnd - pageStart, pageLimit))) {
+				// Even if indivisible, retain it with overflow when at page start. Not a float of text that only the
+				// frames before it keep from an empty page (triage §157): it goes on, or the head of its lines is lost
+				// past the left edge of a vertical page.
 				return FloatCommitKind.PLACED;
 			}
 			// Classify indivisible floats with the **same measure** as page-break-time {@code FloatSplitPlan.classify}:
@@ -1301,6 +1312,10 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				floatBlock.markSplitMakesNoProgress();
 			}
 			return FloatCommitKind.PLACED;
+		}
+		if (first && LayoutUtils.compare(pageStart, 0) > 0
+				&& box instanceof net.zamasoft.foliojet.layout.box.impl.FloatBlockBox floatBlock) {
+			floatBlock.noteSheetOverrun(pageStart - this.sheetPastPageArea(), this.getPageLimit());
 		}
 		// Split only same-axis BLOCK floats (even avoid is splittable at page start).
 		return FloatCommitKind.SPLIT_AT_BREAK;
@@ -1527,9 +1542,9 @@ public abstract class BreakableBuilder extends BlockBuilder {
 
 		final BreakMode mode;
 		if (this.flowStack == null || this.flowStack.size() <= 1) {
-			mode = AutoBreakMode.withCapacity(this.getPageLimit());
+			mode = AutoBreakMode.withCapacity(this.getPageLimit()).withSheetOverrun(-this.sheetPastPageArea());
 		} else {
-			mode = new AutoBreakMode(this.getFlowBox(), this.getPageLimit());
+			mode = new AutoBreakMode(this.getFlowBox(), this.getPageLimit()).withSheetOverrun(-this.sheetPastPageArea());
 			flags |= IPageBreakableBox.FLAGS_LAST;
 		}
 		if (columnBreak != null) {

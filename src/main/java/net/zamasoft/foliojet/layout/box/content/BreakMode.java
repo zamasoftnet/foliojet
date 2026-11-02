@@ -52,6 +52,13 @@ public abstract class BreakMode {
 		 */
 		public final PageEndUse pageEndUse;
 
+		/**
+		 * How far a flow as large as the fragmentainer, cut here at its start, would run past the sheet (2026-11-02): the
+		 * frames of the boxes above it, all at the start, which {@code FLAGS_FIRST} does not count, less what the sheet
+		 * has past the page area. {@link BreakMode#KEEPS_FLOWS} where nothing goes on past those frames.
+		 */
+		public final double sheetOverrun;
+
 		public AutoBreakMode(IBox box) {
 			this(box, -1);
 		}
@@ -62,6 +69,7 @@ public abstract class BreakMode {
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = 0;
 			this.pageEndUse = null;
+			this.sheetOverrun = 0;
 		}
 
 		private AutoBreakMode() {
@@ -69,6 +77,7 @@ public abstract class BreakMode {
 			this.fragmentCapacity = -1;
 			this.footnoteSlack = 0;
 			this.pageEndUse = null;
+			this.sheetOverrun = 0;
 		}
 
 		private AutoBreakMode(final double fragmentCapacity) {
@@ -76,19 +85,26 @@ public abstract class BreakMode {
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = 0;
 			this.pageEndUse = null;
+			this.sheetOverrun = 0;
 		}
 
 		private AutoBreakMode(final IBox box, final double fragmentCapacity, final double footnoteSlack,
-				final PageEndUse pageEndUse) {
+				final PageEndUse pageEndUse, final double sheetOverrun) {
 			this.box = box;
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = footnoteSlack;
 			this.pageEndUse = pageEndUse;
+			this.sheetOverrun = sheetOverrun;
 		}
 
 		/** This page break with {@link #footnoteSlack} and {@link #pageEndUse}. */
 		public AutoBreakMode withPageEnd(final double footnoteSlack, final PageEndUse pageEndUse) {
-			return new AutoBreakMode(this.box, this.fragmentCapacity, footnoteSlack, pageEndUse);
+			return new AutoBreakMode(this.box, this.fragmentCapacity, footnoteSlack, pageEndUse, this.sheetOverrun);
+		}
+
+		/** This page break with {@link #sheetOverrun}. */
+		public AutoBreakMode withSheetOverrun(final double sheetOverrun) {
+			return new AutoBreakMode(this.box, this.fragmentCapacity, this.footnoteSlack, this.pageEndUse, sheetOverrun);
 		}
 
 		/** Whether a monolithic extent at the fragment start fits once the calls of {@link #footnoteSlack} move on. */
@@ -143,11 +159,16 @@ public abstract class BreakMode {
 	 */
 	public static final class ColumnBreakMode extends AutoBreakMode {
 		private ColumnBreakMode(IBox box, final double fragmentCapacity) {
-			super(box, fragmentCapacity);
+			super(box, fragmentCapacity, 0, null, KEEPS_FLOWS);
 		}
 
 		private ColumnBreakMode() {
 			super();
+		}
+
+		@Override
+		public AutoBreakMode withSheetOverrun(final double sheetOverrun) {
+			return this;
 		}
 
 		public String toString() {
@@ -170,12 +191,24 @@ public abstract class BreakMode {
 	}
 
 	/**
+	 * {@link AutoBreakMode#sheetOverrun} where nothing goes on past the frames before it (2026-11-02): in a table row,
+	 * whose cells stay together, and in columns, where the frames of the multi-column box are not cut.
+	 */
+	private static final double KEEPS_FLOWS = Double.NEGATIVE_INFINITY;
+
+	/** The page break for the content of a cell ({@link #KEEPS_FLOWS}). */
+	public static BreakMode keepingFlows(final BreakMode mode) {
+		return mode instanceof AutoBreakMode auto ? auto.withSheetOverrun(KEEPS_FLOWS) : mode;
+	}
+
+	/**
 	 * Absorbs a column break that has reached the multi-column box itself,
 	 * reverting to a normal page break inside it.
 	 */
 	public static BreakMode absorbColumn(final BreakMode mode, final int columnCount) {
 		if (columnCount > 1 && mode instanceof ColumnBreakMode column) {
-			return column.box == null ? AutoBreakMode.DEFAULT : new AutoBreakMode(column.box, column.fragmentCapacity);
+			return column.box == null ? AutoBreakMode.DEFAULT
+					: new AutoBreakMode(column.box, column.fragmentCapacity).withSheetOverrun(KEEPS_FLOWS);
 		}
 		return mode;
 	}

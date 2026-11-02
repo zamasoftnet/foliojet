@@ -1987,10 +1987,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// edge of the paper, so the only text starts at x = 595 pt in both engines; with the indent gone or a right margin added they agree.
 			new IndividualExclusion(57_482_440, "fit-v1", 192_273_820,
 					"作者の溢れ: 縦組みの右端の27ptの箱で30ptの字下げが字を紙の右の外へ(Chromeも)", "2026-11-02"),
-			// Triage §157, a known limit, not the author's overflow: a horizontal box on a vertical page, first on it after margins, counts as at
-			// the page start, and overflowing by under 20 pt is not sliced, so the start of its lines stays off the paper; Chrome shows them.
-			new IndividualExclusion(57_861_579, "fit-v1", 543_284_679,
-					"既知の制限: 余白の後の頁の先頭の横組みの箱が紙の左の外(Chromeは次の頁)", "2026-11-02"),
 			// Triage §159, a known limit, not the author's overflow: a vertical-rl flex on a horizontal page holding columns stops at the height of
 			// the paper (150 pt, Chrome 286), its last item past it, so no page break comes; the text below the paper is lost, Chrome has it on page 2.
 			new IndividualExclusion(58_159_393, "fit-v1", 809_201_200,

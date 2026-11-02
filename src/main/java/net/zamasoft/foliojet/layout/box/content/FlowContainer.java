@@ -1509,6 +1509,16 @@ public class FlowContainer implements Container {
 		// A text block whose first line was pushed below the cut by a float that continues on the next page
 		// (2026-10-07, see the TEXT_BLOCK case)
 		boolean pushedBelowFloat = false;
+		// What only the frames before it keep from fitting (triage §157). FLAGS_FIRST does not count them: a box of
+		// horizontal writing on a vertical page, padded away from the start, lost the head of each line past the left edge
+		// of the sheet, on A4 too.
+		final double sheetOverrun = mode instanceof AutoBreakMode auto
+				? auto.sheetOverrun + this.box.getFrame().getFramePageStart(params.flow)
+				: 0;
+		final BreakMode flowMode = mode instanceof AutoBreakMode auto && (flags & IPageBreakableBox.FLAGS_FIRST) != 0
+				? auto.withSheetOverrun(sheetOverrun)
+				: mode;
+		boolean movedPastFrames = false;
 		// Check from top to bottom.
 		for (int i = lastOrphan; i < this.flows.size(); ++i) {
 			Flow prevFlow = (Flow) this.flows.get(i);
@@ -1580,7 +1590,7 @@ public class FlowContainer implements Container {
 							&& fitsWithoutUncommittedFootnotes(mode, splitLine, unbreakableEnd)) {
 						// The line only overflows the footnotes of calls that this break moves on (2026-10-08): keep
 						// it whole and cut after it.
-						outcome = switch (((IPageBreakableBox) prevFlow.box).split(unbreakableEnd, mode, xflags)) {
+						outcome = switch (((IPageBreakableBox) prevFlow.box).split(unbreakableEnd, flowMode, xflags)) {
 						case SplitResult.Keep keep -> ProbeOutcome.KEEP;
 						case SplitResult.Move move -> moveOutcome;
 						case SplitResult.Split(final IPageBreakableBox remainder) -> new ProbeOutcome.Split(
@@ -1591,6 +1601,11 @@ public class FlowContainer implements Container {
 						break;
 					}
 					if (!LayoutUtils.isNone(unbreakableEnd) && LayoutUtils.compare(splitLine, unbreakableEnd) < 0) {
+						if (fitsPastFramesBefore(mode, sheetOverrun, unbreakableEnd)) {
+							movedPastFrames = true;
+							outcome = moveOutcome;
+							break;
+						}
 						final IFlowBox rescued = this.rescueSplit(i, prevFlow, splitLine, prevPageSize);
 						if (rescued != null) {
 							// On success, rescueSplit has already replaced this.flows[i] with the head fragment;
@@ -1603,7 +1618,7 @@ public class FlowContainer implements Container {
 					}
 				}
 				IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
-				outcome = switch (prevFlowBox.split(splitLine, mode, xflags)) {
+				outcome = switch (prevFlowBox.split(splitLine, flowMode, xflags)) {
 				case SplitResult.Keep keep -> ProbeOutcome.KEEP;
 				case SplitResult.Move move -> moveOutcome;
 				case SplitResult.Split(final IPageBreakableBox remainder) -> new ProbeOutcome.Split(
@@ -1635,7 +1650,7 @@ public class FlowContainer implements Container {
 							throw new IllegalStateException("continuation frame child is not the open-tail flow");
 						}
 						sawChainMember = true;
-						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, mode, xflags,
+						switch (((AbstractBlockBox) prevFlow.box).splitForContinuation(splitLine, flowMode, xflags,
 								plan)) {
 						case SplitResult.Keep keep -> outcome = ProbeOutcome.KEEP;
 						case SplitResult.Move move -> outcome = moveOutcome;
@@ -1654,7 +1669,7 @@ public class FlowContainer implements Container {
 						break;
 					}
 					IPageBreakableBox prevFlowBox = (IPageBreakableBox) prevFlow.box;
-					switch (splitFlow(prevFlowBox, splitLine, mode, xflags, plan)) {
+					switch (splitFlow(prevFlowBox, splitLine, flowMode, xflags, plan)) {
 					case SplitResult.Keep keep -> outcome = ProbeOutcome.KEEP;
 					case SplitResult.Move move -> outcome = moveOutcome;
 					case SplitResult.Split(final IPageBreakableBox remainder) -> outcome = new ProbeOutcome.Split(
@@ -1682,6 +1697,24 @@ public class FlowContainer implements Container {
 					if ((xflags & IPageBreakableBox.FLAGS_FIRST) != 0
 							&& LayoutUtils.compare(splitLine, prevFlowPageSize) < 0
 							&& !fitsWithoutUncommittedFootnotes(mode, splitLine, prevFlowPageSize)) {
+						// The box's own margin goes at the head of a page, as in a browser after a break; the frames of the
+						// boxes above it stay here while the box goes on.
+						final double margin = prevFlow.box.getType() == BoxType.BLOCK
+								? ((AbstractContainerBox) prevFlow.box).getFrame().getMarginPageStart(params.flow)
+								: 0;
+						if (LayoutUtils.compare(margin, 0) > 0 && LayoutUtils.compare(prevFlow.pageAxis, 0) >= 0
+								&& mode instanceof AutoBreakMode auto
+								&& LayoutUtils.compare(sheetOverrun + prevFlowPageSize, auto.fragmentCapacity) > 0
+								&& LayoutUtils.compare(sheetOverrun + prevFlowPageSize - margin, auto.fragmentCapacity) <= 0) {
+							this.flows.set(i, new Flow(prevFlow.serial, prevFlow.box, prevFlow.pageAxis - margin));
+							outcome = ProbeOutcome.KEEP;
+							break;
+						}
+						if (fitsPastFramesBefore(mode, sheetOverrun + margin, prevFlowPageSize - margin)) {
+							movedPastFrames = true;
+							outcome = moveOutcome;
+							break;
+						}
 						// 2026-07-25 (rescue splitting, increment 4/5): "Fragment start,
 						// indivisible, still overflowing" is the sole non-progress point here
 						// currently falling through to drawing with overflow (recommendation §1).
@@ -1707,7 +1740,7 @@ public class FlowContainer implements Container {
 				throw new IllegalStateException(prevFlow.box.toString());
 			}
 
-			if (pushedBelowFloat) {
+			if (pushedBelowFloat || movedPastFrames) {
 				nextBox = this.applyPartition(i, outcome);
 				break;
 			}
@@ -2017,6 +2050,17 @@ public class FlowContainer implements Container {
 		}
 		auto.keptPastCutLine(extent - splitLine);
 		return true;
+	}
+
+	/**
+	 * Whether a monolithic extent at the fragment start runs past the sheet only because of the frames before it: they
+	 * stay in this fragmentainer and it fits the next one, where they do not go on. Measured from the start of the
+	 * fragmentainer and not from the cut line, which a probe of a parent or the frames after it move too. What stays on
+	 * the sheet stays here: a float of the width of the page area behind the body's margin is no reason to break.
+	 */
+	private static boolean fitsPastFramesBefore(final BreakMode mode, final double sheetOverrun, final double extent) {
+		return mode instanceof AutoBreakMode auto && LayoutUtils.compare(sheetOverrun + extent, auto.fragmentCapacity) > 0
+				&& LayoutUtils.compare(extent, auto.fragmentCapacity) <= 0;
 	}
 
 	/** Records a monolithic extent kept at the fragment start that runs past the cut line ({@link AutoBreakMode#pageEndUse}). */

@@ -6,6 +6,7 @@ import java.awt.geom.AffineTransform;
 import net.zamasoft.foliojet.layout.box.AbstractStaticBlockBox;
 import net.zamasoft.foliojet.layout.box.DrawStep;
 import net.zamasoft.foliojet.layout.box.IFloatBox;
+import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.box.content.Container;
 import net.zamasoft.foliojet.layout.box.params.AbstractStaticPos;
 import net.zamasoft.foliojet.layout.box.params.BlockParams;
@@ -36,6 +37,18 @@ public class FloatBlockBox extends AbstractStaticBlockBox implements IFloatBox {
 	 * Both always make progress.
 	 */
 	private boolean splitMakesNoProgress;
+
+	/** The mode to cut it in, if it stands at the fragment start behind the frames of the boxes above it (or null). */
+	private BreakMode.AutoBreakMode overrunMode;
+
+	public final void noteSheetOverrun(final double sheetOverrun, final double fragmentCapacity) {
+		this.overrunMode = BreakMode.AutoBreakMode.withCapacity(fragmentCapacity).withSheetOverrun(sheetOverrun);
+	}
+
+	/** The mode to cut this float in. */
+	public final BreakMode splitMode() {
+		return this.overrunMode == null ? BreakMode.AutoBreakMode.DEFAULT : this.overrunMode;
+	}
 
 	public final void markSplitMakesNoProgress() {
 		this.splitMakesNoProgress = true;

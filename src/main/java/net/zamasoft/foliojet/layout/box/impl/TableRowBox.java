@@ -692,6 +692,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			}
 		}
 		byte xflags = (byte) (flags & (IPageBreakableBox.FLAGS_FIRST | IPageBreakableBox.FLAGS_SPLIT));
+		final BreakMode cellMode = BreakMode.keepingFlows(mode);
 		final double pageWindow = this.pageSize - pageLimit;
 		TableRowBox nextRowBox = null;
 		if ((flags & IPageBreakableBox.FLAGS_SPLIT) != 0) {
@@ -709,7 +710,7 @@ public class TableRowBox extends AbstractInnerTableBox implements IPageBreakable
 			final double cutPageAxis = cellCutPageAxis(cell, pageLimit);
 			// A cell of the other writing mode is cut only with the others (forcedCellRemainder)
 			final SplitResult cellResult = this.isOrthogonal(prevCellBox) ? SplitResult.KEEP
-					: prevCellBox.split(cutPageAxis, mode, xflags);
+					: prevCellBox.split(cutPageAxis, cellMode, xflags);
 			if (cellResult instanceof SplitResult.Split(final IPageBreakableBox cellRemainder)) {
 				if (!(cellRemainder instanceof TableCellBox typedRemainder)) {
 					throw new net.zamasoft.foliojet.layout.fragment.ContinuationInvariantViolationException(

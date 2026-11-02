@@ -1693,8 +1693,10 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final double lineOffset = delta.lineSpan().start();
 		final double pageStart = delta.pageSpan().start();
 		final Flow flow = this.getFlow();
+		// At the fragment start the break would keep it (FloatSplitPlan): the float that goes on past the frames before it
 		final boolean forceMoveFromBottomBand = delta.kind() == FloatCommitKind.MOVE_TO_NEXT
-				&& this instanceof RootBuilder root && root.hasTwoDimensionalBottomFloatLimit();
+				&& this instanceof RootBuilder root
+				&& (root.hasTwoDimensionalBottomFloatLimit() || root.isFloatAtFragmentStart(pageStart));
 		if (forceMoveFromBottomBand
 				&& flow.box.getContainer() instanceof net.zamasoft.foliojet.layout.box.content.FlowContainer container) {
 			container.addFloating(delta.box(), lineOffset - flow.lineAxis, pageStart - flow.pageAxis, true);
