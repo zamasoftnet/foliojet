@@ -230,7 +230,8 @@ final class IntrinsicMeasurer {
 		}
 		final double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow) * this.columnCount;
 		// Save the values before entry and the size this flow itself contributes (used by endFlow).
-		this.flowSizeStack.add(new double[] { this.minLineSize, this.maxLineSize, lineSize });
+		this.flowSizeStack.add(new double[] { this.minLineSize, this.maxLineSize, lineSize, this.maxStartFloatAdvance,
+				this.maxEndFloatAdvance });
 		this.lineFrame += frameAdd * this.columnCount;
 		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
 		this.stackLine();
@@ -316,6 +317,10 @@ final class IntrinsicMeasurer {
 			// this flow itself contributes. **Do not erase sibling sizes** (2026-08-04).
 			this.minLineSize = Math.max(entered[0], entered[2]);
 			this.maxLineSize = Math.max(entered[1], entered[2]);
+			// Nor do its floats widen the lines after it (2026-11-02): a float's content left in its advance went out
+			// through the next line, and a right-aligned line went off the paper. A clear inside it stands, as before.
+			this.maxStartFloatAdvance = Math.min(this.maxStartFloatAdvance, entered[3]);
+			this.maxEndFloatAdvance = Math.min(this.maxEndFloatAdvance, entered[4]);
 		}
 		{
 			// max-width (absolute lengths only) caps what the flow contributes, its frame included (2026-10-09,
@@ -689,37 +694,45 @@ final class IntrinsicMeasurer {
 		// Resolved ledger #1 (2026-07-17): previously, only min in vertical writing added the
 		// page-axis frame (FrameWidth), while max used the line axis. Logical axis
 		// accessors unify both writing modes and use the line-axis frame for both min/max.
-		if (params.size.getLineType(floatFlow) != LengthType.AUTO) {
+		// A percentage refers to the size being measured and counts as auto (CSS Sizing 3 §5.2, as for an inline-block in
+		// control, 2026-11-02): read here, the used width is not known yet, a cell came out 0 wide and a float of width: 90%
+		// in it ran one word to a line.
+		if (params.size.getLineType(floatFlow) == LengthType.ABSOLUTE) {
 			minLineAxis = maxLineAxis = floatingBox.getLineExtent(floatFlow);
-		} else if (params.flow.isVertical() != floatFlow.isVertical()) {
-			// An orthogonal float is as long along the line as it is thick, as in fitBlock, and is laid out on trial to
-			// read its actual extent (2026-10-31, fit sweep seed 52425737: counted by its width, a horizontal float made
-			// the vertical float holding it as tall as that, and floated to its bottom it left the paper). Thick at
-			// least as one line at its max-content size, it still adds up with the floats beside it. Its own min and max
-			// along that axis hold, as for its page axis above (in a table cell it is not laid out on trial).
+		} else {
 			final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
 			this.columnInflated |= childSizes.columnInflated();
 			final double frameLine = floatingBox.getFrame().getFrameLineExtent(floatFlow);
+			if (params.flow.isVertical() != floatFlow.isVertical()) {
+				// An orthogonal float is as long along the line as it is thick, as in fitBlock, and is laid out on trial to
+				// read its actual extent (2026-10-31, fit sweep seed 52425737: counted by its width, a horizontal float made
+				// the vertical float holding it as tall as that, and floated to its bottom it left the paper). Thick at
+				// least as one line at its max-content size, it still adds up with the floats beside it.
+				minLineAxis = maxLineAxis = childSizes.maxContentPage() + frameLine;
+				this.orthogonalContent = true;
+			} else {
+				minLineAxis = childSizes.minContent() + frameLine;
+				maxLineAxis = childSizes.maxContent() + frameLine;
+			}
+			// Its own min and max along that axis hold, as for its page axis above (the root's are not in its intrinsic
+			// sizes, and in a table cell an orthogonal float is not laid out on trial). A min-width left out made its host
+			// narrower than the float, which ran over the next cell or was clipped away (2026-11-02).
 			final boolean vertical = floatFlow.isVertical();
 			final net.zamasoft.foliojet.layout.part.AbsoluteInsets margin = floatingBox.getFrame().margin;
 			final double outside = params.boxSizing == net.zamasoft.foliojet.layout.box.params.BoxSizingMode.CONTENT_BOX
 					? frameLine
 					: vertical ? margin.top + margin.bottom : margin.left + margin.right;
-			double line = childSizes.maxContentPage() + frameLine;
-			if (params.maxSize.getLineType(floatFlow) == LengthType.ABSOLUTE) {
-				line = Math.min(line, (vertical ? params.maxSize.getHeight() : params.maxSize.getWidth()) + outside);
+			if (params.intrinsicMinLine == null && params.maxSize.getLineType(floatFlow) == LengthType.ABSOLUTE) {
+				final double cap = Math.max((vertical ? params.maxSize.getHeight() : params.maxSize.getWidth()) + outside,
+						frameLine);
+				minLineAxis = Math.min(minLineAxis, cap);
+				maxLineAxis = Math.min(maxLineAxis, cap);
 			}
 			if (params.minSize.getLineType(floatFlow) == LengthType.ABSOLUTE) {
-				line = Math.max(line, (vertical ? params.minSize.getHeight() : params.minSize.getWidth()) + outside);
+				final double floor = (vertical ? params.minSize.getHeight() : params.minSize.getWidth()) + outside;
+				minLineAxis = Math.max(minLineAxis, floor);
+				maxLineAxis = Math.max(maxLineAxis, floor);
 			}
-			minLineAxis = maxLineAxis = line;
-			this.orthogonalContent = true;
-		} else {
-			final IntrinsicSizes childSizes = childBuilder.getIntrinsicSizes();
-			this.columnInflated |= childSizes.columnInflated();
-			final double frameLine = floatingBox.getFrame().getFrameLineExtent(floatFlow);
-			minLineAxis = childSizes.minContent() + frameLine;
-			maxLineAxis = childSizes.maxContent() + frameLine;
 		}
 		assert !LayoutUtils.isNone(maxLineAxis);
 		if (minLineAxis > this.minLineSize) {
