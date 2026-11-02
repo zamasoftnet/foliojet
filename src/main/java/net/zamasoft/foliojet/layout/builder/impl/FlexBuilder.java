@@ -1572,7 +1572,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			min = wrap ? Math.max(min, contribution[2] + extra) : min + contribution[0] + extra;
 			max += contribution[1] + extra;
 			minPage = Math.max(minPage, item.sizes.minPage());
-			columnInflated |= item.sizes.columnInflated();
+			columnInflated |= item.sizes.columnInflated() && this.narrows(item);
 		}
 		if (this.items.size() > 1) {
 			final double gaps = this.flexBox.getFlexParams().columnGap * (this.items.size() - 1);
@@ -1582,6 +1582,18 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			}
 		}
 		return new IntrinsicSizes(min, Math.max(min, max), minPage, columnInflated);
+	}
+
+	/**
+	 * Whether a row can narrow this item, and the columns in it, below its min-content (2026-11-02, triage §159): it
+	 * shrinks and has no automatic minimum. Cut to the paper for columns the row cannot narrow, a flex left its items
+	 * outside the box and past the paper, where neither a break nor a rescue saw them: a vertical-rl flex on a horizontal
+	 * page lost what stood below the sheet.
+	 */
+	private boolean narrows(final FlexItemContent item) {
+		final BlockParams p = item.itemBox.getBlockParams();
+		return item.spec.shrink() > 0 && (this.scrollContainer(item) || this.ownLine(p, p.intrinsicMinLine) != null
+				|| !(this.flow().isVertical() ? item.spec.minHeightAuto() : item.spec.minWidthAuto()));
 	}
 
 	/**

@@ -1987,10 +1987,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// edge of the paper, so the only text starts at x = 595 pt in both engines; with the indent gone or a right margin added they agree.
 			new IndividualExclusion(57_482_440, "fit-v1", 192_273_820,
 					"作者の溢れ: 縦組みの右端の27ptの箱で30ptの字下げが字を紙の右の外へ(Chromeも)", "2026-11-02"),
-			// Triage §159, a known limit, not the author's overflow: a vertical-rl flex on a horizontal page holding columns stops at the height of
-			// the paper (150 pt, Chrome 286), its last item past it, so no page break comes; the text below the paper is lost, Chrome has it on page 2.
-			new IndividualExclusion(58_159_393, "fit-v1", 809_201_200,
-					"既知の制限: 横組みの頁の縦組みのflexが段組の項目で紙の高さに止まり字が紙の下(Chromeは次の頁)", "2026-11-02"),
 			// Triage §160, the author's overflow: on a 60 pt vertical-lr sheet a table in a grid item takes 95 pt along the line from y=40, Chrome the same
 			// (T21 at y=123, Copper 124). tableColumnBeyondPage does not look inside grid items. On 60x140 pt both give the same two pages, all on the paper.
 			new IndividualExclusion(61_070_234, "standard", 61_070_234,
