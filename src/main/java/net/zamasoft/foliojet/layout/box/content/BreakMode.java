@@ -59,6 +59,9 @@ public abstract class BreakMode {
 		 */
 		public final double sheetOverrun;
 
+		/** Whether this is a cut between columns ({@link #betweenColumns}). */
+		public final boolean betweenColumns;
+
 		public AutoBreakMode(IBox box) {
 			this(box, -1);
 		}
@@ -70,6 +73,7 @@ public abstract class BreakMode {
 			this.footnoteSlack = 0;
 			this.pageEndUse = null;
 			this.sheetOverrun = 0;
+			this.betweenColumns = false;
 		}
 
 		private AutoBreakMode() {
@@ -78,33 +82,38 @@ public abstract class BreakMode {
 			this.footnoteSlack = 0;
 			this.pageEndUse = null;
 			this.sheetOverrun = 0;
+			this.betweenColumns = false;
 		}
 
-		private AutoBreakMode(final double fragmentCapacity) {
+		private AutoBreakMode(final double fragmentCapacity, final boolean betweenColumns) {
 			this.box = null;
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = 0;
 			this.pageEndUse = null;
 			this.sheetOverrun = 0;
+			this.betweenColumns = betweenColumns;
 		}
 
 		private AutoBreakMode(final IBox box, final double fragmentCapacity, final double footnoteSlack,
-				final PageEndUse pageEndUse, final double sheetOverrun) {
+				final PageEndUse pageEndUse, final double sheetOverrun, final boolean betweenColumns) {
 			this.box = box;
 			this.fragmentCapacity = fragmentCapacity;
 			this.footnoteSlack = footnoteSlack;
 			this.pageEndUse = pageEndUse;
 			this.sheetOverrun = sheetOverrun;
+			this.betweenColumns = betweenColumns;
 		}
 
 		/** This page break with {@link #footnoteSlack} and {@link #pageEndUse}. */
 		public AutoBreakMode withPageEnd(final double footnoteSlack, final PageEndUse pageEndUse) {
-			return new AutoBreakMode(this.box, this.fragmentCapacity, footnoteSlack, pageEndUse, this.sheetOverrun);
+			return new AutoBreakMode(this.box, this.fragmentCapacity, footnoteSlack, pageEndUse, this.sheetOverrun,
+					this.betweenColumns);
 		}
 
 		/** This page break with {@link #sheetOverrun}. */
 		public AutoBreakMode withSheetOverrun(final double sheetOverrun) {
-			return new AutoBreakMode(this.box, this.fragmentCapacity, this.footnoteSlack, this.pageEndUse, sheetOverrun);
+			return new AutoBreakMode(this.box, this.fragmentCapacity, this.footnoteSlack, this.pageEndUse, sheetOverrun,
+					this.betweenColumns);
 		}
 
 		/** Whether a monolithic extent at the fragment start fits once the calls of {@link #footnoteSlack} move on. */
@@ -122,7 +131,12 @@ public abstract class BreakMode {
 
 		/** Anonymous mode with capacity (for autoBreak when flowStack is shallow). */
 		public static AutoBreakMode withCapacity(final double fragmentCapacity) {
-			return new AutoBreakMode(fragmentCapacity);
+			return new AutoBreakMode(fragmentCapacity, false);
+		}
+
+		/** The mode of a cut between columns: floats stay whole ({@code IPageBreakableBox.FLAGS_WHOLE_FLOATS}). */
+		public static AutoBreakMode betweenColumns(final double fragmentCapacity) {
+			return new AutoBreakMode(fragmentCapacity, true);
 		}
 
 		public String toString() {
@@ -159,7 +173,7 @@ public abstract class BreakMode {
 	 */
 	public static final class ColumnBreakMode extends AutoBreakMode {
 		private ColumnBreakMode(IBox box, final double fragmentCapacity) {
-			super(box, fragmentCapacity, 0, null, KEEPS_FLOWS);
+			super(box, fragmentCapacity, 0, null, KEEPS_FLOWS, false);
 		}
 
 		private ColumnBreakMode() {

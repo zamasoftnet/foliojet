@@ -170,6 +170,9 @@ public record FloatSplitPlan(
 			// Branch table 2: Entirely after the cut line
 			return new FloatItemPlan.Move(m);
 		}
+		if ((flags & IPageBreakableBox.FLAGS_WHOLE_FLOATS) != 0) {
+			return new FloatItemPlan.Move(m);
+		}
 		// monolithic: If the placement progress check found that a float does not shrink when split, even a splittable
 		// BLOCK falls through to branch table 5/5-R (rescue split or leave overflowing; 2026-09-17). So does the
 		// remainder of a fragment-start split that is first again without having shrunk (multicol, 2026-10-18). Behind

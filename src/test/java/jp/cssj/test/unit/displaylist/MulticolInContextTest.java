@@ -20,6 +20,7 @@ import jp.cssj.cti2.results.SingleResult;
 import junit.framework.TestCase;
 import net.zamasoft.foliojet.driver.DirectDriver;
 import net.zamasoft.foliojet.driver.DirectSession;
+import net.zamasoft.foliojet.layout.box.content.BreakMode;
 import net.zamasoft.foliojet.layout.draw.DisplayListDumper;
 import net.zamasoft.zstream.io.impl.StreamFragmentedOutput;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
@@ -210,6 +211,35 @@ public class MulticolInContextTest extends TestCase {
 		final Matcher m = FRAME.matcher(pages.get(0));
 		assertTrue(name + ": float の枠が無い", m.find());
 		assertEquals(name + ": float の幅", PAGE_WIDTH / 3 * 0.9, Double.parseDouble(m.group(1)), 0.01);
+	}
+
+	/**
+	 * A fragment of a float never joins its other fragments, and what a cut leaves is laid out again, so columns in
+	 * columns sliced one float at each cut, then the slices (sweep WILD seed 63893318: 2,000 of them and no end; this form
+	 * came to 9 pages).
+	 */
+	public void testFloatInColumnsInColumnsIsNotSliced() throws Exception {
+		final String name = "float-in-nested-columns";
+		final String image = new File("files/unittest/red.png").toURI().toString();
+		final String html = document("@page { size: 60pt 60pt; margin: 10pt } body { font: 9pt/1.2 serif; writing-mode: vertical-rl }",
+				"<div style='display:table-cell'><div style='column-count:3'><div style='column-count:3'>T0Z<img src='" + image
+						+ "' style='height:103pt'/><img src='" + image + "' style='width:222pt'/><div style='min-width:8em'>"
+						+ "<div style='float:right'>T1Z<div style='min-width:8em'><p></p></div></div></div>T2Z</div></div></div>");
+		final List<String> pages = convertPages(name, html);
+		assertTrue(name + ": 頁が増えた: " + pages.size(), pages.size() <= 4);
+		final String all = String.join("", pages);
+		for (final String word : new String[] { "T0Z", "T1Z", "T2Z" }) {
+			assertTrue(name + ": 字が無い: " + word, all.contains("Text[\"" + word + "\""));
+		}
+	}
+
+	/** Tables, flex and grid mask the flags, so a cut between columns has to last in the mode of its copies too. */
+	public void testCopiesOfACutBetweenColumnsStaySo() {
+		final BreakMode.AutoBreakMode cut = BreakMode.AutoBreakMode.betweenColumns(10);
+		assertTrue(cut.betweenColumns);
+		assertTrue(cut.withSheetOverrun(1).betweenColumns);
+		assertTrue(cut.withPageEnd(1, null).betweenColumns);
+		assertFalse(BreakMode.AutoBreakMode.withCapacity(10).betweenColumns);
 	}
 
 	/** Each numbered token once, on the paper, in order of pages, columns and lines. */

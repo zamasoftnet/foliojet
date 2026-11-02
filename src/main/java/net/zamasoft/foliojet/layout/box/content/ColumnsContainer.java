@@ -365,7 +365,7 @@ public class ColumnsContainer implements Container {
 	 */
 	public void fill(FlowContainer stack, final double capacity, final byte flags) {
 		this.columns.clear();
-		final BreakMode mode = BreakMode.AutoBreakMode.withCapacity(capacity);
+		final BreakMode mode = BreakMode.AutoBreakMode.betweenColumns(capacity);
 		for (int i = 1; i < this.box.getColumnCount(); ++i) {
 			final byte cutFlags = i == 1 ? (byte) (flags & ~IPageBreakableBox.FLAGS_LAST) : IPageBreakableBox.FLAGS_FIRST;
 			final Container rest = ((net.zamasoft.foliojet.layout.fragment.ContainerCut.Plain) stack
