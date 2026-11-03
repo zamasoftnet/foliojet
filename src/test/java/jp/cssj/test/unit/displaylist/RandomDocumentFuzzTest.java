@@ -2010,7 +2010,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §171, a defect older than 19163 (2bb7e641 the same), left as it is: in a vertical-rl column flex on a vertical-lr page, an item holding a vertical-lr block of
 			// width: max-content shrinks to the container, and its content runs off the left of the paper. Chrome keeps the item as large as its content, to the right, on the paper.
 			new IndividualExclusion(64_778_742, "fit-v1", 1_616_893_102,
-					"既存の欠陥(未修正): 縦組みのcolumn flexの項目が逆向きの縦組みの子の幅を最小に数えず、中身が紙の左へ出る(Chromeは紙の上)", "2026-11-02"));
+					"既存の欠陥(未修正): 縦組みのcolumn flexの項目が逆向きの縦組みの子の幅を最小に数えず、中身が紙の左へ出る(Chromeは紙の上)", "2026-11-02"),
+			// Triage §172, the author's overflow: a vertical-lr float 120pt wide, its inline-block of 100pt and frames of 20pt, in a type area of 100pt. With room left of the
+			// paper Chrome and Copper put T0 at the same place (271.1 against 270), past the left of the type area; on this paper Chrome moves the float to page 2. The same before 19163 (2bb7e641).
+			new IndividualExclusion(65_263_924, "fit-v1", 1_344_948_618,
+					"作者の溢れ: 版面より広い縦組みのfloatが左へ溢れる(紙の左に余白を足すとChromeも同じ位置)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
