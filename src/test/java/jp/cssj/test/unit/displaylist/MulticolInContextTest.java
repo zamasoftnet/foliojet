@@ -51,6 +51,8 @@ public class MulticolInContextTest extends TestCase {
 
 	private static final Pattern TOKEN = Pattern.compile("T(\\d+)Z");
 
+	private static final Pattern WORD = Pattern.compile("Text\\[\"(T\\d+)\"");
+
 	private static final String WORDS = " word".repeat(18);
 
 	private static String paragraphs(final int count) {
@@ -282,6 +284,24 @@ public class MulticolInContextTest extends TestCase {
 		final String html = document("", "<table><tr><td>" + MULTICOL + "<div style='columns:2;column-gap:0'>" + paragraphs(30)
 				+ "</div></div></td></tr></table>");
 		assertReadingOrder(name, convertPages(name, html), 30, 2);
+	}
+
+	/**
+	 * A flex item cut again in columns of columns, after the break before had marked its paragraph for replay from source,
+	 * keeps only its own part: replayed, the paragraph that had gone on to the next column was drawn in both (sweep seed
+	 * 65660213).
+	 */
+	public void testItemCutAfterItsRangeIsStamped() throws Exception {
+		final String name = "cut-after-stamp";
+		final List<String> words = new ArrayList<>();
+		for (final String page : fixture(name, "flex-item-cut-in-columns-in-columns")) {
+			final Matcher m = WORD.matcher(page);
+			while (m.find()) {
+				words.add(m.group(1));
+			}
+		}
+		words.sort(null);
+		assertEquals(name + ": 語", List.of("T170", "T171", "T172", "T173", "T175", "T176", "T177", "T179", "T181"), words);
 	}
 
 	/** Each numbered token once, on the paper, in order of pages, columns and lines. */

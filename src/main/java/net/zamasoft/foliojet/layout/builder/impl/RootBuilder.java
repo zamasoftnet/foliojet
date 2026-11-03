@@ -1757,12 +1757,18 @@ public class RootBuilder extends BreakableBuilder {
 		if (this.resumeScopes.isEmpty()) {
 			return false;
 		}
-		// C2: all decisions were recorded at the break (stampRanges). Only consume here
-		// (records of the current, innermost resume scope). Consume-once: never replay
-		// the same range twice (P0; makes an external review finding explicit).
+		// C2: the decisions were recorded at the break (stampRanges) and are consumed here
+		// (records of the current, innermost resume scope); only a cut made since is checked again below.
+		// Consume-once: never replay the same range twice (P0; makes an external review finding explicit).
 		final net.zamasoft.foliojet.layout.fragment.Continuation.SourceRange range = this.resumeScopes.peek()
 				.remove(box);
 		if (range == null) {
+			return false;
+		}
+		if (!box.isSourceReplayable()) {
+			// Cut after its range was stamped (2026-11-03): a column break inside this resume split it, and its range holds
+			// what went on with the continuation as well. Replayed, the kept side laid all of it out again, so a flex item's
+			// paragraph moved to the next column was drawn in both (sweep seed 65660213). The box keeps its own part.
 			return false;
 		}
 		// If a range has gaps (e.g. due to nested compaction), return false before execution
