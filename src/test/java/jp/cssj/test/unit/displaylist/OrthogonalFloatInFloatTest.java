@@ -51,6 +51,14 @@ public class OrthogonalFloatInFloatTest extends TestCase {
 		this.check("orthogonal-flex-in-float");
 	}
 
+	/**
+	 * A flex in a flex item passes the thickness of its lines on (2026-11-03): the items gave their minPage only, 0 for
+	 * a line of text (found in the neighbourhood of {@code orthogonal-flex-in-float}, FixtureNeighbourhoodTest).
+	 */
+	public void testNestedFlexInOrthogonalBlock() throws Exception {
+		this.check("orthogonal-nested-flex-in-float");
+	}
+
 	/** Lays the fixture out with every sweep invariant and returns the display list directory. */
 	private File check(final String name) throws Exception {
 		final File fixture = new File("files/fuzz-repro/" + name + ".html");

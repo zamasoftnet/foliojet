@@ -1560,7 +1560,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 		if (!this.flexBox.getFlexParams().flexDirection.isRow()) {
 			return this.columnIntrinsicSizes();
 		}
-		double min = 0, max = 0, minPage = 0;
+		double min = 0, max = 0, minPage = 0, maxPage = 0;
 		boolean columnInflated = false;
 		final boolean wrap = this.flexBox.getFlexParams().flexWrap.isWrap();
 		for (final FlexItemContent item : this.items) {
@@ -1572,6 +1572,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			min = wrap ? Math.max(min, contribution[2] + extra) : min + contribution[0] + extra;
 			max += contribution[1] + extra;
 			minPage = Math.max(minPage, item.sizes.minPage());
+			maxPage = Math.max(maxPage, item.sizes.maxContentPage());
 			columnInflated |= item.sizes.columnInflated() && this.narrows(item);
 		}
 		if (this.items.size() > 1) {
@@ -1581,7 +1582,10 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				min += gaps;
 			}
 		}
-		return new IntrinsicSizes(min, Math.max(min, max), minPage, columnInflated);
+		// The page-axis extent at the max-content line size, as a block passes its own on (2026-11-03): a flex in a flex
+		// item counted the items' minPage only, 0 for a line of text, and a block of the other writing mode holding it
+		// was 0 thick (the neighbourhood of fuzz-repro/orthogonal-flex-in-float)
+		return new IntrinsicSizes(min, Math.max(min, max), minPage, columnInflated, Math.max(minPage, maxPage));
 	}
 
 	/**
@@ -1604,7 +1608,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * grid track sized by it pushed the card past the paper (frontiers-art, once column-flex stage 2 retained it).
 	 */
 	private IntrinsicSizes columnIntrinsicSizes() {
-		double min = 0, max = 0, minPage = 0;
+		double min = 0, max = 0, minPage = 0, maxPage = 0;
 		boolean columnInflated = false;
 		for (final FlexItemContent item : this.items) {
 			final RectFrame frame = item.itemBox.getBlockParams().frame;
@@ -1613,12 +1617,14 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 			min = Math.max(min, contribution[0] + extra);
 			max = Math.max(max, contribution[1] + extra);
 			minPage += item.sizes.minPage();
+			maxPage += item.sizes.maxContentPage();
 			columnInflated |= item.sizes.columnInflated();
 		}
 		if (this.items.size() > 1) {
 			minPage += this.flexBox.getFlexParams().rowGap * (this.items.size() - 1);
+			maxPage += this.flexBox.getFlexParams().rowGap * (this.items.size() - 1);
 		}
-		return new IntrinsicSizes(min, Math.max(min, max), minPage, columnInflated);
+		return new IntrinsicSizes(min, Math.max(min, max), minPage, columnInflated, Math.max(minPage, maxPage));
 	}
 
 	/**

@@ -1115,24 +1115,34 @@ public final class GridBuilder
 				this.sizingTracks(this.gridBox.getLineSize()), this.columnContributions(plan), this.columnGap);
 		boolean columnInflated = false;
 		final double[] rowMinPage = new double[Math.max(1, plan.rowCount())];
+		final double[] rowMaxPage = new double[rowMinPage.length];
 		for (int i = 0; i < this.items.size(); ++i) {
 			final GridItemContent item = this.items.get(i);
 			final GridPlacementResolver.GridArea area = plan.areas().get(i);
 			// Approximate rowSpan by equal distribution to each row (a rough equivalent of deficit distribution;
 			// GridRowSizing resolves actual heights precisely after bind).
 			final double perRow = item.sizes.minPage() / area.rowSpan();
+			// Less the gaps it spans, which the rows' sum adds back (codex 2026-11-03: 20pt over two rows and a gap of 20pt
+			// came to 40pt, GridRowSizing makes it 20pt)
+			final double perRowMax = Math.max(0, item.sizes.maxContentPage() - this.rowGap * (area.rowSpan() - 1))
+					/ area.rowSpan();
 			for (int r = area.row(); r < area.row() + area.rowSpan(); ++r) {
 				rowMinPage[r] = Math.max(rowMinPage[r], perRow);
+				rowMaxPage[r] = Math.max(rowMaxPage[r], perRowMax);
 			}
 			columnInflated |= item.sizes.columnInflated();
 		}
 		double minPage = plan.rowCount() > 1 ? this.rowGap * (plan.rowCount() - 1) : 0;
+		double maxPage = minPage;
 		for (int r = 0; r < rowMinPage.length; ++r) {
 			// Use the specified heights of fixed-height explicit and implicit rows (2026-08-29).
 			final double fixed = this.fixedRowHeight(r);
-			minPage += net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(fixed) ? rowMinPage[r] : fixed;
+			final boolean auto = net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(fixed);
+			minPage += auto ? rowMinPage[r] : fixed;
+			maxPage += auto ? Math.max(rowMinPage[r], rowMaxPage[r]) : fixed;
 		}
-		return new IntrinsicSizes(line.min(), line.max(), minPage, columnInflated);
+		// The page-axis extent at the max-content line size passes on, as a flex's (2026-11-03)
+		return new IntrinsicSizes(line.min(), line.max(), minPage, columnInflated, maxPage);
 	}
 
 	/**
