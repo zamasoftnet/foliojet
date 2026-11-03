@@ -2014,12 +2014,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §172, the author's overflow: a vertical-lr float 120pt wide, its inline-block of 100pt and frames of 20pt, in a type area of 100pt. With room left of the
 			// paper Chrome and Copper put T0 at the same place (271.1 against 270), past the left of the type area; on this paper Chrome moves the float to page 2. The same before 19163 (2bb7e641).
 			new IndividualExclusion(65_263_924, "fit-v1", 1_344_948_618,
-					"作者の溢れ: 版面より広い縦組みのfloatが左へ溢れる(紙の左に余白を足すとChromeも同じ位置)", "2026-11-02"),
-			// Triage §173, a regression of 19163 left as it is: in columns in columns on the page, a flex row whose item holds a float (483a9488 makes the item its scope) grows past the
-			// column and is cut, and an item that fits above the cut goes into both fragments (T181 twice). It takes all of a page float, the columns in columns, the float in the item,
-			// a vertical-rl block before the flex and a tall first item; 596f3805 draws T181 once.
-			new IndividualExclusion(65_660_213, "standard", 65_660_213,
-					"既存の欠陥(19163 の退行、未修正): 段組の中の段組で float を持つ項目の flex の行が切られ、切れ目より上の項目が二重に出る", "2026-11-02"));
+					"作者の溢れ: 版面より広い縦組みのfloatが左へ溢れる(紙の左に余白を足すとChromeも同じ位置)", "2026-11-02"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
