@@ -858,7 +858,7 @@
 0400-column-count/columns-float.html	3	e65efdcdbba7cbd50da26f042620d72bd084fa0f3084bb24a3ae752809b99aae
 0400-column-count/fixed-table-break.html	1	45b850bb0cdc47108bb76beb20f2087541b5e47276b41ed9ff7df4dc37dfd1e7
 0400-column-count/fixed-table-break.html	2	3a7270808a7d0f529642e71eebed4b35838914189ba61336bc5ade8692efe427
-0400-column-count/float-stf.html	1	b5d6884c5d7a68a79e7ddd7164290ed2a23a09b9e9ca79a9d674ca5d933bbdf1
+0400-column-count/float-stf.html	1	50eec01c2dac7bc7cb4f0641d57dd0f9af988b1b6c366afaa7e977563e64c5a7
 0400-column-count/flow-height.html	1	ae69da3e7a6b9bdb19294254304cb8032cb4bf8a9036b65f028ed633d29964e2
 0400-column-count/h-frame.html	1	2a0830f8d65dd8108fb8351d7a749ebdcd4474c4b5245f54b71f2b85dd5b219f
 0400-column-count/h-frame.html	2	8d104a89d0236d809b9b5288d7c33f7be63dd3a18169b0a5a9b8ae465fbec673
@@ -874,7 +874,7 @@
 0400-column-count/page-first.html	2	b299e837f940fc80c006347cdbf3a6606ee4a2239729c275e131c8acdc78f719
 0400-column-count/simple.html	1	646ea7c2173213773ec84c3eee13f643aad47ba7e6531e04e71bce8a133b02f3
 0400-column-count/simple.html	2	7aba3852d8cadf479ac88bc0e842964f7020cacc7ce547894c6774c0cee5ea5d
-0400-column-count/table-cell.html	1	ae7e8a0334a69bfe7d399bfdcc1aa638d5bf5a885af5e6b539e0906bc08c70ca
+0400-column-count/table-cell.html	1	399f47ecba8366f0f791b4ad7fa4110d7a11c0d56f40cd9c0ba5570c816a507e
 0400-column-count/v-frame.html	1	7f9b85c84ed03fdfec628777303b2e20fe641f1b87b8e431c01708350956b8ad
 0400-column-count/v-frame.html	2	5dc5caac96147603809401c5e43a70c800048299684b83a49a98a74f7fe4f263
 0400-column-count/v-frame.html	3	96a881bef00a4846e2b34dd4864943a91501ae1f46b893ae214c92275b8af84f
@@ -887,7 +887,7 @@
 0400-column-count/writing-mode-column2.html	2	1cedf0ecf959f6841c334af7c518d1507a5b7042c51cb88b71a30593d5ef91cf
 0400-column-count/writing-mode-column2.html	3	3bf943678c57df086b4b0221ec5a60f9a6f2813bc32056f61f896bb82de5ffb4
 0400-column-count/writing-mode-column2.html	4	6693705a3f4d7108c4282883e6fca3281f73f10ffe4e89a88bf88560ee565717
-0410-column-width/absolute.html	1	b1f74b8c5e6c56757c949751fe8d0d89f1c7a567ca5e79be6afde2b058a117fb
+0410-column-width/absolute.html	1	a55e1ae4bd02cd03917176e7b005d53ab0af21524d0ce982531a1114193eaab0
 0410-column-width/columns-in-absolute.html	1	d3cd13acaffbffda546ba8d7208e592179c86e34d7ed4b38c24affde20ee611a
 0410-column-width/flow.html	1	d18a6f81a4025f32a289ed5a1194c72d656d05300c37c18b90f2476598c71607
 0410-column-width/flow.html	2	a3154b9928036adb12a91b20d4a0947cba637d978afd4f0a1637f2391da46315
@@ -1553,7 +1553,7 @@ container-queries/inline-size-switch.html	1	011d557ecff77f13ad2d864b49f0810d951c
 container-queries/nested-two-level.html	1	825b5c5ebd65fa94423b748178642f20a758ccdc9629a21a5744b237c0bf946f
 fuzz-repro/first-line-break-reopens-closed-text.html	1	fa89a187df95520496b8593eab4f2329d5aa7cb6ab03908e0d38549f140ffa51
 fuzz-repro/first-line-break-reopens-closed-text.html	2	ef9909f9bea8b52db843184cee90fb8c8d9441cee9cc9eed7cd6ad5867a35f3b
-fuzz-repro/first-line-break-reopens-closed-text.html	3	748a3f953d1da7831fb50385c6316e7f8e0b01c0aef0acb9313791815b4e7a63
+fuzz-repro/first-line-break-reopens-closed-text.html	3	1e57f25f43703d081675444b23bd140409bc5f03af5100fd04fcd7dc5d04c70c
 fuzz-repro/flex-resplit-duplicates-content.html	1	b60f84278fd21863362415cd7989f4a56b507f3dd1fd62632209735ffbdf35e9
 fuzz-repro/flex-resplit-duplicates-content.html	2	3c300d03ad6dd3081b27b94b33a890031f0a317b93b3a0b7999c558fed2900d9
 fuzz-repro/flex-resplit-reorders-content.html	1	a0a6afcb9f425dcb25f3ef339f51ee5d132535083cc03b5813d1923dd79772dd

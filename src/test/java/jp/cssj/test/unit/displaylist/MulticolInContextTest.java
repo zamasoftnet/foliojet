@@ -259,6 +259,17 @@ public class MulticolInContextTest extends TestCase {
 				StandardCharsets.UTF_8), "text/html");
 	}
 
+	/**
+	 * A cell does not break a page as a flow does when floats end a multicol, so the box holds them: its flows made it
+	 * 12pt tall, the row stayed on the page, and the end of a float of 288pt ran off the paper.
+	 */
+	public void testLongFloatInColumnsInACell() throws Exception {
+		final String name = "long-float-in-a-cell";
+		final String html = document("", "<table><tr><td>" + MULTICOL + "<p>Lead</p><div style='float:left;width:90%'>"
+				+ paragraphs(6) + "</div><p>Tail</p></div></td></tr></table>");
+		assertEquals(name + ": 語の数", 6, tokens(name, convertPages(name, html), 2).size());
+	}
+
 	/** What the inner multicol holds stays on the paper in the columns of the outer one. */
 	public void testLongMulticolInColumnsInACell() throws Exception {
 		final String name = "long-columns-in-columns";

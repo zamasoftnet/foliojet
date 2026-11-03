@@ -501,9 +501,11 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// to a page of their own (cti.li sample, settleRecoveredFootnotes). A capacity too small is left as it was.
 		if (this.container instanceof ColumnsContainer columns) {
 			final double end = Math.max(this.minPageAxis, columns.longestColumnEnd());
-			// Where no page is known a column break cannot follow, and what the last column holds past the capacity stays in
-			// it: the box holds that too, or the page does not cut it and it runs off the paper (2026-11-03).
-			if (root == null || net.zamasoft.foliojet.layout.util.LayoutUtils.compare(end, pageSize) < 0) {
+			// Where no page is known a column break cannot follow, and in a cell no page break does: what the last column
+			// holds past the capacity stays in it. The box holds that too, or the page does not cut it and it runs off the
+			// paper (2026-11-03: floats in columns in a cell, whose flows made the box 12pt tall for a float of 288pt).
+			if (root == null || !(builder instanceof net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder)
+					|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(end, pageSize) < 0) {
 				if (vertical) {
 					this.maxPageAxis = this.width = end;
 				} else {
