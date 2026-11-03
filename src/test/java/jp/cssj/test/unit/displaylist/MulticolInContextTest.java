@@ -218,10 +218,7 @@ public class MulticolInContextTest extends TestCase {
 	 */
 	public void testColumnsInColumnsInACellEnd() throws Exception {
 		final String name = "columns-in-columns";
-		final String html = java.nio.file.Files
-				.readString(new File("files/fuzz-repro/columns-in-columns-in-a-cell.html").toPath(), StandardCharsets.UTF_8)
-				.replace("../unittest/red.png", new File("files/unittest/red.png").toURI().toString());
-		assertTrue(name + ": 頁が無い", convertPages(name, html, "text/html").size() > 10);
+		assertTrue(name + ": 頁が無い", fixture(name, "columns-in-columns-in-a-cell").size() > 10);
 	}
 
 	/**
@@ -254,9 +251,18 @@ public class MulticolInContextTest extends TestCase {
 		}
 	}
 
+	private static final Pattern PAGE_WIDTH_PI = Pattern.compile("output\\.page-width\" value=\"([\\d.]+)pt"),
+			PAGE_HEIGHT_PI = Pattern.compile("output\\.page-height\" value=\"([\\d.]+)pt");
+
+	/** A fixture of the sweep, sized by its PIs (which the converter does not read here) and with its image found. */
 	private static List<String> fixture(final String name, final String file) throws Exception {
-		return convertPages(name, java.nio.file.Files.readString(new File("files/fuzz-repro/" + file + ".html").toPath(),
-				StandardCharsets.UTF_8), "text/html");
+		String html = java.nio.file.Files.readString(new File("files/fuzz-repro/" + file + ".html").toPath(),
+				StandardCharsets.UTF_8).replace("../unittest/red.png", new File("files/unittest/red.png").toURI().toString());
+		final Matcher w = PAGE_WIDTH_PI.matcher(html), h = PAGE_HEIGHT_PI.matcher(html);
+		if (w.find() && h.find()) {
+			html = html.replace("@page{margin:", "@page{size:" + w.group(1) + "pt " + h.group(1) + "pt;margin:");
+		}
+		return convertPages(name, html, "text/html");
 	}
 
 	/**
