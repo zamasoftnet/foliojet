@@ -649,12 +649,28 @@ final class IntrinsicMeasurer {
 
 	/** Content-box contribution of the entire Grid (Grid G3d2; same structure as table). */
 	void grid(final IntrinsicSizes gridSizes, final AbstractContainerBox gridBox) {
+		this.containerPage(gridSizes, gridBox);
 		this.spannedContribution(gridSizes, gridBox);
 	}
 
 	/** Content-box contribution of the entire Flex (Flex F1f; same structure as grid). */
 	void flex(final IntrinsicSizes flexSizes, final AbstractContainerBox flexBox) {
+		this.containerPage(flexSizes, flexBox);
 		this.spannedContribution(flexSizes, flexBox);
+	}
+
+	/**
+	 * The page-axis extent of a flex or grid container in the flow, as a table's (2026-11-03): counted 0, a block of
+	 * the other writing mode holding only a flex made the float holding it 0 thick, and floated to the bottom of the page
+	 * it was drawn past it (fit sweep seed 64843205).
+	 */
+	private void containerPage(final IntrinsicSizes sizes, final AbstractContainerBox box) {
+		if (box.getPos().getType() == net.zamasoft.foliojet.layout.box.params.PosType.FLOW
+				&& box.getBlockParams().flow.isVertical() == this.builder.getFlowBox().getBlockParams().flow.isVertical()) {
+			this.clearFloatPage(((FlowPos) box.getPos()).clear);
+			this.stackLine();
+			this.stackedPage += sizes.maxContentPage();
+		}
 	}
 
 	void fitFloating(TwoPassBlockBuilder childBuilder) {

@@ -42,6 +42,15 @@ public class OrthogonalFloatInFloatTest extends TestCase {
 		assertEquals("T2 after the 100pt cell", 100, find(list, "T2")[0], 0.1);
 	}
 
+	/**
+	 * A flex container in a block of the other writing mode is as thick as its lines (2026-11-03, fit sweep seed
+	 * 64843205): counted 0, the float holding it was 0 thick, and floated to the bottom of the page it drew all its text
+	 * below the paper.
+	 */
+	public void testFlexInOrthogonalBlock() throws Exception {
+		this.check("orthogonal-flex-in-float");
+	}
+
 	/** Lays the fixture out with every sweep invariant and returns the display list directory. */
 	private File check(final String name) throws Exception {
 		final File fixture = new File("files/fuzz-repro/" + name + ".html");
