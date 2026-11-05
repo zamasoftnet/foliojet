@@ -2022,7 +2022,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §175, the author's overflow: on 60pt vertical-rl paper a floated list-item holds a table whose cell holds a table whose cell holds an ol (its UA padding
 			// 30pt), 139pt long in the inline direction. Chrome has it 137pt long on tall paper (T19 at 117 against 129) and T15 to T22 off the 60pt paper too; on tall paper Copper passes.
 			new IndividualExclusion(65_853_503, "standard", 65_853_503,
-					"作者の溢れ: 縦組みのfloatの中の入れ子の表(セルにolの既定の余白30pt)の長さ139ptが紙の高さ60ptより長い(Chromeも紙の外、高い紙で同じ長さ)", "2026-11-05"));
+					"作者の溢れ: 縦組みのfloatの中の入れ子の表(セルにolの既定の余白30pt)の長さ139ptが紙の高さ60ptより長い(Chromeも紙の外、高い紙で同じ長さ)", "2026-11-05"),
+			// Triage §176, a known limitation (CSS-SUPPORT: a floated flex container falls back to a block and stacks its items, 2823): on A4 vertical-rl paper a
+			// vertical-lr flex float 63pt wide at the right of the paper stacks its items to the right, off the paper. Chrome lays them out in a flex line and keeps
+			// the second item (T15 to T17) on the paper; the first, 113pt wide, runs off in Chrome too. The same before the fix of §174 (4f8405a9).
+			new IndividualExclusion(66_806_338, "fit-v1", 2_030_245_103,
+					"既知の制限: floatのflexはブロックに倒して項目を積むので、紙の右端の縦組みのfloatの項目が紙の右へ出る(Chromeは2つ目の項目を紙の上に並べる)", "2026-11-05"),
+			// Triage §176, the author's overflow: on 60pt vertical-rl paper a floated table holds a table in a cell, about 140pt long in the inline direction. Chrome
+			// leaves 20 of its tokens off the 60pt paper too; on 300pt paper Copper passes. The same before the fix of §174 (4f8405a9).
+			new IndividualExclusion(66_848_000, "fit-v1", 1_639_057_930,
+					"作者の溢れ: 縦組みのfloatの中の入れ子の表の長さ約140ptが紙の高さ60ptより長い(Chromeも20字が紙の外、高い紙では通る)", "2026-11-05"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
