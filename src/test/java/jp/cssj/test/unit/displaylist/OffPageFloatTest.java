@@ -446,6 +446,71 @@ public class OffPageFloatTest extends TestCase {
 	private static final Pattern CLIP_IN_DUMP = Pattern.compile("clip=\\[[-\\d.]+ [-\\d.]+ [-\\d.]+ ([-\\d.]+)\\]");
 
 	/**
+	 * A right float wider than its box keeps to the box's line end on the page (2026-11-05, triage §174). Stopped at the
+	 * box's line start, a 105pt float in a 48pt box at the right of 120pt paper drew its text at x = 170, off the paper;
+	 * Chrome draws it at 113. The page margin is outside the page area, a box at the left still keeps the float at the
+	 * page start (where Chrome puts it off the paper), and a left float beside the box stops it (Chrome draws the two
+	 * over each other).
+	 */
+	public void testOverwideRightFloatKeepsToItsBoxOnThePage() throws Exception {
+		final String inner = "<div style=\"float:right;%s:105pt\"><div style=\"float:right\"><p>T0</p></div></div>";
+		assertEquals("fixed width", 113.33, overwideFloatText("overwide-fixed", 120, 400, 0, "",
+				"<div style=\"width:48pt;margin-left:72pt\">" + inner.formatted("width") + "</div>", "T0")[0], 0.1);
+		assertEquals("auto width", 113.33, overwideFloatText("overwide-auto", 120, 400, 0, "",
+				"<div style=\"margin-left:72pt\">" + inner.formatted("width") + "</div>", "T0")[0], 0.1);
+		assertEquals("page margin", 113.33, overwideFloatText("overwide-margin", 140, 400, 10, "",
+				"<div style=\"width:48pt;margin-left:72pt\">" + inner.formatted("width") + "</div>", "T0")[0], 0.1);
+		assertEquals("vertical", 113.33, overwideFloatText("overwide-vertical", 400, 120, 0, "writing-mode:vertical-rl",
+				"<div style=\"height:48pt;margin-top:72pt\">" + inner.formatted("height") + "</div>", "T0")[1], 0.1);
+		assertEquals("box at the left", 98.33, overwideFloatText("overwide-left", 120, 400, 0, "",
+				"<div style=\"width:48pt\">" + inner.formatted("width") + "</div>", "T0")[0], 0.1);
+		assertEquals("beside a left float", 40, overwideFloatText("overwide-beside-float", 120, 120, 0, "",
+				"<div style=\"float:left;width:40pt;height:30pt\"><p>T1</p></div><div style=\"width:48pt;margin-left:72pt\">"
+						+ "<div style=\"float:right;width:105pt;height:20pt\"><p>T0</p></div></div>", "T0")[0], 0.1);
+		assertEquals("beside a top float", 40, overwideFloatText("overwide-beside-top-float", 120, 120, 0, "",
+				"<div style=\"float:top;width:40pt;height:30pt\"><p>T1</p></div><div style=\"width:48pt;margin-left:72pt\">"
+						+ "<div style=\"float:right;width:105pt;height:20pt\"><p>T0</p></div></div>", "T0")[0], 0.1);
+		// A relative offset moves the box when it is drawn: the float stays where it was, on the paper
+		assertEquals("relative offset", 98.33, overwideFloatText("overwide-relative", 120, 400, 0, "",
+				"<div style=\"width:48pt;margin-left:72pt;position:relative;left:-72pt\">" + inner.formatted("width")
+						+ "</div>", "T0")[0], 0.1);
+		assertEquals("the float's relative offset", 42, overwideFloatText("overwide-float-relative", 120, 400, 0, "",
+				"<div style=\"width:48pt;margin-left:72pt\"><div style=\"float:right;width:105pt;position:relative;"
+						+ "left:-30pt\"><p>T0</p></div></div>", "T0")[0], 0.1);
+		assertEquals("zoom", 72, overwideFloatText("overwide-zoom", 120, 400, 0, "",
+				"<div style=\"width:48pt;margin-left:72pt\"><div style=\"width:32pt;zoom:1.5\"><div style=\"float:right;"
+						+ "width:105pt\"><p>T0</p></div></div></div>", "T0")[0], 0.1);
+		// Moved out of a box that clips, the start of the float would be cut off: it stays at the box's line start
+		assertEquals("in a box that clips", 72, overwideFloatText("overwide-clip", 120, 400, 0, "",
+				"<div style=\"width:48pt;margin-left:72pt;overflow:hidden\"><div style=\"float:right;width:105pt\"><p>T0</p>"
+						+ "</div></div>", "T0")[0], 0.1);
+		assertEquals("relative without an offset", 113.33, overwideFloatText("overwide-relative-0", 120, 400, 0, "",
+				"<div style=\"width:48pt;margin-left:72pt;position:relative\">" + inner.formatted("width") + "</div>",
+				"T0")[0], 0.1);
+	}
+
+	/** Lays out a one-page document and returns where {@code token} is drawn in the page area. */
+	private static double[] overwideFloatText(final String name, final int pageWidth, final int pageHeight,
+			final int margin, final String bodyStyle, final String body, final String token) throws Exception {
+		final File[] pages = convert(name, """
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="%dpt"?>
+				<?jp.cssj.property name="output.page-height" value="%dpt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<style>
+				@page{margin:%dpt}
+				body{margin:0;font:normal 6pt/1.2 serif;%s}
+				p,div{margin:0;padding:0}
+				</style></head><body>%s</body></html>
+				""".formatted(pageWidth, pageHeight, margin, bodyStyle, body));
+		assertEquals(name + ": pages", 1, pages.length);
+		final Matcher m = Pattern.compile("x=(-?[\\d.]+) y=(-?[\\d.]+) Text\\[\"" + token + "\"")
+				.matcher(java.nio.file.Files.readString(pages[0].toPath(), StandardCharsets.UTF_8));
+		assertTrue(name + ": " + token + " is not drawn", m.find());
+		return new double[] { Double.parseDouble(m.group(1)), Double.parseDouble(m.group(2)) };
+	}
+
+	/**
 	 * Convert a document and return per-page display lists.
 	 *
 	 * @param name working directory name

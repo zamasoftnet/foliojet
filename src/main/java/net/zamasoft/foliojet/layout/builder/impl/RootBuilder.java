@@ -973,6 +973,44 @@ public class RootBuilder extends BreakableBuilder {
 	}
 
 	/**
+	 * Line offsets here are on the page while every open flow is a block of the page's writing mode (2026-11-05, triage
+	 * §174): an END-side float wider than its band then keeps to the band's line end, as CSS and Chrome have it, and goes
+	 * no further than the page area. Stopped at the band's line start, it went off the paper when its box was at the line
+	 * end of the page (a 105pt float in a 48pt box at the right of 120pt paper drew its text at x = 170). Columns move the
+	 * later columns only when drawn, an orthogonal flow has its own axes, the items of a flex or grid resumed here are
+	 * moved to their tracks when drawn (their first fragments were laid out by builders of their own), and a relative
+	 * offset, a transform or a zoom of the float or of an open box moves it when drawn too: those keep the band's line
+	 * start, which kept the float on the paper before. So does an open box that clips: moved out of it, the start of the
+	 * float would be cut off.
+	 */
+	@Override
+	protected double pageAreaLineStart(final net.zamasoft.foliojet.layout.box.IFloatBox box) {
+		if (this.getMulticolumnBox() != null || !this.hasRootWritingModePath() || movedWhenDrawn(box)) {
+			return Double.NaN;
+		}
+		for (int i = 0; i < this.getFlowCount(); ++i) {
+			final var open = this.getFlow(i).box;
+			if (isFlexOrGrid(open) || open instanceof net.zamasoft.foliojet.layout.box.RowSplitBox || movedWhenDrawn(open)
+					|| open.getBlockParams().clipsOverflowPaint()) {
+				return Double.NaN;
+			}
+		}
+		return 0;
+	}
+
+	/** A relative offset, a transform or a zoom of the box, applied when it is drawn. */
+	private static boolean movedWhenDrawn(final net.zamasoft.foliojet.layout.box.IBox box) {
+		if (box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.AbstractStaticPos pos && pos.offset != null
+				&& (net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetX(pos.offset, box) != 0
+						|| net.zamasoft.foliojet.layout.util.LayoutUtils.computeOffsetY(pos.offset, box) != 0)) {
+			return true;
+		}
+		final var params = box.getParams();
+		return !params.transform.isIdentity() || params.transformTxRatio != 0 || params.transformTyRatio != 0
+				|| params.transformTxRatioH != 0 || params.transformTyRatioW != 0 || params.zoom != 1;
+	}
+
+	/**
 	 * Reports the occupied end of an unsplittable float committed by {@link
 	 * BlockBuilder#commitFloatPlacement(FloatPlacementDelta)} (2026-09-04). Restricting callers to commit and updating
 	 * by max makes TwoPass renotification idempotent.

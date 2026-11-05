@@ -1637,7 +1637,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 		// floats wider than the band. Screen browsers allow overflow toward line start
 		// (accessible by scrolling), but content placed outside the paper has nowhere else
 		// to appear. This is the same print-first decision as the columnInflated clamp
-		// (AbstractStaticBlockBox). Applies only to floats wider than the band.
+		// (AbstractStaticBlockBox). Applies only to floats wider than the band. Where the builder knows the page area
+		// (pageAreaLineStart), the float keeps to the line end and goes no further than the page area's line start and the
+		// START floats beside the part out of the band (2026-11-05, triage §174).
 		// Move overflow painting of orthogonal vertical-writing floats toward the paper (2026-08-22, sweep seed
 		// 1353935): A vertical-writing float in a horizontal-writing containing block can paint beyond its box width
 		// with overflow:visible along the inner page axis (= outer line axis). RL overflows physically left,
@@ -1665,11 +1667,30 @@ public class BlockBuilder implements Builder, LayoutContext {
 		} else if (innerFlow == WritingMode.LR && paintedOverflow > 0) {
 			lineOffset = Math.max(lineStart, lineEnd - lineWidth - paintedOverflow);
 		} else {
-			lineOffset = Math.max(lineStart, lineEnd - lineWidth);
+			double floor = lineStart;
+			final double areaStart = paintedOverflow > 0 ? Double.NaN : this.pageAreaLineStart(box);
+			if (!Double.isNaN(areaStart) && areaStart < lineStart && lineEnd - lineWidth < lineStart) {
+				// The band search saw only the floats over the band: a START float beside the box is outside it, and
+				// the page floats are in a set of their own
+				floor = Math.min(lineStart,
+						exclusions.mergedWith(this.pageFloatExclusionsForLineLayout())
+								.narrowLineBandOver(pageStart, pageStart + pageWidth, new AxisSpan(areaStart, lineEnd))
+								.start());
+			}
+			lineOffset = Math.max(floor, lineEnd - lineWidth);
 		}
 		final FloatCommitKind kind = this.classifyFloatPlacement(box, pageStart);
 		return new FloatPlacementDelta(box, side, new AxisSpan(lineOffset, lineOffset + lineWidth),
 				new AxisSpan(pageStart, pageStart + pageWidth), kind);
+	}
+
+	/**
+	 * The page area's line start in this builder's line coordinates for placing {@code box}, or NaN where they are not
+	 * where it is drawn on the page (2026-11-05, triage §174). A float's content is laid out before the float is placed,
+	 * so most builders do not know where their boxes will be on the paper; {@link RootBuilder} does.
+	 */
+	protected double pageAreaLineStart(final IFloatBox box) {
+		return Double.NaN;
 	}
 
 	/**
