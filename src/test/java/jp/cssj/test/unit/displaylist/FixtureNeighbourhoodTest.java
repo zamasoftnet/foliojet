@@ -37,7 +37,8 @@ import junit.framework.TestCase;
  * <p>
  * Opt in with {@code -Dfoliojet.neighbourhood=all} or a comma-separated list of fixture names;
  * {@code -Dfoliojet.neighbourhoodThreads} (6); {@code -Dfoliojet.neighbourhoodPairs}: so many documents of two changes
- * per fixture besides those of one (0). Writes {@code build/neighbourhood/report.tsv} and prints what failed. It reports
+ * per fixture besides those of one (0). Writes {@code build/neighbourhood/report.tsv}, the documents that failed in
+ * {@code failed/}, and prints what failed. It reports
  * and does not fail: what it finds is classified like a sweep stop.
  * </p>
  */
@@ -45,6 +46,9 @@ public class FixtureNeighbourhoodTest extends TestCase {
 	private static final File FIXTURES = new File("files/fuzz-repro");
 
 	private static final File OUT = new File("build/neighbourhood");
+
+	/** The documents that failed and were not excluded, as {@code <fixture>-<n>.html}. */
+	private static final File FAILED = new File(OUT, "failed");
 
 	/** Elements whose style is changed; others (table rows, list items, ruby, images) only stay as hosts. */
 	private static final Set<String> STYLED = Set.of("div", "p", "span");
@@ -98,6 +102,7 @@ public class FixtureNeighbourhoodTest extends TestCase {
 			names.addAll(Arrays.asList(spec.split(",")));
 		}
 		OUT.mkdirs();
+		clear(FAILED);
 		final ExecutorService pool = Executors.newFixedThreadPool(threads);
 		final List<String[]> rows = new ArrayList<>();
 		try {
@@ -133,7 +138,13 @@ public class FixtureNeighbourhoodTest extends TestCase {
 					results.add(pool.submit(() -> timed(label, v.html(), strict, slow)));
 				}
 				for (int i = 0; i < variants.size(); ++i) {
-					rows.add(new String[] { name + (strict ? "" : " (wild)"), variants.get(i).label(), results.get(i).get() });
+					final String result = results.get(i).get();
+					rows.add(new String[] { name + (strict ? "" : " (wild)"), variants.get(i).label(), result });
+					if (!result.equals("ok") && !result.startsWith("(除外)")) {
+						// The failing document itself, to classify it without rebuilding the change (2026-11-05)
+						Files.writeString(new File(FAILED, name + "-" + i + ".html").toPath(), variants.get(i).html(),
+								StandardCharsets.UTF_8);
+					}
 				}
 			}
 		} finally {
