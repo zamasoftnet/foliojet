@@ -2036,7 +2036,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// horizontal-tb float in a table holds a textarea of the default 20 columns (125pt) and is 148pt wide against a 100pt type area. isOversized sees
 			// explicit sizes only. On 170pt paper there is no blank page. The same on 9fbf4ec3 (19165).
 			new IndividualExclusion(67_242_577, "standard", 67_242_577,
-					"作者の溢れ: 縦組みの紙の表の中の横組みのfloatが既定の幅のtextarea(約125pt)で約148pt、版面の100ptより長く白紙ページ(紙を170ptにすると出ない)", "2026-11-05"));
+					"作者の溢れ: 縦組みの紙の表の中の横組みのfloatが既定の幅のtextarea(約125pt)で約148pt、版面の100ptより長く白紙ページ(紙を170ptにすると出ない)", "2026-11-05"),
+			// Triage §178, the author's overflow: at the left of 120pt vertical-lr paper a vertical-rl box of width:8em (56pt) holds a vertical-lr block of width:86pt
+			// and two lines, so its content overflows to its block end, the left, off the paper. Chrome prints none of T0 to T2 either; with room at the left it puts
+			// them 8.4pt apart to the left of the box as Copper does.
+			new IndividualExclusion(68_086_413, "fit-v1", 635_727_520,
+					"作者の溢れ: 紙の左端のwidth:8em(56pt)の縦組み(rl)の箱にwidth:86ptの子があり、中身が箱の左へ溢れて紙の外(Chromeも刷らない、左に余白を足すと同じ位置)", "2026-11-06"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
