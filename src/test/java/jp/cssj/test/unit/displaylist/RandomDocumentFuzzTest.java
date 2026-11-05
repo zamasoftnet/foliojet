@@ -2031,7 +2031,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §176, the author's overflow: on 60pt vertical-rl paper a floated table holds a table in a cell, about 140pt long in the inline direction. Chrome
 			// leaves 20 of its tokens off the 60pt paper too; on 300pt paper Copper passes. The same before the fix of §174 (4f8405a9).
 			new IndividualExclusion(66_848_000, "fit-v1", 1_639_057_930,
-					"作者の溢れ: 縦組みのfloatの中の入れ子の表の長さ約140ptが紙の高さ60ptより長い(Chromeも20字が紙の外、高い紙では通る)", "2026-11-05"));
+					"作者の溢れ: 縦組みのfloatの中の入れ子の表の長さ約140ptが紙の高さ60ptより長い(Chromeも20字が紙の外、高い紙では通る)", "2026-11-05"),
+			// Triage §177, the author's overflow (the blank page of a box that cannot fit, the user's decision of 2026-07-26): on 120pt vertical-rl paper a
+			// horizontal-tb float in a table holds a textarea of the default 20 columns (125pt) and is 148pt wide against a 100pt type area. isOversized sees
+			// explicit sizes only. On 170pt paper there is no blank page. The same on 9fbf4ec3 (19165).
+			new IndividualExclusion(67_242_577, "standard", 67_242_577,
+					"作者の溢れ: 縦組みの紙の表の中の横組みのfloatが既定の幅のtextarea(約125pt)で約148pt、版面の100ptより長く白紙ページ(紙を170ptにすると出ない)", "2026-11-05"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
