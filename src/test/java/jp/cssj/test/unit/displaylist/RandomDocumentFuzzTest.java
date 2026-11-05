@@ -2018,7 +2018,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Triage §174, a defect older than 19162 (8275b779 the same), left as it is: a right float wider than its box is put at the line start of the box (the clamp of
 			// 2026-08-21 that keeps it from leaving the paper before the line start), so in a 48pt float at the right of the paper the 105pt float runs off its right; Chrome puts it at the end.
 			new IndividualExclusion(65_570_729, "fit-v1", 334_344_077,
-					"既存の欠陥(未修正): 箱より広い右のfloatを箱の行頭に寄せるので、紙の右寄りの狭い箱では紙の右へ出る(Chromeは行末に寄せて紙の上)", "2026-11-04"));
+					"既存の欠陥(未修正): 箱より広い右のfloatを箱の行頭に寄せるので、紙の右寄りの狭い箱では紙の右へ出る(Chromeは行末に寄せて紙の上)", "2026-11-04"),
+			// Triage §175, the author's overflow: on 60pt vertical-rl paper a floated list-item holds a table whose cell holds a table whose cell holds an ol (its UA padding
+			// 30pt), 139pt long in the inline direction. Chrome has it 137pt long on tall paper (T19 at 117 against 129) and T15 to T22 off the 60pt paper too; on tall paper Copper passes.
+			new IndividualExclusion(65_853_503, "standard", 65_853_503,
+					"作者の溢れ: 縦組みのfloatの中の入れ子の表(セルにolの既定の余白30pt)の長さ139ptが紙の高さ60ptより長い(Chromeも紙の外、高い紙で同じ長さ)", "2026-11-05"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
