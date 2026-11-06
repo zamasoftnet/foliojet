@@ -1541,10 +1541,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// x = -334 pt; exposed by 3f90e52c (textareas at Chrome's size), Chrome keeps it on the paper (38.6 pt).
 			new IndividualExclusion(14_146_344, "fit-v1", 153_648_479, "既知の制限: 縦組みの紙の横組みのfloatが幅を取りすぎて後ろの段落が紙の外",
 					"2026-10-14"),
-			// Triage §34: nested tables with overlapping cells in a float on 60 pt vertical-lr paper run to y = 126 pt;
-			// Chrome runs them off the top instead (T0 at y = -134 pt).
-			new IndividualExclusion(14_187_565, "fit-v1", 1_481_119_028, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeも)",
-					"2026-10-14"),
 			// Triage §35: on 200 pt vertical-rl paper a flex of max-content items with a multicol of an image and form
 			// controls runs along the line to y = 816 pt; Chrome runs it on to 848 pt too.
 			new IndividualExclusion(14_442_433, "fit-v1", 510_489_695, "作者の溢れ: max-contentのflexの中の段組が行の向きに紙の4倍(Chromeも)",
@@ -1609,10 +1605,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// vertical-lr inline-block (min-width:8em) holds a vertical-rl grid wider than the box; Copper (19124 and 19135
 			// alike) puts everything 118 pt right of Chrome, T0 at x = 296.8 pt off the paper, Chrome prints it at 178.6 pt.
 			new IndividualExclusion(19_109_270, "fit-v1", 165_754_504, "既知の制限: 逆進行の箱より広い中身が紙の右の外",
-					"2026-10-15"),
-			// Triage §49: nested tables with overlapping cells on 60 pt vertical-rl paper, far longer than the paper in the
-			// inline direction; Chrome puts them off the paper too (screen up to y = -137 pt, print keeps 7 of the 28 tokens).
-			new IndividualExclusion(19_071_741, "fit-v1", 192_214_379, "作者の溢れ: 重なるセルの入れ子の表が紙の2倍超(Chromeも同じ)",
 					"2026-10-15"),
 			// Triage §51: on 120x400 pt paper a vertical-lr box of width:115pt holds a table whose cell has a wrapping column
 			// flex, and the rows run far to the right; Copper puts T15 at x = 527.5 pt (19124 alike), Chrome's screen lays it
@@ -1825,11 +1817,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// print shows only six tokens on the paper.
 			new IndividualExclusion(41_089_292, "fit-v1", 1_953_458_425, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の3倍(Chromeの印刷も紙の外)",
 					"2026-10-26"),
-			// Triage §117: a right float on 60 pt vertical-rl paper holding a table with overlapping cells and a nested
-			// table; Copper puts T19 at y = 167.3 pt (19124 alike), Chrome's print leaves T9 to T15 and T17 to T19 off the
-			// paper as well.
-			new IndividualExclusion(41_395_460, "fit-v1", 899_856_450, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の3倍(Chromeの印刷も紙の外)",
-					"2026-10-26"),
 			// Triage §117, a known limitation since 19124 (standing user decision 2026-10-13): on horizontal A4 a vertical-lr
 			// wrap-reverse flex holds a three-column multicol around a four-column multicol with a 240 pt tall image. The
 			// item's automatic minimum size counts every column (about 2,970 pt), so T1 and T2 land at y = 1244 and 2734 pt;
@@ -1858,21 +1845,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// left edge; Chrome's print splits the box over two pages and puts T0 on the paper.
 			new IndividualExclusion(42_044_965, "fit-v1", 1_554_219_123, "既知の制限: 縦組みの紙の最小幅を決めた横組みの箱が頁で分かれず紙の左の縁",
 					"2026-10-26"),
-			// Triage §120: a left float on 60 pt vertical-lr paper holding a vertical-rl table with overlapping cells and
-			// a nested table about 2.5 times the paper in the line direction (19124 alike); Chrome's print leaves T1 to
-			// T3, T10 to T12, T15 to T23 and others off the paper as well.
-			new IndividualExclusion(42_084_456, "fit-v1", 2_065_976_665, "作者の溢れ: 重なるセルの入れ子の表が行の向きに紙の2倍超(Chromeの印刷も紙の外)",
-					"2026-10-26"),
 			// Triage §121, a known limitation since 19124 (standing user decision 2026-10-13, as §112): on 200 pt
 			// vertical-rl paper a two-column multicol holds floats of 101 to 128 pt with a table, an image and form
 			// controls. Copper keeps the multicol on page 1 and T6 to T14 land at x = -56 to -654 pt; without the
 			// multicol they go over five pages on the paper. Chrome's print loses T5, T6 and T10 to T13 as well.
 			new IndividualExclusion(42_377_714, "fit-v1", 1_381_878_066, "既知の制限: 縦組みの段組の中のfloatが頁で分かれず紙の左の外",
-					"2026-10-26"),
-			// Triage §122, the author's overflow: on 60 pt vertical-lr paper a vertical-rl float holds a table of six
-			// columns with overlapping spans whose cell nests a seven-column table; with no sizes its min-content runs
-			// to about 150 pt in the line axis, so T3 and T19 land at y = 141 pt. The same on c3587d0e.
-			new IndividualExclusion(42_710_839, "fit-v1", 714_461_116, "作者の溢れ: 逆進行のfloatの中の表の最小幅が紙の行長60ptの約2.6倍",
 					"2026-10-26"),
 			// Triage §123, a known limitation since 19124 (as §73): on 120 x 400 pt vertical-rl paper a grid with
 			// width: 114pt holds a table whose cell has a column flex of 8em items, then a table and a list; the rows
@@ -1918,22 +1895,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Chrome prints three pages with those words on the paper.
 			new IndividualExclusion(46_681_865, "fit-v1", 143_952_072, "既知の制限: 縦組みのセルにflexを持つ表が頁で分かれず紙の左の外",
 					"2026-10-29"),
-			// Triage §136: on 60x60 pt vertical-lr paper a vertical-rl float holds nested tables of overlapping cells
-			// about 130 pt long along their lines, which do not break across pages; T23 is at y = 124.5 pt, 4 pt past
-			// one more sheet (Chrome's screen puts it at 122.8 pt, and its print drops the words past the paper).
-			new IndividualExclusion(47_128_582, "fit-v1", 1_921_342_267,
-					"作者の溢れ: 縦組みの浮動体の中の重なるセルの入れ子の表が行の向きに紙の2倍、後ろの字が紙の下の外(Chromeも)", "2026-10-29"),
 			// Triage §137: on 120x400 pt paper a table cell holds a grid of min-content and max-content columns, the
 			// second holding three textareas of the UA size (two in a row); the table grows to about 525 pt and T4 is at
 			// x = 505.9 pt (Chrome's screen puts it at 467 pt).
 			new IndividualExclusion(47_601_040, "fit-v1", 471_152_118,
 					"作者の溢れ: 表のセルのgridのmax-contentの列にUAの寸法のtextareaが2つ並び、表が紙の4倍の幅(Chromeも)", "2026-10-30"),
-			// Triage §138, as §136: on 60x60 pt vertical-rl paper a vertical-rl right float holds three levels of nested
-			// tables of overlapping cells about 200 pt long along their lines, which do not break across pages; T38 is
-			// at y = 195.3 pt (Chrome's screen runs the table from y = -194 pt to the paper's top, and its print drops
-			// T27 to T30 and T33).
-			new IndividualExclusion(48_359_836, "fit-v1", 440_656_388,
-					"作者の溢れ: 縦組みの右の浮動体の中の重なるセルの入れ子の表が行の向きに紙の3倍、後ろの字が紙の下の外(Chromeも)", "2026-10-30"),
 			new IndividualExclusion(50_240_847, "fit-v1", 1_264_179_287,
 					"作者の溢れ: 幅110ptのvertical-rlの中のcolumnのflex(96pt)にmin-width:8emのitemが3つ、計約290ptが紙の左の外(Chromeも)", "2026-10-30"),
 			// Triage §142: on vertical-lr 300x150 pt paper a vertical-rl box 48 pt wide holds a float of its own width
@@ -1967,14 +1933,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper's right edge (x = 300.5 pt). No table, float:left or a block for the grid each put it on the paper.
 			new IndividualExclusion(54_493_273, "standard", 54_493_273,
 					"既知の制限: display:tableのfloat:rightの中に直交のgridがあると行方向の寸法0で置かれ紙の右の外", "2026-11-01"),
-			// Triage §150, as §143: on 60x60 pt vertical-lr paper a float holds a table with a nested table, 130 pt along the line
-			// (T24 at y = 127 pt, Chrome's screen 122 pt; its print leaves T4, T23 and T24 out on 3 pages as well).
-			new IndividualExclusion(54_368_591, "fit-v1", 1_992_649_937,
-					"作者の溢れ: 紙より長い入れ子の表が行の向きに紙の2倍超、floatの中で紙の下の外(Chromeも)", "2026-11-01"),
-			// Triage §151, as §150: on 60x60 pt vertical-lr paper a float holds tables nested three deep, 142 pt along the line
-			// (T27 at y = 132 pt on page 1; Chrome's screen has T8 at 114 pt to Copper's 119 pt).
-			new IndividualExclusion(54_721_231, "fit-v1", 2_079_944_939,
-					"作者の溢れ: 紙より長い入れ子の表が行の向きに紙の2倍超、floatの中で紙の下の外(Chromeも)", "2026-11-01"),
 			// Triage §153: on vertical-lr 300x150 pt paper a vertical-rl float 93 pt wide holds a vertical-lr table 125 pt wide, which
 			// overflows it to the left in both engines (T0 at x = -32 pt, Chrome's screen -31 pt, its print has no token; A4 paper changes nothing).
 			new IndividualExclusion(56_381_704, "standard", 56_381_704,
@@ -1995,10 +1953,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// of the box, off the paper however wide the paper is. The same before the fixes of §161 (1bc81c38).
 			new IndividualExclusion(62_285_877, "fit-v1", 719_296_485,
 					"作者の溢れ: 幅129ptの縦組みの箱の中のflexが左へ伸びて紙の外(Chromeも、紙の幅によらない)", "2026-11-02"),
-			// Triage §163, the author's overflow: a table of nested tables in a vertical-lr float, 316pt long at its min-content on a line of 130pt. Chrome has it about 310pt long on
-			// tall paper and off the 150pt paper too (T20, T23, T24, T27, T28 lost). The same before the fixes of 19163 (2bb7e641).
-			new IndividualExclusion(63_110_376, "fit-v1", 1_805_211_365,
-					"作者の溢れ: 縦組みのfloatの中の表の長さ316ptが紙の高さ150ptより長い(Chromeも紙の外、高い紙で同じ長さ)", "2026-11-02"),
 			// Triage §164, the author's overflow: a table 128pt wide in a vertical-lr float 82pt wide, which a vertical-rl body sets at the right edge of the paper, so the table runs
 			// past the paper to the right and takes all the text with it. Chrome has every word at the same place and none on the paper. The same before the fixes of 19163 (2bb7e641).
 			new IndividualExclusion(63_979_265, "fit-v1", 967_260_226,
@@ -5705,7 +5659,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final java.util.ArrayDeque<Boolean> plainPaths = new java.util.ArrayDeque<>();
 		plainPaths.push(Boolean.TRUE);
 		// Direction of a float allowed to wrap a table directly, with only wrapper-div ancestors ({@link #floatWrapperSide};
-		// horizontal floats only; one in vertical writing is END_ANCHORED or 'L' by the block progression).
+		// one across the axis is END_ANCHORED or 'L' by the block progression).
 		final java.util.ArrayDeque<Character> floatSides = new java.util.ArrayDeque<>();
 		floatSides.push(Character.valueOf(NOT_FLOATED));
 		final double[] pageExtent = extents.peek();
@@ -5811,8 +5765,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 				}
 			}
 			final boolean parentVertical = verticals.peek().booleanValue();
-			char side = plainPaths.peek().booleanValue() && !(vertical && parentVertical) ? floatWrapperSide(name, attrs)
-					: NOT_FLOATED;
+			// A vertical float in vertical writing keeps its side, as a horizontal one in horizontal writing does (fit seed
+			// 71667946, triage §182): float:left goes to the line's top, float:right to its bottom, and one longer than the
+			// line starts at the top in Copper and ends at the bottom in Chrome.
+			char side = plainPaths.peek().booleanValue() ? floatWrapperSide(name, attrs) : NOT_FLOATED;
 			// An orthogonal inline-block wraps its table across the axis change as an orthogonal float does
 			// ({@link #isOrthogonalInlineBlock}, fit seed 36209301).
 			if (side == NOT_FLOATED && plainPaths.peek().booleanValue() && vertical != parentVertical
@@ -5827,12 +5783,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			if (side != NOT_FLOATED && vertical != parentVertical && extents.peek()[blockAxis] > pageExtent[blockAxis]) {
 				side = NOT_FLOATED;
 			}
-			if (side != NOT_FLOATED && parentVertical) {
+			if (side != NOT_FLOATED && parentVertical && !vertical) {
 				// A horizontal float in vertical writing (an orthogonal flow): its table's columns run along the paper's
 				// block axis, anchored by the block progression, whatever side it floats to.
 				side = !bodyModePaths.peek().booleanValue() ? NOT_FLOATED
 						: rootMode.equals("vertical-rl") ? END_ANCHORED : 'L';
-			} else if (side != NOT_FLOATED && vertical) {
+			} else if (side != NOT_FLOATED && vertical && !parentVertical) {
 				// A vertical float in horizontal writing (fit seed 34999082, 2026-10-24): its table's columns run down
 				// the paper's block axis from the float's top, whatever side it floats to. Copper gives the float the
 				// page's content height as its line and moves it to the next page's top when it does not fit, so the
@@ -6750,7 +6706,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * Whether a float may wrap a table: a div whose only attribute is style,
 	 * with only {@code float:left|right} and {@code position:static|relative} declarations (no width/margins), plus
 	 * {@code display:inline|block|table} and {@code writing-mode}. The caller checks the float's axis against its
-	 * parent's: a horizontal float in either writing, or a vertical float in horizontal writing.
+	 * parent's: a float across the axis is anchored by the block progression, one along it keeps its side.
 	 * Return the side as {@code 'L'}/{@code 'R'}, or {@link #NOT_FLOATED} if ineligible.
 	 */
 	static char floatWrapperSide(final String name, final String attrs) {

@@ -1135,6 +1135,47 @@ public class FuzzOraclePredicateTest extends TestCase {
 				RandomDocumentFuzzTest.generate(1_190_113_184, true, false, false).html()));
 	}
 
+	/**
+	 * fit seed 71667946 (v2 1247753768): on 60 pt vertical-lr paper, a table with a nested table about 180 pt long at its
+	 * minimum inside {@code <div style="display:block;position:relative;float:right;">} (2026-11-06, triage §182).
+	 * Copper started the table at the line's top and put T7 at y=169.88; Chrome ended it at the line's bottom and
+	 * printed only T5 to T7, T10, T11 and T23.
+	 */
+	public void testSeedTableInVerticalFloatInVerticalWritingIsUnfittable() {
+		final String html = RandomDocumentFuzzTest.generate(1_247_753_768, true, false, false).html();
+		assertTrue(html.contains("<div style=\"display:block;position:relative;float:right;\">"));
+		assertEquals(RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest.findUnfittableContent(html));
+		// A float along the axis keeps its side in either block progression, its own included: a left float needs
+		// start-side evidence, a right one both sides' (T15 is the only start-side evidence, T10 the only end-side one).
+		final String noEndEvidence = TABLE_OVER.replace("<td>T10</td>", "<td><b>T10</b></td>");
+		final String noStartEvidence = TABLE_OVER.replace("<td>T15</td>", "<td><b>T15</b></td>");
+		for (final String mode : new String[] { "vertical-lr", "vertical-rl" }) {
+			for (final String own : new String[] { "", "writing-mode:vertical-lr;", "writing-mode:vertical-rl;" }) {
+				final String left = "<div style=\"" + own + "float:left\">";
+				final String right = "<div style=\"" + own + "float:right\">";
+				final String label = mode + " " + own;
+				assertEquals(label, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+						.findUnfittableContent(verticalShrinkerDoc(mode, left + noEndEvidence + "</div>")));
+				assertNull(label, RandomDocumentFuzzTest
+						.findUnfittableContent(verticalShrinkerDoc(mode, left + noStartEvidence + "</div>")));
+				assertEquals(label, RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+						.findUnfittableContent(verticalShrinkerDoc(mode, right + TABLE_OVER + "</div>")));
+				assertNull(label, RandomDocumentFuzzTest
+						.findUnfittableContent(verticalShrinkerDoc(mode, right + noEndEvidence + "</div>")));
+				assertNull(label, RandomDocumentFuzzTest
+						.findUnfittableContent(verticalShrinkerDoc(mode, right + noStartEvidence + "</div>")));
+			}
+		}
+		// The documents of the individual exclusions dropped for this, all tables longer than the line in a vertical float
+		// on vertical paper (fit seeds 14187565, 19071741, 41395460, 42084456, 42710839, 47128582, 48359836, 54368591,
+		// 54721231 and 63110376; triage §34, §49, §117, §120, §122, §136, §138, §150, §151 and §163).
+		for (final int document : new int[] { 1_481_119_028, 192_214_379, 899_856_450, 2_065_976_665, 714_461_116,
+				1_921_342_267, 440_656_388, 1_992_649_937, 2_079_944_939, 1_805_211_365 }) {
+			assertEquals(String.valueOf(document), RandomDocumentFuzzTest.UNFITTABLE_TABLE_COLUMN, RandomDocumentFuzzTest
+					.findUnfittableContent(RandomDocumentFuzzTest.generate(document, true, false, false).html()));
+		}
+	}
+
 	// 2026-10-08, fit 12,000,000 onward stopped (BUILD 80e89977).
 
 	/**
