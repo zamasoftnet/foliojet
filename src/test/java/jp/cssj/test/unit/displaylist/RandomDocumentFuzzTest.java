@@ -2018,7 +2018,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// least 8em, so the tables are about 420 pt wide and T35 lands at x = 410 pt. Chrome puts the words within 2.5 pt
 			// of Copper and prints the overflow on three more pages. flexLineOverflows sees only flex containers under body.
 			new IndividualExclusion(73_444_917, "fit-v1", 1_153_955_398,
-					"作者の溢れ: 120ptの紙の入れ子の表のセルにnowrapのflexの最小8emの項目が3つ並び、表が約420ptになって紙の右の外(Chromeも同じ位置、はみ出しを頁を足して刷る)", "2026-11-06"));
+					"作者の溢れ: 120ptの紙の入れ子の表のセルにnowrapのflexの最小8emの項目が3つ並び、表が約420ptになって紙の右の外(Chromeも同じ位置、はみ出しを頁を足して刷る)", "2026-11-06"),
+			// Triage §186, the author's overflow (§183 alike): at the left of 200pt vertical-lr paper a vertical-rl box of auto
+			// width holds an inline-block of width:76pt whose horizontal-tb child holds an inline-block of width:101pt, so the
+			// child is 101pt wide against its block start, the right, and overflows 25pt to the left, off the paper. Chrome puts
+			// T0 and T1 at the same x = -23pt and prints neither. The reversed box has no width of its own, so
+			// hasUntypesettableOppositeProgression does not count it.
+			new IndividualExclusion(75_332_954, "fit-v1", 481_341_391,
+					"作者の溢れ: 紙の左端の縦組み(rl)の箱のwidth:76ptのinline-blockの横組みの子にwidth:101ptのinline-blockがあり、子が右寄せで左へ25pt溢れて紙の外(Chromeも同じ位置x=-23で刷らない)", "2026-11-07"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
