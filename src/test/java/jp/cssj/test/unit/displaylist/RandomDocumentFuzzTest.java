@@ -2041,7 +2041,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// and two lines, so its content overflows to its block end, the left, off the paper. Chrome prints none of T0 to T2 either; with room at the left it puts
 			// them 8.4pt apart to the left of the box as Copper does.
 			new IndividualExclusion(68_086_413, "fit-v1", 635_727_520,
-					"作者の溢れ: 紙の左端のwidth:8em(56pt)の縦組み(rl)の箱にwidth:86ptの子があり、中身が箱の左へ溢れて紙の外(Chromeも刷らない、左に余白を足すと同じ位置)", "2026-11-06"));
+					"作者の溢れ: 紙の左端のwidth:8em(56pt)の縦組み(rl)の箱にwidth:86ptの子があり、中身が箱の左へ溢れて紙の外(Chromeも刷らない、左に余白を足すと同じ位置)", "2026-11-06"),
+			// Triage §180, the author's overflow (a box larger than the page, the user's decision of 2026-07-26): on A4 vertical-rl paper a horizontal-tb float
+			// display:table of width:92pt holds a 4-column multicol with an inline-block of width:204pt, so the table grows to the multicol's min-content (about
+			// 828pt) against a 575pt page and runs off the left. Chrome gives it the same width (within 6pt on 1000pt paper) and slices it onto a second page;
+			// Copper does not slice a box that cannot break. hasFlexMulticolTable sees multicols in flex items only.
+			new IndividualExclusion(71_319_302, "standard", 71_319_302,
+					"作者の溢れ: 縦組み(rl)のA4に横組みのfloatの表(width:92pt)、中の4段組にwidth:204ptのinline-blockがあり、表が段組のmin-content(約828pt)まで広がって版面575ptより長く紙の左の外(Chromeは同じ幅で2頁目へ切って刷る)", "2026-11-06"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
