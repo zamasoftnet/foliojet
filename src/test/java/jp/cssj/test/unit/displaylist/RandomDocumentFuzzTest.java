@@ -2006,7 +2006,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// overflows to its block end, the right, the side where the page starts, off the paper. Chrome prints only T0 and the image too; with room at the right
 			// it puts T0 to T11 within 1.5pt of Copper. No single descendant is wider than 131pt, so hasUntypesettableOppositeProgression does not count it.
 			new IndividualExclusion(71_333_398, "fit-v1", 1_318_464_471,
-					"作者の溢れ: 200ptの縦組み(rl)の紙にwidth:131ptの縦組み(lr)の箱、中身が約714pt積まれて箱の右(頁の始まりの側)へ溢れて紙の外(Chromeも刷らない、右に余白を足すと同じ位置)", "2026-11-06"));
+					"作者の溢れ: 200ptの縦組み(rl)の紙にwidth:131ptの縦組み(lr)の箱、中身が約714pt積まれて箱の右(頁の始まりの側)へ溢れて紙の外(Chromeも刷らない、右に余白を足すと同じ位置)", "2026-11-06"),
+			// Triage §183, the author's overflow: at the left of A4 vertical-lr paper a vertical-rl box of auto width holds only a float of width:56pt with a
+			// horizontal-tb inline-block of width:115pt, so the float's content overflows to its block end, the left, off the paper. Chrome prints none of it
+			// either; with room at the left it puts T0 and T1 within 1pt of Copper. The reversed box has no width of its own, so
+			// hasUntypesettableOppositeProgression does not count it.
+			new IndividualExclusion(72_042_509, "fit-v1", 662_940_045,
+					"作者の溢れ: 紙の左端の縦組み(rl)の箱にwidth:56ptのfloatだけがあり、中のwidth:115ptの横組みのinline-blockが箱の左へ溢れて紙の外(Chromeも刷らない、左に余白を足すと同じ位置)", "2026-11-06"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
