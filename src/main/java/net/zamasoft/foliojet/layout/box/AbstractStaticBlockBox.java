@@ -618,7 +618,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			return false;
 		}
 		final PosType type = containerBox.getPos().getType();
-		return type == PosType.INLINE || type == PosType.FLOAT || type == PosType.ABSOLUTE;
+		// A block in normal flow that is the root of its own builder (orthogonal to its parent, sized like a float) is sized
+		// before its content too: a float of width: 59% in a horizontal-tb block of auto width in vertical-rl writing took
+		// 59% of the page, was put at the block's line start as wider than it, and ran off the paper (fit seed 72562185,
+		// triage §184; Chrome takes 59% of the block). The other roots of their own builder keep the old basis: a multicol,
+		// and a block of width: max-content, whose content an intrinsic measurement reads (with flow-root it is a context
+		// root too, and an inline-block of width: 50% in it halved the inline-block holding it, codex 2026-11-06).
+		return type == PosType.INLINE || type == PosType.FLOAT || type == PosType.ABSOLUTE
+				|| type == PosType.FLOW && containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlowBlockBox root
+						&& root.isOwnContextRoot() && root.getColumnCount() <= 1 && !root.getBlockParams().hasIntrinsicLine();
 	}
 
 	private boolean orthogonalTo(final AbstractContainerBox containerBox) {

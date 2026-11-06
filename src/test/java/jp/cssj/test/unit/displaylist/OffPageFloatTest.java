@@ -489,6 +489,31 @@ public class OffPageFloatTest extends TestCase {
 				"T0")[0], 0.1);
 	}
 
+	/**
+	 * A percentage size of a float in a block of auto size orthogonal to its parent resolves against the block, once it is
+	 * sized (2026-11-06, fit seed 72562185, triage §184). Against the page, a float of width: 59% in a horizontal-tb block
+	 * at the right of A4 vertical-rl paper came out 345pt wide, was put at the block's line start as wider than the block,
+	 * and its content ran off the paper. Chrome puts each at the same place within 1pt.
+	 */
+	public void testPercentFloatInOrthogonalBlockTakesTheBlockSize() throws Exception {
+		assertEquals("width", 535, overwideFloatText("orthogonal-percent-width", 595, 842, 5, "writing-mode:vertical-rl",
+				"<div style=\"writing-mode:horizontal-tb\"><div style=\"width:100pt;height:6pt\"></div>"
+						+ "<div style=\"float:right;width:50%\"><p>T0</p></div></div>", "T0")[0], 0.1);
+		assertEquals("height", 50, overwideFloatText("orthogonal-percent-height", 595, 842, 5, "",
+				"<div style=\"writing-mode:vertical-rl\"><div style=\"height:100pt;width:6pt\"></div>"
+						+ "<div style=\"float:right;height:50%\"><p>T0</p></div></div>", "T0")[1], 0.1);
+		// The seed's shape: the float is 59% of the 118pt its content makes the block
+		assertEquals("seed", 515.38, overwideFloatText("orthogonal-percent-seed", 595, 842, 5, "writing-mode:vertical-rl",
+				"<div style=\"writing-mode:horizontal-tb\"><div style=\"float:right;width:59%;min-width:8em;max-width:90%\">"
+						+ "<p>T8</p><div style=\"float:right;width:118pt\"><p>T0</p></div></div></div>", "T8")[0], 0.1);
+		// A root of width: max-content keeps the old basis: its inline-block of width: 50% is measured at its content's
+		// 100pt, so the inline-block holding it is 100pt and T9 follows it (Chrome the same; 50 when the root resolved it)
+		assertEquals("max-content root", 100, overwideFloatText("orthogonal-percent-max-content", 300, 200, 5, "width:200pt",
+				"<div style=\"display:inline-block;overflow:hidden\"><div style=\"display:flow-root;width:max-content\">"
+						+ "<div style=\"display:inline-block;width:50%\"><div style=\"width:100pt;height:10pt\">T0</div></div>"
+						+ "</div></div><span>T9</span>", "T9")[0], 0.1);
+	}
+
 	/** Lays out a one-page document and returns where {@code token} is drawn in the page area. */
 	private static double[] overwideFloatText(final String name, final int pageWidth, final int pageHeight,
 			final int margin, final String bodyStyle, final String body, final String token) throws Exception {
