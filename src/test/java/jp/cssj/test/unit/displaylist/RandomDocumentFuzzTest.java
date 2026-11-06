@@ -2047,7 +2047,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 828pt) against a 575pt page and runs off the left. Chrome gives it the same width (within 6pt on 1000pt paper) and slices it onto a second page;
 			// Copper does not slice a box that cannot break. hasFlexMulticolTable sees multicols in flex items only.
 			new IndividualExclusion(71_319_302, "standard", 71_319_302,
-					"作者の溢れ: 縦組み(rl)のA4に横組みのfloatの表(width:92pt)、中の4段組にwidth:204ptのinline-blockがあり、表が段組のmin-content(約828pt)まで広がって版面575ptより長く紙の左の外(Chromeは同じ幅で2頁目へ切って刷る)", "2026-11-06"));
+					"作者の溢れ: 縦組み(rl)のA4に横組みのfloatの表(width:92pt)、中の4段組にwidth:204ptのinline-blockがあり、表が段組のmin-content(約828pt)まで広がって版面575ptより長く紙の左の外(Chromeは同じ幅で2頁目へ切って刷る)", "2026-11-06"),
+			// Triage §181, the author's overflow: on 200pt vertical-rl paper a vertical-lr list-item of width:131pt holds about 714pt of stacked content, which
+			// overflows to its block end, the right, the side where the page starts, off the paper. Chrome prints only T0 and the image too; with room at the right
+			// it puts T0 to T11 within 1.5pt of Copper. No single descendant is wider than 131pt, so hasUntypesettableOppositeProgression does not count it.
+			new IndividualExclusion(71_333_398, "fit-v1", 1_318_464_471,
+					"作者の溢れ: 200ptの縦組み(rl)の紙にwidth:131ptの縦組み(lr)の箱、中身が約714pt積まれて箱の右(頁の始まりの側)へ溢れて紙の外(Chromeも刷らない、右に余白を足すと同じ位置)", "2026-11-06"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
