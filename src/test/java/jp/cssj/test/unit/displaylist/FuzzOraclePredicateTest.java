@@ -1112,6 +1112,27 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"<div style=\"writing-mode:vertical-lr;width:48pt\"><span style=\"width:58pt\">T0</span></div>")));
 		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
 				"<div style=\"writing-mode:vertical-lr;width:48pt;display:flex\"><div style=\"width:58pt\">T0</div></div>")));
+		// An inline that turns the axis takes its width in Copper and Chrome; a same-axis reversed one does not in Copper.
+		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"display:inline;writing-mode:horizontal-tb;"
+						+ "width:58pt\"><div>T0</div></div></div>")));
+		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt\"><span style=\"writing-mode:horizontal-tb;width:58pt\">"
+						+ "<div>T0</div></span></div>")));
+		assertFalse(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(doc(head,
+				"<div style=\"writing-mode:vertical-lr;width:48pt\"><div style=\"display:inline;writing-mode:vertical-rl;"
+						+ "width:58pt\"><div>T0</div></div></div>")));
+	}
+
+	/**
+	 * Exclude fit seed 70401656 (v2 1190113184): at the left of 300pt vertical-lr paper a {@code width:8em} (56 pt)
+	 * vertical-rl box holds a horizontal-tb {@code display:inline} of {@code width:97pt}. Copper and Chrome both give the
+	 * inline its width, so the content overflows the box to the left off the paper; neither prints T0 to T4, and with room
+	 * at the left both put them within 1.2 pt of each other (triage §179).
+	 */
+	public void testSeedOrthogonalInlineWiderThanReversedBoxIsExcluded() {
+		assertTrue(RandomDocumentFuzzTest.hasUntypesettableOppositeProgression(
+				RandomDocumentFuzzTest.generate(1_190_113_184, true, false, false).html()));
 	}
 
 	// 2026-10-08, fit 12,000,000 onward stopped (BUILD 80e89977).

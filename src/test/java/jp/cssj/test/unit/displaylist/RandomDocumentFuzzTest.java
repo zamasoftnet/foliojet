@@ -5392,7 +5392,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * Descendant widths are lower bounds (2026-10-07): the last {@code min-width}, and the last {@code width}
 	 * if there is no {@code max-width} (pt/em). Previously, comparison used the first {@code width} in pt,
 	 * counting boxes narrowed by {@code max-width} too. Ignore widths of non-replaced inline elements
-	 * (including tags inline by default) and table parts; flex items use only {@code min-width}.
+	 * (including tags inline by default) unless their writing mode turns the axis (2026-11-06), and of table parts;
+	 * flex items use only {@code min-width}.
 	 * Do not read em for boxes inheriting changed font sizes (codex soundness counterexamples).
 	 * That day, we almost added "exclude when a descendant exceeds a box's explicit width within a region
 	 * progressing opposite to the paper", but such a region need not touch the paper edge, and alignment
@@ -5451,10 +5452,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final double inheritedLimit = reverseLimits.peek().doubleValue();
 			// Does the width declaration apply to this box? Non-replaced inline elements (including default-inline tags)
 			// and table parts have no width; flex items grow/shrink (only minimum width applies). Ignore em after font-size changes.
+			// An inline that turns the axis is laid out as a block by Copper (an inline-block by Chrome), so its width
+			// applies (fit seed 70401656, triage §179). A same-axis reversed inline gets no width in Copper (Chrome gives it one).
 			final String name = String.valueOf(m.group(2)).toLowerCase(java.util.Locale.ROOT);
-			final boolean unsized = STYLE_DISPLAY_UNSIZED.matcher(attrs).find()
-					|| (INLINE_BY_DEFAULT.contains(name) && !STYLE_DISPLAY_SIZED.matcher(attrs).find())
-					|| TABLE_PARTS.contains(name);
+			final boolean orthogonalInline = mode.startsWith("vertical-") != parent.startsWith("vertical-")
+					&& !RUBY_PARTS.contains(name) && (STYLE_DISPLAY_INLINE.matcher(attrs).find()
+							|| INLINE_BY_DEFAULT.contains(name) && !STYLE_DISPLAY_UNSIZED.matcher(attrs).find());
+			final boolean unsized = TABLE_PARTS.contains(name) || !orthogonalInline
+					&& (STYLE_DISPLAY_UNSIZED.matcher(attrs).find()
+							|| INLINE_BY_DEFAULT.contains(name) && !STYLE_DISPLAY_SIZED.matcher(attrs).find());
 			final boolean flexItem = flexParents.peek().booleanValue();
 			final boolean ownFont = fontChanged.peek().booleanValue() || STYLE_FONT_SIZE_DECLARATION.matcher(attrs).find();
 			final double em = ownFont ? Double.NaN : font;
@@ -5518,6 +5524,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 	/** Generator-used tags that default to non-replaced inline (width declarations do not apply). */
 	private static final Set<String> INLINE_BY_DEFAULT = Set.of("span", "a", "b", "i", "em", "strong", "small", "big",
 			"sub", "sup", "ruby", "rb", "rt", "rp", "label", "code", "q", "abbr", "cite");
+	/** Ruby parts: whether an axis-turning writing mode gives them a width is not measured, so they keep none. */
+	private static final Set<String> RUBY_PARTS = Set.of("ruby", "rb", "rt", "rp");
 	/** Table-part tags (width declarations apply only as minimum widths). */
 	private static final Set<String> TABLE_PARTS = Set.of("table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption",
 			"col", "colgroup");
