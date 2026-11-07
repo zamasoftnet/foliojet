@@ -2025,7 +2025,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// T0 and T1 at the same x = -23pt and prints neither. The reversed box has no width of its own, so
 			// hasUntypesettableOppositeProgression does not count it.
 			new IndividualExclusion(75_332_954, "fit-v1", 481_341_391,
-					"作者の溢れ: 紙の左端の縦組み(rl)の箱のwidth:76ptのinline-blockの横組みの子にwidth:101ptのinline-blockがあり、子が右寄せで左へ25pt溢れて紙の外(Chromeも同じ位置x=-23で刷らない)", "2026-11-07"));
+					"作者の溢れ: 紙の左端の縦組み(rl)の箱のwidth:76ptのinline-blockの横組みの子にwidth:101ptのinline-blockがあり、子が右寄せで左へ25pt溢れて紙の外(Chromeも同じ位置x=-23で刷らない)", "2026-11-07"),
+			// Triage §187, an unfixed regression since 67124aa2 (19163): on 60pt vertical-lr paper a three-column multicol
+			// (columns of about 0.8pt) in a column of a two-column multicol holds a float and an empty block of width:106pt.
+			// Filled again at the first page cut, it then breaks every page at the same input, depth and target with the cut
+			// line 22.4pt farther each time, which guardBreakProgress does not count, and the conversion does not end.
+			// Before 67124aa2 it ends in 47 pages. Not refilling a multicol in the columns of another ends it but puts text
+			// off the paper with a float or grid item between them, and the same form in a flex item still does not end.
+			new IndividualExclusion(77_153_564, "standard", 77_153_564,
+					"既存の欠陥(未修正): 19163(67124aa2)からの退行。頁の段組の段の中の3段組(段幅約0.8pt)にfloatと空のwidth:106ptの箱があり、最初の頁の切断で段を詰め直した後、同じ入力位置で切断線が頁ごとに22.4ptずつ伸びて頁送りが終わらない",
+					"2026-11-07", true));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
