@@ -2046,7 +2046,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// (T17 at 111, T1 at 303 against Copper's 109 and 295) and prints only T0 and T14 to T16, as Copper does.
 			// Without the float's width both split the flex over six pages with every word on the paper.
 			new IndividualExclusion(78_622_783, "standard", 78_622_783,
-					"作者の溢れ: 縦組みで幅56ptを決めたfloatの中のcolumn-reverseのflexの項目が頁の軸に約300pt並び紙の右の外(Chromeも同じ位置で4語しか刷らない)", "2026-11-09"));
+					"作者の溢れ: 縦組みで幅56ptを決めたfloatの中のcolumn-reverseのflexの項目が頁の軸に約300pt並び紙の右の外(Chromeも同じ位置で4語しか刷らない)", "2026-11-09"),
+			// Triage §192, the author's overflow: on vertical-lr A4 paper a float holds a vertical-rl box of width:51pt
+			// with two columns of a horizontal box whose only word sits in an inline-block of width:99pt. The inline-block
+			// overflows the 51pt box toward its block end, the left, and T0 lands at x=-48, off the paper. Chrome puts it at the
+			// same x=-48 and prints nothing; without the box's width or with a 40pt inline-block both put T0 on the paper.
+			new IndividualExclusion(80_880_007, "fit-v1", 521_176_192,
+					"作者の溢れ: 縦組み(右から左)の幅51ptの箱の中の幅99ptのinline-blockが左へ溢れ紙の左の外(Chromeも同じx=-48で刷らない)", "2026-11-10"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
