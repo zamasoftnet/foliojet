@@ -2032,7 +2032,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// start, the right, and overflows about 46pt to the left, off the paper. Chrome puts T0 to T5 at the same
 			// x (-42.75 and -26.11 against Copper's -42.7 and -25.8 from the page area) and prints none of them.
 			new IndividualExclusion(77_519_240, "fit-v1", 1_592_601_243,
-					"作者の溢れ: 紙の左端の縦組み(rl)の箱のwidth:8emのfloatの縦組み(lr)の子に表とwidth:123ptのdisplay:tableのfloatがあり、子が右寄せで左へ約46pt溢れて紙の外(Chromeも同じ位置で刷らない)", "2026-11-09"));
+					"作者の溢れ: 紙の左端の縦組み(rl)の箱のwidth:8emのfloatの縦組み(lr)の子に表とwidth:123ptのdisplay:tableのfloatがあり、子が右寄せで左へ約46pt溢れて紙の外(Chromeも同じ位置で刷らない)", "2026-11-09"),
+			// Triage §189, the author's overflow (§160 alike): on 120x400pt paper a grid of min-content and max-content
+			// columns has a table as its first item, with a nested table and up to six columns of T<n> cells; its least
+			// width is about 238pt against the 110pt page area, and the list in the second column starts at about 300pt.
+			// Chrome puts it the same (T23 at 215 and T28 at 299 against Copper's 220 and 307) and prints neither.
+			// tableColumnBeyondPage does not look inside grid items.
+			new IndividualExclusion(77_946_768, "fit-v1", 1_119_404_605,
+					"作者の溢れ: gridのmin-contentの列の表の最小幅が約238ptで紙の版面110ptの2倍、max-contentの列のリストが紙の右の外(Chromeも同じ位置で刷らない)", "2026-11-09"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
