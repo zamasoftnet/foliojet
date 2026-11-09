@@ -1202,6 +1202,14 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 			// close that new top level once as usual (seed 4540).
 			return;
 		}
+		if (!Double.isNaN(this.cutPageAxis)) {
+			// The head of a cut ends where it was cut (cutPageAxis)
+			if (this.params.flow.isVertical()) {
+				this.width = Math.min(this.width, this.cutPageAxis);
+			} else {
+				this.height = Math.min(this.height, this.cutPageAxis);
+			}
+		}
 		builder.endFlowBlock();
 	}
 

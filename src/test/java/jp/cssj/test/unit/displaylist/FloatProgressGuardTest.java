@@ -63,7 +63,9 @@ public class FloatProgressGuardTest extends TestCase {
 	 * A float carry that goes down and back up again is not progress at every other break (2026-10-16, sweep seed 20581114
 	 * cut down). Compared with the last carry, the guard cleared its history at every drop and page 6 of this 3-column
 	 * multicol on vertical-rl paper was laid out again without end (24,000 times in 30 s; since 7181a2e6). Compared
-	 * with the least carry the guard fires as it did before: two pages, every token drawn (past the paper, as before).
+	 * with the least carry the guard fired as it did before: two pages, every token drawn (past the paper, as before).
+	 * Since the head of a cut keeps the length it was cut to (2026-11-09, triage §187), the form no longer loops and the
+	 * guard does not fire: three pages, every token drawn, T1 and T2 on the paper.
 	 */
 	public void testCarryThatGoesBackUp() throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"
@@ -96,7 +98,7 @@ public class FloatProgressGuardTest extends TestCase {
 		for (int i = 1; i <= 5; ++i) {
 			assertTrue("T" + i + " drawn", all.indexOf("Text[\"T" + i + "\"") >= 0);
 		}
-		assertEquals("pages", 2, pages.length);
+		assertEquals("pages", 3, pages.length);
 	}
 
 	/**
@@ -104,8 +106,10 @@ public class FloatProgressGuardTest extends TestCase {
 	 * 27364217 cut down). The float is split at its column's last 4pt into an empty head and a remainder of its full
 	 * size, and each resume broke again 43.5pt farther and then 30pt back; growth was counted only over the last break,
 	 * so the count went back to 0 every other break and the page was laid out again until the stack overflowed (19124
-	 * too). Counted over the lower of the last two breaks, the guard fires: two pages, each ruby drawn once (past the
-	 * paper).
+	 * too). Counted over the lower of the last two breaks, the guard fired: two pages, each ruby drawn once (past the
+	 * paper). Since the head of a cut keeps the length it was cut to (2026-11-09, triage §187), the head of the 98pt block
+	 * around the float no longer grows back and the form ends without the guard: five pages, each ruby drawn once on the
+	 * paper, and again as an artifact, clipped, in each column its line runs into.
 	 */
 	public void testCursorThatGoesUpAndDown() throws Exception {
 		final String html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><style>"
@@ -133,10 +137,10 @@ public class FloatProgressGuardTest extends TestCase {
 		for (final File page : pages) {
 			all.append(Files.readString(page.toPath(), StandardCharsets.UTF_8));
 		}
-		assertEquals("T1 drawn once", 1, count(all, "RubyUnit[\"T1\" ruby=\"T2\""));
-		assertEquals("T3 drawn once", 1, count(all, "RubyUnit[\"T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14\""
+		assertEquals("T1 drawn once", 1, countContent(all, "RubyUnit[\"T1\" ruby=\"T2\""));
+		assertEquals("T3 drawn once", 1, countContent(all, "RubyUnit[\"T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14\""
 				+ " ruby=\"T15 T16 T17 T18 T19 T20 T21 T22 T23 T24\""));
-		assertEquals("pages", 2, pages.length);
+		assertEquals("pages", 5, pages.length);
 	}
 
 	/**
@@ -144,8 +148,9 @@ public class FloatProgressGuardTest extends TestCase {
 	 * seed 37576227 cut down; since 8abc2bb0). A float with a min-size of 80pt on 40pt pages holds a multicol with a
 	 * column flex of 98pt and a float in it; each resume broke again, 10 to 20 times lower and lower and then higher
 	 * again, so the count over the lower of the last two breaks went back to 0 at every wave and the guard fired only
-	 * after about 100 nested breaks (59 s). Counted over the least cursor of the run, it fires after 32: three pages,
-	 * each text drawn once.
+	 * after about 100 nested breaks (59 s). Counted over the least cursor of the run, it fired after 32: three pages,
+	 * each text drawn once. Since the head of a cut keeps the length it was cut to (2026-11-09, triage §187), the form
+	 * ends without the guard: five pages, each text drawn once.
 	 */
 	public void testCursorInLongWaves() throws Exception {
 		final String html = String.join("\n", "<!DOCTYPE html>", "<html><head><meta charset=\"utf-8\">", "<style>",
@@ -180,13 +185,24 @@ public class FloatProgressGuardTest extends TestCase {
 		for (final String text : new String[] { "T187", "T189", "T197", "T198" }) {
 			assertEquals(text + " drawn once", 1, count(all, "Text[\"" + text + "\""));
 		}
-		assertEquals("pages", 3, pages.length);
+		assertEquals("pages", 5, pages.length);
 	}
 
 	private static int count(final StringBuilder text, final String part) {
 		int n = 0;
 		for (int i = text.indexOf(part); i >= 0; i = text.indexOf(part, i + 1)) {
 			++n;
+		}
+		return n;
+	}
+
+	/** Like {@link #count}, without the artifacts: a line longer than its column is drawn again, clipped, in the next. */
+	private static int countContent(final StringBuilder text, final String part) {
+		int n = 0;
+		for (int i = text.indexOf(part); i >= 0; i = text.indexOf(part, i + 1)) {
+			if (i < 9 || !"artifact ".equals(text.substring(i - 9, i))) {
+				++n;
+			}
 		}
 		return n;
 	}

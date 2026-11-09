@@ -304,6 +304,53 @@ public class MulticolInContextTest extends TestCase {
 		assertEquals(name + ": 語", List.of("T170", "T171", "T172", "T173", "T175", "T176", "T177", "T179", "T181"), words);
 	}
 
+	/**
+	 * The head of a cut keeps the length it was cut to when it is laid out again: a width:90pt block in three columns of
+	 * 0.8pt, in a column of a multicol on the page, grew back to 90pt beside its continuation each time the columns were
+	 * balanced or filled again, 22.4pt more a page, and the page breaks did not end (sweep seed 77153564); in a flex item
+	 * as well.
+	 */
+	public void testCutHeadKeepsItsLength() throws Exception {
+		for (final String file : new String[] { "given-size-cut-in-columns-in-columns",
+				"given-size-cut-in-columns-in-a-flex-item" }) {
+			final List<String> words = new ArrayList<>();
+			for (final String page : fixture(file, file)) {
+				final Matcher m = WORD.matcher(page);
+				while (m.find()) {
+					words.add(m.group(1));
+				}
+			}
+			words.sort(null);
+			assertEquals(file + ": 語", List.of("T1", "T2", "T3", "T4", "T5"), words);
+		}
+	}
+
+	/**
+	 * The head of a cut takes the length it was cut to back after its content, not as its size: a child of height:40%
+	 * resolved against the head alone came out 20pt instead of 40pt, and the paragraph after it went over its last lines
+	 * (codex's review of the fix for sweep seed 77153564).
+	 */
+	public void testPercentInACutHeadIsOfTheWholeBox() throws Exception {
+		final String name = "percent-in-a-cut-head";
+		final String html = document("@page { size: 200pt 40pt } body { font: 8pt/10pt serif } p { height: 10pt }"
+				+ " table { table-layout: fixed }",
+				"<table><tr><td><div style='columns:2;column-gap:0'><div style='height:100pt'>"
+						+ "<div style='height:40%;overflow:hidden'><p>A</p><p>B</p><p>C</p><p>D</p></div>"
+						+ "<p>E</p><p>F</p><p>G</p><p>H</p><p>I</p><p>J</p></div></div></td></tr></table>");
+		final List<String> pages = convertPages(name, html);
+		final java.util.Set<String> places = new java.util.HashSet<>();
+		final List<String> words = new ArrayList<>();
+		for (int i = 0; i < pages.size(); ++i) {
+			final Matcher m = TEXT.matcher(pages.get(i));
+			while (m.find()) {
+				words.add(m.group(3));
+				assertTrue(name + ": 重なり: " + m.group(3), places.add(i + " " + m.group(1) + " " + m.group(2)));
+			}
+		}
+		words.sort(null);
+		assertEquals(name + ": 語", List.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J"), words);
+	}
+
 	/** Each numbered token once, on the paper, in order of pages, columns and lines. */
 	private static void assertReadingOrder(final String name, final List<String> pages, final int count, final int columns) {
 		final List<double[]> found = tokens(name, pages, columns);

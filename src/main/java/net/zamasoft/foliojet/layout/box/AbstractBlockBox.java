@@ -481,6 +481,17 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	 */
 	protected double continuedPageAxis = Double.NaN;
 
+	/**
+	 * The page-axis length a split left this box, the head of a box with a definite page-axis size, or NaN (2026-11-09).
+	 * The continuation takes the rest as its size (FragmentState); laid out again, by a multicol balanced or filled again
+	 * from its columns, the head took its whole size back beside it. A width:90pt block in three columns of 0.8pt, in a
+	 * column of a multicol on 60pt vertical-lr paper, came back 22.4pt longer at every page, and the page breaks did not
+	 * end (sweep strict seed 77153564, triage §187). {@link net.zamasoft.foliojet.layout.box.impl.FlowBlockBox#restyle}
+	 * takes this length back after the content: taken as the size, the children resolved their percentages against it,
+	 * and a height:40% child that had been 40pt came out 20pt, with the paragraph after it over its lines.
+	 */
+	protected double cutPageAxis = Double.NaN;
+
 	private net.zamasoft.foliojet.layout.fragment.FragmentState splitPageState(final double pageLimit,
 			final boolean columnSpanning, final boolean preserveSpecifiedPageSize) {
 		return this.splitPageState(pageLimit, pageLimit, columnSpanning, preserveSpecifiedPageSize);
@@ -548,6 +559,9 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 			this.height = state.prevPageExtent();
 		}
 		this.frame = state.prevFrame();
+		if (specified) {
+			this.cutPageAxis = state.prevPageExtent();
+		}
 		return state;
 	}
 
