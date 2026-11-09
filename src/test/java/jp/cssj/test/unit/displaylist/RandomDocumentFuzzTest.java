@@ -2039,7 +2039,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// Chrome puts it the same (T23 at 215 and T28 at 299 against Copper's 220 and 307) and prints neither.
 			// tableColumnBeyondPage does not look inside grid items.
 			new IndividualExclusion(77_946_768, "fit-v1", 1_119_404_605,
-					"作者の溢れ: gridのmin-contentの列の表の最小幅が約238ptで紙の版面110ptの2倍、max-contentの列のリストが紙の右の外(Chromeも同じ位置で刷らない)", "2026-11-09"));
+					"作者の溢れ: gridのmin-contentの列の表の最小幅が約238ptで紙の版面110ptの2倍、max-contentの列のリストが紙の右の外(Chromeも同じ位置で刷らない)", "2026-11-09"),
+			// Triage §191, the author's overflow: on vertical-rl 60x60pt paper a vertical-lr box holds a float:right of
+			// width:56pt (its page-axis size) with a column-reverse flex inside; its items (8em blocks, a table, a float
+			// of width:8em) run to about 300pt along the page axis, past the paper's right. Chrome puts them the same
+			// (T17 at 111, T1 at 303 against Copper's 109 and 295) and prints only T0 and T14 to T16, as Copper does.
+			// Without the float's width both split the flex over six pages with every word on the paper.
+			new IndividualExclusion(78_622_783, "standard", 78_622_783,
+					"作者の溢れ: 縦組みで幅56ptを決めたfloatの中のcolumn-reverseのflexの項目が頁の軸に約300pt並び紙の右の外(Chromeも同じ位置で4語しか刷らない)", "2026-11-09"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
