@@ -105,6 +105,23 @@ public class FlexItemFloatContainmentTest extends TestCase {
 				+ "writing-mode: vertical-rl\">" + RUN + "</div></div></div>", "T1")[0], 0.01);
 	}
 
+	/**
+	 * Moved to the next page, a grid between two floats is laid out again with its items stacked, and the lines of an
+	 * item 1.3pt wider than the gap went round the float on the right as if it were the item's own, below its end (fit
+	 * seed 78451409, 2026-11-09, triage §190: a vertical one off the paper). On the first page and in Chrome 0, here 300.
+	 */
+	public void testItemBesideFloatsOutsideItsGridMovedToTheNextPage() throws Exception {
+		final StringBuilder fill = new StringBuilder();
+		for (int i = 0; i < 50; ++i) {
+			fill.append("<p>F</p>");
+		}
+		final String block = "<div style=\"break-inside: avoid\"><div style=\"float: left; width: 40pt; height: 30pt\">T2"
+				+ "</div><div style=\"float: right; width: 152pt; height: 300pt\">T8</div><div style=\"display: grid\"><div>"
+				+ "T18 T19</div><div><div style=\"float: left\"></div>T23</div></div></div>";
+		assertEquals(0, pos(block, "T18")[1], 0.01);
+		assertEquals(0, pos(fill + block, "T18", 2)[1], 0.01);
+	}
+
 	private static double[] pos(final String body, final String token) throws Exception {
 		return pos(body, token, 1);
 	}

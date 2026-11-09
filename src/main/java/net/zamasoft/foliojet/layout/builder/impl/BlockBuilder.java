@@ -818,6 +818,9 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			this.noOverflowFloatings.add(new ArrayList<Floating>());
 			this.independentFloatScopeOwners.add(flowBox);
+			if (isBoundItem(flowBox)) {
+				this.noteFloatingsChanged();
+			}
 		}
 
 		final AbsoluteRectFrame frame = flowBox.getFrame();
@@ -939,8 +942,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final BlockParams rootParams = this.getRootBox().getBlockParams();
 		final WritingMode progression = rootParams.flow;
 		final double containingLineSize = this.getFlowBox().getLineSize();
+		final java.util.Set<Floating> itemFloatings = this.openItemFloatings();
 		for (int i = 0; i < count; ++i) {
 			final LayoutContext.Floating floating = this.getFloating(i);
+			if (itemFloatings != null && !itemFloatings.contains(floating)) {
+				continue;
+			}
 			final FloatPos floatingPos = floating.box.getFloatPos();
 			final net.zamasoft.foliojet.layout.constraint.ExclusionShape shape = floatingPos.shapeOutside == null
 					? null
@@ -950,10 +957,49 @@ public class BlockBuilder implements Builder, LayoutContext {
 					new AxisSpan(floating.pageStart, floating.pageEnd),
 					new AxisSpan(floating.lineStart, floating.lineEnd), shape));
 		}
-		final ExclusionSpace snapshot = ExclusionSpace.copyOfSorted(exclusions);
+		final ExclusionSpace snapshot = exclusions.isEmpty() ? ExclusionSpace.EMPTY
+				: ExclusionSpace.copyOfSorted(exclusions);
 		this.cachedExclusions = snapshot;
 		this.cachedExclusionsGeneration = this.floatingsGeneration;
 		return snapshot;
+	}
+
+	/**
+	 * The floats an open flex or grid item sees, or null outside one: those in the registries of the innermost open
+	 * item and of the scopes opened in it. An item is bound at the root of a builder of its own, where the floats
+	 * outside it do not exist; laid out again (balanced columns, a move to the next page) it is stacked here, and the
+	 * floats beside its container were in the snapshot. Its lines went round them: a grid placed between two floats
+	 * whose column was 0.85pt wider than the gap sent its text past the end of the float on the right, and the item
+	 * took that end for its size (fit seed 78451409, triage §190).
+	 */
+	private java.util.Set<Floating> openItemFloatings() {
+		if (this.independentFloatScopeOwners == null) {
+			return null;
+		}
+		int from = -1;
+		for (int i = this.independentFloatScopeOwners.size() - 1; i >= 0; --i) {
+			if (this.independentFloatScopeOwners.get(i) instanceof FlowBlockBox owner && isBoundItem(owner)) {
+				from = i;
+				break;
+			}
+		}
+		if (from == -1) {
+			return null;
+		}
+		final java.util.Set<Floating> floatings = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		for (int i = from; i < this.noOverflowFloatings.size(); ++i) {
+			floatings.addAll(this.noOverflowFloatings.get(i));
+		}
+		return floatings;
+	}
+
+	/**
+	 * Whether the box is a flex or grid item bound in a builder of its own when it is first laid out: not a streamed
+	 * flex item, which is laid out here in normal flow both times.
+	 */
+	private static boolean isBoundItem(final FlowBlockBox flowBox) {
+		return isContainerItem(flowBox) && !(flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item
+				&& item.isStreamedInFlow());
 	}
 
 	/**
@@ -1118,6 +1164,8 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			if (this.floatings != null) {
 				this.floatings.removeAll(floatings);
+				this.noteFloatingsChanged();
+			} else if (isBoundItem(flowBox)) {
 				this.noteFloatingsChanged();
 			}
 		}
@@ -1972,6 +2020,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 			}
 			parentParams = flowBox.getBlockParams();
 		}
+		this.noteFloatingsChanged();
 	}
 
 	/**

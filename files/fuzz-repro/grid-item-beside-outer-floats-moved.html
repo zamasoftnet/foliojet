@@ -1,0 +1,45 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="300pt"?>
+<?jp.cssj.property name="output.page-height" value="150pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>grid item beside outer floats moved</title>
+<style>
+@page{margin:0pt}
+body{margin:0;font:normal 13pt/1.2 serif;writing-mode:vertical-rl}
+table{border-collapse:collapse}
+td{border:1pt solid black}
+</style></head><body>
+<button></button>
+<div style="writing-mode:vertical-lr">
+<div>
+<div style="float:left">
+<div style="padding:3pt">
+T2
+T3
+</div>
+</div>
+<div style="margin:6pt">
+<div style="float:right">
+<table>
+<td></td><td>T8</td><td>T9</td>
+<td>T10</td><td></td><td>T12</td>
+</table><div style="min-width:8em">
+</div>
+<div style="min-width:8em">
+</div>
+<div style="min-width:8em">
+</div>
+</div>
+</div>
+<div style="writing-mode:vertical-rl">
+<div style="display:grid;writing-mode:vertical-lr">
+T18 T19 T20 T21 T22 
+<div>
+<div style="float:left">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>
