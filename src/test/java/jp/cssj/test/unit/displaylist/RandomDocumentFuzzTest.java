@@ -2087,7 +2087,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paints nothing: page 3 of 4 is blank. On 19124 the unit was cut inside and T3/T4 lay past the paper's left
 			// edge; the mirror (vertical-rl paper) is the same. On 200pt paper, or with the paragraph 10pt wide, no blank.
 			new IndividualExclusion(85_589_585, "standard", 85_589_585,
-					"既知の制限: 縦組みの段組の表の中の進む向きが逆の箱(約174pt)が紙の120ptより大きく、段の釣り合わせが1つの塊として救済分割し最後の切れ端が白紙(19124は字が紙の外)", "2026-11-11"));
+					"既知の制限: 縦組みの段組の表の中の進む向きが逆の箱(約174pt)が紙の120ptより大きく、段の釣り合わせが1つの塊として救済分割し最後の切れ端が白紙(19124は字が紙の外)", "2026-11-11"),
+			// Triage §198, the author's overflow (§196 alike): on vertical-lr 200x200pt paper a vertical-rl div holds an
+			// inline-block 123pt wide (113pt inside its margin) whose horizontal div is 139pt wide, so it starts at the
+			// inline-block's right edge and runs left past the paper: T0 at x=-21. The reversed div has no width, so
+			// hasUntypesettableOppositeProgression does not count the inline-block's. 19124 and Chrome print nothing either;
+			// with the inline-block 170pt wide both print T0 at the same place (within 0.2pt).
+			new IndividualExclusion(86_835_851, "fit-v1", 2_140_701_288,
+					"作者の溢れ: 縦組み(左から右)の紙の幅123ptの右から左のinline-blockの中の幅139ptの横組みの箱が左へ溢れ紙の左の外(19124もChromeも刷らない)", "2026-11-11"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
