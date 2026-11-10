@@ -2065,7 +2065,21 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// text at the same x=-72 and the image at x=-191 and prints nothing; with a 190pt item both print every
 			// word on the same two pages.
 			new IndividualExclusion(83_015_710, "fit-v1", 404_343_171,
-					"作者の溢れ: 縦組み(右から左)の幅109ptの箱の中の幅181ptのflexが左へ溢れ紙の左の外(Chromeも同じx=-72で刷らない)", "2026-11-10"));
+					"作者の溢れ: 縦組み(右から左)の幅109ptの箱の中の幅181ptのflexが左へ溢れ紙の左の外(Chromeも同じx=-72で刷らない)", "2026-11-10"),
+			// Triage §196, a known limitation (since 19124): on vertical-rl 200x200pt paper a horizontal float 369pt wide
+			// (a table holding two columns of a 176pt image) starts at the paper's right edge and runs left, so all it
+			// paints lies past the left edge. An unsplittable float at a fragment start larger than the page is rescue-
+			// sliced only when something after it breaks the page; nothing follows here. Chrome's print slices it onto
+			// a second page. A fix at placement could not tell what an orthogonal box paints past the page (it clipped
+			// lines pulled back onto the paper and made a page of a bottom margin), so it was not made.
+			new IndividualExclusion(84_296_947, "fit-v1", 23_995_318,
+					"既知の制限: 縦組みの紙の幅369ptの横組みのfloatが紙の左の外、後ろに頁を切るものが無いので救済分割されない(Chromeは2頁目に刷る)", "2026-11-10"),
+			// Triage §196, the author's overflow (§191 alike): on vertical-lr 200x200pt paper a vertical-rl float of
+			// width:8em (64pt) holds a table 102pt wide whose horizontal box is 131pt wide, so it starts at the float's
+			// right edge and runs left to x=-67. Chrome puts T0 at the same x=-67 and prints nothing; with a float of
+			// 140pt both print every word at the same places.
+			new IndividualExclusion(84_340_423, "fit-v1", 1_128_775_112,
+					"作者の溢れ: 縦組み(左から右)の紙の幅64ptの右から左のfloatの中の幅131ptの箱が左へ溢れ紙の左の外(Chromeも同じx=-67で刷らない)", "2026-11-10"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
