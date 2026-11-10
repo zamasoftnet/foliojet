@@ -2052,7 +2052,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// overflows the 51pt box toward its block end, the left, and T0 lands at x=-48, off the paper. Chrome puts it at the
 			// same x=-48 and prints nothing; without the box's width or with a 40pt inline-block both put T0 on the paper.
 			new IndividualExclusion(80_880_007, "fit-v1", 521_176_192,
-					"作者の溢れ: 縦組み(右から左)の幅51ptの箱の中の幅99ptのinline-blockが左へ溢れ紙の左の外(Chromeも同じx=-48で刷らない)", "2026-11-10"));
+					"作者の溢れ: 縦組み(右から左)の幅51ptの箱の中の幅99ptのinline-blockが左へ溢れ紙の左の外(Chromeも同じx=-48で刷らない)", "2026-11-10"),
+			// Triage §193, the author's overflow (§99 alike): on vertical-rl 120x400pt paper a horizontal box at the
+			// paper's right edge holds a box of width:24pt whose ul keeps the UA padding of 40px (30pt), wider than the
+			// box, so its only item T0 starts at x=126, past the paper's right edge. Chrome puts it at the same x=126 and
+			// prints nothing; with a 48pt box or without the padding both put T0 at the same place on the paper.
+			new IndividualExclusion(82_412_583, "fit-v1", 1_204_876_478,
+					"作者の溢れ: 紙の右端の幅24ptの箱のulの既定の字下げ30ptで項目が紙の右の外(Chromeも同じx=126で刷らない)", "2026-11-10"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
