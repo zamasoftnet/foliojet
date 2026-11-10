@@ -1,0 +1,21 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="60pt"?>
+<?jp.cssj.property name="output.page-height" value="60pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>textareas in orthogonal box wrap</title>
+<style>
+@page{margin:0pt}
+body{margin:0;font:normal 6pt/1.2 serif;writing-mode:vertical-rl}
+p,div,td{margin:0;padding:0}
+table{border-collapse:collapse}
+td{border:1pt solid black}
+</style></head><body>
+<div style="page-break-inside:avoid;margin:2pt">
+<div style="width:29pt;">
+<div style="writing-mode:horizontal-tb">
+<form><textarea rows="4">T1</textarea><textarea rows="3">T2</textarea><textarea rows="1">T3</textarea></form>
+<p>T4 <span style="display:inline-block;width:20pt">T5</span><span style="display:inline-block;width:20pt">T6</span>T7</p>
+</div>
+</div>
+</div>
+</body></html>

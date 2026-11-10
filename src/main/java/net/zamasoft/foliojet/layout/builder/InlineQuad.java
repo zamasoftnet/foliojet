@@ -1,10 +1,17 @@
 package net.zamasoft.foliojet.layout.builder;
 
+import net.zamasoft.foliojet.css.CSSElement;
+import net.zamasoft.foliojet.css.value.TextCombineValue;
 import net.zamasoft.foliojet.layout.box.AbstractReplacedBox;
 import net.zamasoft.foliojet.layout.box.IAbsoluteBox;
 import net.zamasoft.foliojet.layout.box.IBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBlockBox;
 import net.zamasoft.foliojet.layout.box.impl.InlineBox;
+import net.zamasoft.foliojet.layout.box.impl.InsideMarkerBox;
+import net.zamasoft.foliojet.layout.box.impl.OutsideMarkerBox;
+import net.zamasoft.foliojet.layout.box.impl.RubyUnitBox;
+import net.zamasoft.foliojet.layout.box.impl.WarichuUnitBox;
+import net.zamasoft.foliojet.layout.box.params.BlockParams;
 import net.zamasoft.foliojet.layout.text.Quad;
 
 public abstract class InlineQuad extends Quad {
@@ -167,13 +174,46 @@ public abstract class InlineQuad extends Quad {
 			return INLINE_BLOCK;
 		}
 
+		/**
+		 * The string line breaking sees for this box: U+FFFC for an inline-block, as CSS Text treats an atomic
+		 * inline, so it no longer joins the text around it into one word (the line-start and line-end rules of the
+		 * text beside it still hold); the text inside for a box that stands for its characters
+		 * ({@link #standsForCharacters}).
+		 *
+		 * <p>
+		 * Until 2026-11-10 every inline-block gave its own text, so the first and last characters inside joined the
+		 * text around it: three textareas holding "x" read as "xxx" and stayed on one line 376pt long in a box 29pt
+		 * wide (sweep seed 82920575, triage §194), and "T1" before an inline-block holding "T2" could not break
+		 * after it, where Chrome breaks in both. Images and empty inline-blocks were U+FFFC already.
+		 * </p>
+		 */
 		public String getString() {
 			if (this.text == null) {
-				StringBuilder textBuff = new StringBuilder();
-				this.box.getText(textBuff);
-				this.text = textBuff.toString();
+				if (standsForCharacters(this.box)) {
+					StringBuilder textBuff = new StringBuilder();
+					this.box.getText(textBuff);
+					this.text = textBuff.toString();
+				} else {
+					this.text = "";
+				}
 			}
 			return this.text.length() == 0 ? OBJECT_REPLACEMENT : this.text;
+		}
+
+		/**
+		 * Whether an inline-block stands for the characters it holds, so line breaking reads them as text: a ruby or
+		 * warichu unit, a list marker, a tate-chu-yoko ({@code text-combine-upright} or {@code -cssj-text-combine}),
+		 * and the anonymous unit that carries an emphasis mark over one character (StyleEventMachine; the only
+		 * inline-block of an anonymous element, which stays the same singleton when a recipe is frozen and replayed).
+		 * Chrome does not break between tate-chu-yoko units or after an emphasised opening bracket either.
+		 */
+		private static boolean standsForCharacters(final InlineBlockBox box) {
+			if (box instanceof RubyUnitBox || box instanceof WarichuUnitBox || box instanceof InsideMarkerBox
+					|| box instanceof OutsideMarkerBox) {
+				return true;
+			}
+			final BlockParams params = box.getBlockParams();
+			return params.textCombine != TextCombineValue.NONE || params.element == CSSElement.ANON;
 		}
 
 		public String toString() {
