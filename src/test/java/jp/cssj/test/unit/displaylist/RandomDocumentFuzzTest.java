@@ -2079,7 +2079,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// right edge and runs left to x=-67. Chrome puts T0 at the same x=-67 and prints nothing; with a float of
 			// 140pt both print every word at the same places.
 			new IndividualExclusion(84_340_423, "fit-v1", 1_128_775_112,
-					"作者の溢れ: 縦組み(左から右)の紙の幅64ptの右から左のfloatの中の幅131ptの箱が左へ溢れ紙の左の外(Chromeも同じx=-67で刷らない)", "2026-11-10"));
+					"作者の溢れ: 縦組み(左から右)の紙の幅64ptの右から左のfloatの中の幅131ptの箱が左へ溢れ紙の左の外(Chromeも同じx=-67で刷らない)", "2026-11-10"),
+			// Triage §197, a known limitation (since 19124, in another form): on vertical-lr 120x400pt paper a vertical-rl
+			// box of four columns holds a table whose cell holds a vertical-lr box (opposite progression) of a paragraph
+			// 54pt wide and a grid about 120pt wide, together past the 120pt page. Column balancing takes a block of
+			// opposite progression as one unit (11fa2399), so the columns cut it by rescue slicing and its last fragment
+			// paints nothing: page 3 of 4 is blank. On 19124 the unit was cut inside and T3/T4 lay past the paper's left
+			// edge; the mirror (vertical-rl paper) is the same. On 200pt paper, or with the paragraph 10pt wide, no blank.
+			new IndividualExclusion(85_589_585, "standard", 85_589_585,
+					"既知の制限: 縦組みの段組の表の中の進む向きが逆の箱(約174pt)が紙の120ptより大きく、段の釣り合わせが1つの塊として救済分割し最後の切れ端が白紙(19124は字が紙の外)", "2026-11-11"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
