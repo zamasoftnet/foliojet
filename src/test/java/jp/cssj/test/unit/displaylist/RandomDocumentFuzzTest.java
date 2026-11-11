@@ -2100,7 +2100,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// right edge: T0 to T2 at x=126. 19124 puts them at the same x and Chrome prints nothing either; with the
 			// list-item 70pt wide both print T0 to T2 at x=87.
 			new IndividualExclusion(88_737_073, "fit-v1", 492_600_508,
-					"作者の溢れ: 縦組みの紙の右端の幅24ptの横組みの箱の中のulの既定の字下げ30ptで項目が紙の右の外(19124もChromeも刷らない)", "2026-11-11"));
+					"作者の溢れ: 縦組みの紙の右端の幅24ptの横組みの箱の中のulの既定の字下げ30ptで項目が紙の右の外(19124もChromeも刷らない)", "2026-11-11"),
+			// Triage §200, the author's overflow: on vertical-rl A4 paper, in a two-column box, a float 94pt wide holds a
+			// vertical-lr float of at most 90% (85pt) whose table is 133pt wide. The table starts at the inner float's
+			// left edge and runs 48pt past it to the right, and its first line is at its right end: T0 at x=615, past the
+			// 595pt paper. Chrome prints nothing either; with the table 80pt wide both print T0 at the same place (x=567).
+			// 19124 kept T0 on the paper (x=567, unlike Chrome); it moved with d1be2eb5 (2026-10-11).
+			new IndividualExclusion(89_475_507, "fit-v1", 393_064_508,
+					"作者の溢れ: 縦組みの紙の幅94ptのfloatの中の最大85ptの左から右のfloatに幅133ptの表、表が右へ溢れ字が紙の右の外(Chromeも刷らない。19124は紙の上、d1be2eb5から)", "2026-11-11"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
