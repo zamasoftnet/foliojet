@@ -136,6 +136,43 @@ public final class MeasuredIntrinsics {
 			// a line-occupancy tracker during placement, addressed in the float redesign, M6c).
 			return null;
 		}
+		// A shrink-to-fit box inside the range is measured again by each of the layouts below, and so are the boxes
+		// inside it: without sharing, the innermost content was laid out 3^depth times (12 nested inline-blocks took
+		// 19 seconds, 2026-11-11). The range is sealed and the measurement sets its own widths and percentage rule,
+		// so the same range gives the same sizes however often the outer layouts ask.
+		final java.util.Map<Range, java.util.Optional<IntrinsicSizes>> open = NESTED.get();
+		if (open == null) {
+			NESTED.set(new java.util.HashMap<>());
+			try {
+				return measure(log, selfId, endId, template, ua);
+			} finally {
+				NESTED.remove();
+			}
+		}
+		final Range range = new Range(log, selfId, endId, template.flow);
+		final java.util.Optional<IntrinsicSizes> known = open.get(range);
+		if (known != null) {
+			return known.orElse(null);
+		}
+		final IntrinsicSizes sizes = measure(log, selfId, endId, template, ua);
+		open.put(range, java.util.Optional.ofNullable(sizes));
+		return sizes;
+	}
+
+	/** A sealed range of a source (by the identity of the source) and the writing mode it is measured in. */
+	private record Range(LayoutSource log, long selfId, long endId, WritingMode flow) {
+	}
+
+	/**
+	 * What the measurements nested in the outermost one running on this thread have given, by range. It lives only
+	 * while that outermost measurement runs (the same pattern as {@code FlexMeasureMemo}); an empty value is a
+	 * measurement that fell back to simulation after it had laid the range out.
+	 */
+	private static final ThreadLocal<java.util.Map<Range, java.util.Optional<IntrinsicSizes>>> NESTED = new ThreadLocal<>();
+
+	/** Lays the range out at an infinite and at a zero line size and reads the sizes off the two results. */
+	private static IntrinsicSizes measure(final LayoutSource log, final long selfId, final long endId,
+			final BlockParams template, final UserAgent ua) {
 		final WritingMode flow = template.flow;
 		final boolean vertical = flow.isVertical();
 		// max-content: lay out without wrapping at line width ∞. Line-axis percentages inside count as auto
