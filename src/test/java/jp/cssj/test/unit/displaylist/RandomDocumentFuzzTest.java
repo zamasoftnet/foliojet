@@ -2125,7 +2125,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// left, both print every text at the same place (T0 at 63 and at 62). Until f75d665b (19124 too) the line
 			// started at the box's left and ran right: all on the paper, but 136pt from Chrome's places.
 			new IndividualExclusion(91_175_501, "fit-v1", 2_015_872_716,
-					"作者の溢れ: 紙の左端の幅39ptの折り返さないrow-reverseのflexに127ptと48ptの項目、最初の項目が箱に残り行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"));
+					"作者の溢れ: 紙の左端の幅39ptの折り返さないrow-reverseのflexに127ptと48ptの項目、最初の項目が箱に残り行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"),
+			// Triage §203, two of one stop. 91852174 is the shape of §202 on A4: a row-reverse flex without wrapping, 99pt
+			// wide at the left edge, whose first item holds an inline-block of 189pt; the line of about 500pt runs off the
+			// left (T0 at x=-90). Chrome prints nothing; 590pt wide, or 300pt from the left, every text is at Chrome's
+			// place. Until f75d665b it ran right and stayed on the paper.
+			new IndividualExclusion(91_852_174, "fit-v1", 711_624_389,
+					"作者の溢れ: A4の紙の左端の幅99ptの折り返さないrow-reverseのflexに幅189ptのinline-blockほか約500pt、行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"),
+			// 91998134 has no flex and is as it was in 19124: on 200pt vertical-lr paper a float of vertical-rl, 8em (56pt)
+			// wide at the left edge, holds 15pt of margins and padding, an orthogonal inline box of min-width 8em and a
+			// table 97pt wide. The blocks run leftwards out of the float: the radio button at x=-15, the ruby at -23.
+			// Chrome prints nothing either; with the float 180pt wide both print them on the paper (within 9pt).
+			new IndividualExclusion(91_998_134, "fit-v1", 1_115_889_456,
+					"作者の溢れ: 縦組み(左から右)の紙の左端の幅8emの右から左のfloatに、最小幅8emの直交のinlineと幅97ptの表、中身が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
