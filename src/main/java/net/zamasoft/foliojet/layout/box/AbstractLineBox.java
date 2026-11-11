@@ -76,7 +76,9 @@ public abstract class AbstractLineBox extends AbstractTextBox {
 		final StringBuilder visual = new StringBuilder();
 		appendVisualText(this.visualContents, visual);
 		this.logicalLineVisualText = visual.toString();
-		this.prepareLogicalLineEmission();
+		// The caller prepared the logical line emission just before it built these visual contents from it
+		// (BidiParagraphLayout.resolve), and the logical contents have not changed since: no second walk of the line.
+		assert this.logicalLineEmission != null;
 	}
 
 	public final List<Object> getVisualContents() {

@@ -1071,7 +1071,11 @@ final class StyleEventMachine {
 			this.styleContext.startElement(beforeCe);
 			// (not an input's or a textarea's, HTMLStyle.authorPseudo)
 			final Declaration beforeDeclaration = HTMLStyle.authorPseudo(ce) ? this.styleContext.merge(null) : null;
-			if (beforeDeclaration != null || HTMLStyle.hasBeforeContent(ce)) {
+			// A pseudo-element without content makes nothing, and its content comes from the element's own HTML
+			// default or from a matched rule that declares content. So the style is built only then (2026-11-11): a
+			// reset like "*, ::before, ::after { box-sizing: border-box }" (Bootstrap, Tailwind, most resets) matches
+			// the ::before and ::after of every element, and each got a full style built, cascaded and thrown away.
+			if (HTMLStyle.hasBeforeContent(ce) || beforeDeclaration != null && beforeDeclaration.mayApply(Content.INFO)) {
 				CSSStyle beforeStyle = CSSStyle.getCSSStyle(this.ua, style, beforeCe);
 				HTMLStyle.applyBeforeStyle(beforeStyle);
 				if (beforeDeclaration != null) {
@@ -1707,7 +1711,8 @@ final class StyleEventMachine {
 			this.styleContext.startElement(afterCe);
 			// (not an input's or a textarea's, HTMLStyle.authorPseudo)
 			final Declaration afterDeclaration = HTMLStyle.authorPseudo(ce) ? this.styleContext.merge(null) : null;
-			if (afterDeclaration != null || br || HTMLStyle.hasAfterContent(ce)) {
+			// Built only when something can give it content (see synthesizeBefore)
+			if (br || HTMLStyle.hasAfterContent(ce) || afterDeclaration != null && afterDeclaration.mayApply(Content.INFO)) {
 				CSSStyle afterStyle = CSSStyle.getCSSStyle(this.ua, style, afterCe);
 				HTMLStyle.applyAfterStyle(afterStyle);
 				if (br) {

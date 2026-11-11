@@ -360,9 +360,13 @@ public class LayoutSourceTest extends TestCase {
 		final long maxId = log.nextId() - 1;
 		verifyAgainstTruth(log, truth, 0, maxId, random);
 		// After compact: check again for ranges entirely at or beyond the watermark.
-		final long watermark = maxId / 2;
-		log.compact(watermark);
-		verifyAgainstTruth(log, truth, watermark, maxId, random);
+		// Compact again and again, as page breaks do. (This does not catch an index the rebuild forgets to clear, as
+		// flexIds was until 2026-11-11: the kept ids are appended again in order, and every such run holds the same
+		// ids at or above the watermark, so the binary search still answers right. That was growth, not a wrong answer.)
+		for (final long watermark : new long[] { maxId / 2, maxId * 5 / 8, maxId * 3 / 4, maxId * 7 / 8 }) {
+			log.compact(watermark);
+			verifyAgainstTruth(log, truth, watermark, maxId, random);
+		}
 	}
 
 	private static void verifyAgainstTruth(final LayoutSource log, final java.util.List<long[]> truth,

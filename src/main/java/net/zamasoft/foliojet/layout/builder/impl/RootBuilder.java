@@ -688,7 +688,7 @@ public class RootBuilder extends BreakableBuilder {
 				// context-complete validation enables them.
 				if (endId >= 0 && endId < this.pageGenerator.getDeliveredEventEnd()
 						&& log.isIntact(startId, endId) && !log.containsOpaque(startId, endId)
-						&& !log.observeCaptionGate(startId, endId)
+						&& !log.containsCaption(startId, endId)
 						&& !log.containsTable(tableCheckFrom, endId)
 						&& !log.containsAbsolute(startId, endId)
 						&& !log.containsFloat(startId, endId)

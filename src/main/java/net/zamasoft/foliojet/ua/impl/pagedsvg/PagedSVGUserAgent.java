@@ -933,6 +933,10 @@ public class PagedSVGUserAgent extends AbstractUserAgent implements RandomResult
 		this.emit("manifest.json", "application/json",
 				this.resources.manifest(this.metadata, binding, this.getPageProgressionDirection()));
 		this.sink.end();
+		// The item's output is written. Its last decoded image must not stay through the rest of the book: the parent
+		// (and the EPUB formatter) keep every finished item, so a book of one image per item held all their pixels.
+		this.lastImageUri = null;
+		this.lastImage = null;
 		if (this.parent != null) {
 			this.parent.childFinished(this);
 		}

@@ -525,6 +525,14 @@ public final class LayoutSource implements AutoCloseable {
 	private final SparseIndex floatIds = new SparseIndex();
 	private final SparseIndex verticalFlowIds = new SparseIndex();
 	private final SparseIndex horizontalFlowIds = new SparseIndex();
+	/**
+	 * Every index above, so that a rebuild cannot miss one. Until 2026-11-11 the rebuild cleared them one by one and
+	 * missed {@code flexIds}: after each compaction the flex ids of dropped events stayed and the kept ones were
+	 * appended again, so the list grew with every page break (the answers stayed right: each appended run holds the
+	 * same ids at or above the watermark).
+	 */
+	private final SparseIndex[] indexes = { this.opaqueIds, this.captionIds, this.tableIds, this.multicolIds, this.gridIds,
+			this.flexIds, this.absoluteIds, this.floatIds, this.verticalFlowIds, this.horizontalFlowIds };
 
 	/** Classifies categories on append/rebuild (the same detection conditions as the containsX family). */
 	private void indexEvent(final long id, final Event event) {
@@ -584,15 +592,9 @@ public final class LayoutSource implements AutoCloseable {
 
 	/** Rebuilds the index after {@code compact()} (alongside the kept scan). */
 	private void rebuildIndexes() {
-		this.opaqueIds.clear();
-		this.captionIds.clear();
-		this.tableIds.clear();
-		this.multicolIds.clear();
-		this.gridIds.clear();
-		this.absoluteIds.clear();
-		this.floatIds.clear();
-		this.verticalFlowIds.clear();
-		this.horizontalFlowIds.clear();
+		for (final SparseIndex index : this.indexes) {
+			index.clear();
+		}
 		for (int i = 0; i < this.entries.size(); ++i) {
 			final Entry entry = this.entries.get(i);
 			this.indexEvent(entry.id(), entry.event());
@@ -618,6 +620,12 @@ public final class LayoutSource implements AutoCloseable {
 			}
 		}
 		return -(low + 1);
+	}
+
+	/** Index of the first entry whose id is at or above the given one ({@code entries.size()} if none). */
+	private int lowerBound(final long id) {
+		final int index = this.indexOf(id);
+		return index >= 0 ? index : -(index + 1);
 	}
 
 	/**
@@ -824,17 +832,13 @@ public final class LayoutSource implements AutoCloseable {
 	private void compact(final long fromId, final long watermark) {
 		final long clamped = this.retentionLeases.isEmpty() ? watermark
 				: Math.min(watermark, this.retentionLeases.firstKey());
-		final List<Entry> kept = new ArrayList<Entry>();
+		// The entries to look at are [from, to): ids in [fromId, clamped). Entries are in id order.
+		final int from = this.lowerBound(fromId);
+		final int to = Math.max(from, this.lowerBound(clamped));
 		// Find the stack of "unmatched Starts" in the range to discard.
 		final List<Entry> open = new ArrayList<Entry>();
-		for (final Entry entry : this.entries) {
-			if (entry.id() < fromId) {
-				kept.add(entry);
-				continue;
-			}
-			if (entry.id() >= clamped) {
-				break;
-			}
+		for (int i = from; i < to; ++i) {
+			final Entry entry = this.entries.get(i);
 			switch (entry.event()) {
 			// Opaque is also a start event paired with EndBlock (startBox pushes Opaque,
 			// endBox pushes EndBlock). Without the same handling as Start,
@@ -869,15 +873,15 @@ public final class LayoutSource implements AutoCloseable {
 			}
 			}
 		}
-		kept.addAll(open);
-		for (final Entry entry : this.entries) {
-			if (entry.id() >= clamped) {
-				kept.add(entry);
-			}
+		// What stays of the range is its unmatched starts. When that is all of it, nothing was released and the log
+		// is as it was: a replay that pins the log (a lease at its first id) asks for compaction at every page break
+		// of its range, and until 2026-11-11 each such call copied the whole log and rebuilt every index for nothing.
+		if (open.size() < to - from) {
+			final List<Entry> range = this.entries.subList(from, to);
+			range.clear();
+			range.addAll(open);
+			this.rebuildIndexes(); // RangeSummary(2026-08-01)
 		}
-		this.entries.clear();
-		this.entries.addAll(kept);
-		this.rebuildIndexes(); // RangeSummary(2026-08-01)
 		// Live lease ranges remain retained after compact.
 		assert this.retentionLeases.isEmpty() || this.indexOf(this.retentionLeases.firstKey()) >= 0
 				|| this.retentionLeases.firstKey() >= this.nextId : this.retentionLeases.firstKey();
@@ -948,6 +952,17 @@ public final class LayoutSource implements AutoCloseable {
 	 * C2 replaces this with context-complete validation (establishing the matching TABLE Start within the
 	 * range).
 	 * </p>
+	 *
+	 * <p>
+	 * <b>The replay paths called at page-break frequency ({@code stampRanges}, {@code canReplayChildren}) reject every
+	 * range with a caption by this answer alone</b> (it routes them to box-restyle). Making it a selective gate was
+	 * tried in C4 and reverted (measured 2026-08-01): a multi-page table with captions (0217, repeated thead/tfoot,
+	 * 100px pages) replayed the entire table at every page break and died of Java heap space (tableReplays 37→3891).
+	 * Enabling a path invoked at page-break frequency differs from enabling a bind path that guarantees one-time
+	 * replay: only the TwoPass seal side, which binds once, uses a selective gate ({@link #captionSealGate}).
+	 * Until 2026-11-11 those paths also walked the range to count, for diagnosis, how many of the rejected ranges
+	 * were context-complete; nothing read the counts, and the walk ran at every check of a range with a caption.
+	 * </p>
 	 */
 	public boolean containsCaption(final long fromId, final long toId) {
 		// RangeSummary(2026-08-01): Replace the linear scan with binary search of the sparse index.
@@ -958,32 +973,6 @@ public final class LayoutSource implements AutoCloseable {
 		return this.captionIds.anyInRange(fromId, toId);
 	}
 
-
-	/**
-	 * The blanket caption gate and observation (for replay paths invoked at page-break frequency:
-	 * {@code stampRanges} /{@code canReplayChildren}). Always returns true for ranges containing captions
-	 * (= routes to box-restyle).
-	 *
-	 * <p>
-	 * <b>Attempted to make this a selective gate in C4, then reverted (measured 2026-08-01)</b>:
-	 * A multi-page table with captions (0217, repeated thead/tfoot, 100px pages) replayed the entire table at
-	 * every page break, killing conversion with Java heap space (tableReplays 37→3891).
-	 * Enabling a path invoked at page-break frequency differs from enabling a bind path that guarantees
-	 * one-time replay. Only the TwoPass seal side, which binds once, uses a selective gate
-	 * ({@link #captionSealGate}); this side permanently retains blanket rejection plus observation.
-	 * </p>
-	 */
-	public boolean observeCaptionGate(final long fromId, final long toId) {
-		if (!this.containsCaption(fromId, toId)) {
-			return false;
-		}
-		if (this.isContextCompleteRange(fromId, toId)) {
-			ContinuationStats.CAPTION_CONTEXT_ACCEPTS.incrementAndGet();
-		} else {
-			ContinuationStats.CAPTION_ROOT_REJECTS.incrementAndGet();
-		}
-		return true;
-	}
 
 	/**
 	 * The selective caption gate (only for TwoPass seal with one-time bind, C4).

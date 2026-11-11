@@ -588,7 +588,11 @@ public class TextBuilder {
 			}
 		}
 		this.textBlockBox.addLine(lineBox, this.pageAxis);
-		this.builder.noteBidiLine(this.textBlockBox, lineBox);
+		// Upright vertical text takes no bidi reordering (BidiParagraphLayout.resolve returns at once for it), so its
+		// lines are not queued: the queue held every line of the paragraph, pages already emitted included, to its end.
+		if (!this.textBlockBox.getBlockParams().isVerticalTypesetting()) {
+			this.builder.noteBidiLine(this.textBlockBox, lineBox);
+		}
 		final double pageAdvance = lineBox.getAscent() + lineBox.getDescent();
 		this.pageAxis += pageAdvance;
 		assert !LayoutUtils.isNone(this.pageAxis);

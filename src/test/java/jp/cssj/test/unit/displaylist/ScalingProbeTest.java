@@ -230,6 +230,10 @@ public class ScalingProbeTest extends TestCase {
 
 	private static final List<Shape> SHAPES = List.of(
 			new Shape("paras", 2000, n -> "", n -> repeat(n, i -> "<p>" + i + " " + TEXT + TEXT + "</p>")),
+			// The reset of Bootstrap, Tailwind and most others: a rule that matches the ::before and ::after of every
+			// element without giving them content (2026-11-11)
+			new Shape("resetPseudo", 2000, n -> "*,::before,::after{box-sizing:border-box}",
+					n -> repeat(n, i -> "<p><b>" + i + "</b> <span>" + TEXT + "</span> <i>" + TEXT + "</i></p>")),
 			new Shape("longpara", 20000, n -> "", n -> "<p>" + repeat(n, i -> "word" + i + " ") + "</p>"),
 			new Shape("tableAuto", 4000, n -> "td{border:0.5pt solid}",
 					n -> "<table>" + repeat(n, i -> "<tr><td>" + i + "</td><td>" + TEXT + "</td><td>" + i * 7 + "</td></tr>") + "</table>"),

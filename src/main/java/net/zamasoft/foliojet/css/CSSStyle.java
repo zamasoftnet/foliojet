@@ -276,6 +276,14 @@ public class CSSStyle {
 			assert false : "カスケード用コード未割当のプロパティがgetされました(登録漏れ): " + info.getName();
 			return info.getDefault(this);
 		}
+		// The usual call: this style already computed the value. Answer before building the chain below
+		// (every read of a property comes through here, most of them a second time).
+		if (this.computedValues != null) {
+			final Value own = this.computedValues[code];
+			if (own != null) {
+				return own;
+			}
+		}
 		// The upward inheritance search originally recursed through this.parentStyle.get(info),
 		// but deeply nested documents (e.g., legal HTML with over a thousand nested clause numbers)
 		// caused actual StackOverflowError crashes. It was rewritten as an iteration

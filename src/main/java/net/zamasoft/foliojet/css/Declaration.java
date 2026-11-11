@@ -56,6 +56,16 @@ public class Declaration {
 		this.properties.add(property);
 	}
 
+	/** Whether applying these declarations can set the given property ({@link Property#mayApply}). */
+	public boolean mayApply(final net.zamasoft.foliojet.css.property.PrimitivePropertyInfo info) {
+		for (int i = 0; i < this.properties.size(); ++i) {
+			if (this.properties.get(i).mayApply(info)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public Property get(int i) {
 		return (Property) this.properties.get(i);
 	}

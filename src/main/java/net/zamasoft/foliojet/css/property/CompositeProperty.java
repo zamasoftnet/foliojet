@@ -69,6 +69,16 @@ public class CompositeProperty implements Property {
 	/**
 	 * Applies the property.
 	 */
+	@Override
+	public boolean mayApply(final PrimitivePropertyInfo info) {
+		for (final Entry entry : this.entries) {
+			if (entry.info == info) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public void applyProperty(CSSStyle style) {
 		for (int i = 0; i < this.entries.length; ++i) {
 			Entry entry = this.entries[i];

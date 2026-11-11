@@ -74,7 +74,13 @@ public final class BidiParagraphLayout {
 		}
 
 		public void resolve(final BlockParams params) {
-			this.resolveLines(params, params.bidiSemanticAlias);
+			// The end of a paragraph takes the same short way as a preview (2026-11-11). Until then every paragraph
+			// of plain left-to-right text - nearly all of them - was flattened into atoms, copied into a buffer and
+			// handed to java.text.Bidi, only to learn that nothing needs reordering; what that gave the lines, the
+			// prefix and the paragraph ID, previewLeftToRight gives too. Upright vertical text takes no reordering.
+			if (!params.isVerticalTypesetting() && !this.previewLeftToRight(params)) {
+				this.resolveLines(params, params.bidiSemanticAlias);
+			}
 			this.events.clear();
 			this.replayPrefix = BidiReplayPrefix.EMPTY;
 			this.estimatedChars = 0;

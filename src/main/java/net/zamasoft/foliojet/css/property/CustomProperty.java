@@ -38,6 +38,11 @@ public final class CustomProperty implements Property {
 		return this.important;
 	}
 
+	@Override
+	public boolean mayApply(final PrimitivePropertyInfo info) {
+		return false;
+	}
+
 	public void applyProperty(CSSStyle style) {
 		style.setCustomProperty(this.name, this.tokens,
 				this.important ? CSSStyle.MODE_IMPORTANT : CSSStyle.MODE_NORMAL);

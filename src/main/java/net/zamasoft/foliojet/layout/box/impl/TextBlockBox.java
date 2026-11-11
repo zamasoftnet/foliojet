@@ -573,13 +573,17 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 			// only slice+breakToken (live cutting, immutable transport,
 			// reconstruction on resume; grok decision in docs/consult-p3-resplit-grok.txt.
 			// No path reads the remainder's lines or dimensions before resume).
-			final AbstractLineBox firstLine = ((Line) this.lines.get(0)).box;
-			final List<AbstractLineBox> bidiPrefixLines = new ArrayList<>();
-			for (int i = 0; i <= lastLine; ++i) {
-				bidiPrefixLines.add(((Line) this.lines.get(i)).box);
+			// The lines before the break go with the remainder as the bidi context of the paragraph. Upright vertical
+			// text takes no bidi reordering, so it carries none (the chain kept every earlier line of the paragraph).
+			net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiPrefix =
+					net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix.EMPTY;
+			if (!this.getBlockParams().isVerticalTypesetting()) {
+				final List<AbstractLineBox> bidiPrefixLines = new ArrayList<>();
+				for (int i = 0; i <= lastLine; ++i) {
+					bidiPrefixLines.add(((Line) this.lines.get(i)).box);
+				}
+				bidiPrefix = ((Line) this.lines.get(0)).box.getBidiReplayPrefix().append(bidiPrefixLines);
 			}
-			final net.zamasoft.foliojet.layout.text.bidi.BidiReplayPrefix bidiPrefix =
-					firstLine.getBidiReplayPrefix().append(bidiPrefixLines);
 			nextTextBlock.slice = nextTextBlock.recordSlice(bidiPrefix);
 			nextTextBlock.lines.clear();
 			return new SplitResult.Split(nextTextBlock);

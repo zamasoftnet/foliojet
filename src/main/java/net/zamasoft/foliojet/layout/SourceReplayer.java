@@ -282,7 +282,7 @@ public final class SourceReplayer {
 		// (direct replay in restyleItem case TABLE). containsTable sees only nested tables,
 		// so explicitly reject them here after recipe conversion (routing remains unchanged
 		// until C2's context-complete validation permits them).
-		return !(log.containsOpaque(selfId + 1, endId - 1) || log.observeCaptionGate(selfId + 1, endId - 1)
+		return !(log.containsOpaque(selfId + 1, endId - 1) || log.containsCaption(selfId + 1, endId - 1)
 				|| log.containsTable(selfId + 1, endId - 1)
 				|| log.containsFloat(selfId + 1, endId - 1) || log.containsAbsolute(selfId + 1, endId - 1)
 				|| log.containsMulticol(selfId + 1, endId - 1) || log.containsMixedFlow(selfId + 1, endId - 1, flow));

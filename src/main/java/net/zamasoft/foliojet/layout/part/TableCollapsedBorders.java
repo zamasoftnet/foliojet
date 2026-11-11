@@ -342,8 +342,7 @@ public class TableCollapsedBorders {
 				this.bodyRowSizes[this.bodyRowSizes.length - 1] = bodyGroup.getTableRow(rowCount - 1).getPageSize();
 			}
 		}
-		nextBorders.bodyRowSizes = new double[nextBodyRowCount];
-		copyTail(rowSizes, nextBorders.bodyRowSizes);
+		// nextBorders.bodyRowSizes is nextRowSizes, the tail of the row sizes copied above
 		if (nextBodyGroupCount > 0) {
 			TableRowGroupBox bodyGroup = nextTable.getTableBody(0);
 			int rowCount = bodyGroup.getTableRowCount();
