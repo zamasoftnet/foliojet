@@ -2105,9 +2105,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// vertical-lr float of at most 90% (85pt) whose table is 133pt wide. The table starts at the inner float's
 			// left edge and runs 48pt past it to the right, and its first line is at its right end: T0 at x=615, past the
 			// 595pt paper. Chrome prints nothing either; with the table 80pt wide both print T0 at the same place (x=567).
-			// 19124 kept T0 on the paper (x=567, unlike Chrome); it moved with d1be2eb5 (2026-10-11).
+			// 19124 kept T0 on the paper (x=567, unlike Chrome); it moved between 19124 and 2026-11-01 (596f3805). The
+			// commit is not known: the bisect of 2026-11-11 named d1be2eb5, but the commits around it do not compile
+			// against today's html-balancer and it read the output of the step before.
 			new IndividualExclusion(89_475_507, "fit-v1", 393_064_508,
-					"作者の溢れ: 縦組みの紙の幅94ptのfloatの中の最大85ptの左から右のfloatに幅133ptの表、表が右へ溢れ字が紙の右の外(Chromeも刷らない。19124は紙の上、d1be2eb5から)", "2026-11-11"));
+					"作者の溢れ: 縦組みの紙の幅94ptのfloatの中の最大85ptの左から右のfloatに幅133ptの表、表が右へ溢れ字が紙の右の外(Chromeも刷らない。19124は紙の上)", "2026-11-11"),
+			// Triage §201, the author's overflow that remains after a fix: on vertical-lr 120x400pt paper a row-reverse
+			// flex without wrapping holds a table, four columns of flex: 1 0 content, an inline-block and an image, about
+			// 1,280pt in 380pt. Until 2026-11-12 the line started at the top and the table, the first item, lay 800pt
+			// below the page (19124 and Chrome print it at the bottom: the columns in the item were one column then).
+			// FlexBuilder.distributeMain now starts such a line at the far side, and the table is back at y=305 to 368
+			// (Chrome 307 to 368). The other three items run off the top, in Chrome as here (it prints T0 to T11 only).
+			new IndividualExclusion(90_416_903, "fit-v1", 1_075_451_939,
+					"作者の溢れ(直しの後の残り): 縦組みの紙の折り返さないrow-reverseのflexの中身が約1280ptで行の380ptに入らず、表より後ろの項目が紙の上の外(Chromeも表だけ刷る)", "2026-11-12"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
