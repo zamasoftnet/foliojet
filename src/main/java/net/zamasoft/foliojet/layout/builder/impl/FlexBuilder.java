@@ -1180,14 +1180,42 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	 * Distributes main-axis free space (§9.5 + §8.1). Auto margins consume free space before
 	 * justify-content (any auto margin disables justification; column excludes auto margins
 	 * from its subset and passes {@code autoMargins}=0).
-	 * Negative free space uses safe start (0); justify-content treats stretch as flex-start.
+	 * justify-content treats stretch as flex-start.
+	 *
+	 * <p>
+	 * <b>A line along the line axis that does not fit (negative free space)</b> keeps its first items in the box and
+	 * runs past the end of the main axis, and with {@code flex-end} keeps the last ones (css-flexbox-1 §8.2, Chrome).
+	 * The items arrive here in physical order, a reversed main axis already mirrored and its justify-content with it
+	 * (the default of {@code row-reverse} is END): a line packed at the far end starts {@code free} before the box.
+	 * Until 2026-11-12 the offset was 0 whenever the line did not fit, which on a reversed axis put the <i>first</i>
+	 * item of the document past the far edge (sweep fit seed 90416903: the table of a row-reverse flex in vertical
+	 * writing lay 800pt below the page, where 19124 and Chrome print it). What stays at 0, on purpose (codex review):
+	 * </p>
+	 * <ul>
+	 * <li>center, space-around and space-evenly: packed at the start, the safe fallback (Chrome centers the overflow
+	 * of center and loses both ends). space-between falls back to flex-start, the far end on a reversed axis.</li>
+	 * <li>auto margins take no part: negative free space leaves them 0 and justify-content decides.</li>
+	 * <li>a main axis along the page axis (column, column-reverse): what does not fit goes on to the next pages,
+	 * where Chrome puts the first items of column-reverse above the box. Print keeps the content.</li>
+	 * <li>{@code direction: rtl}: the line axis is not mirrored for it anywhere yet, so the rule above would start
+	 * the line at the wrong side.</li>
+	 * </ul>
+	 *
+	 * @param lineAxis whether the main axis runs along the line axis (the row caller)
 	 */
 	private record MainDistribution(double leading, double between, double autoShare) {
 	}
 
 	private MainDistribution distributeMain(final double free, final int count, final int autoMargins,
-			final double mainGap) {
-		final FlexContentAlignment justify = this.flexBox.getFlexParams().justifyContent;
+			final double mainGap, final boolean lineAxis) {
+		final FlexParams params = this.flexBox.getFlexParams();
+		final FlexContentAlignment justify = params.justifyContent;
+		if (free < 0) {
+			final boolean farEnd = lineAxis && params.direction != net.zamasoft.foliojet.layout.box.params.AbstractTextParams.DIRECTION_RTL
+					&& (justify == FlexContentAlignment.END
+							|| params.flexDirection.isReverse() && justify == FlexContentAlignment.SPACE_BETWEEN);
+			return new MainDistribution(farEnd ? free : 0, mainGap, 0);
+		}
 		if (autoMargins > 0) {
 			return new MainDistribution(0, mainGap, free > 0 ? free / autoMargins : 0);
 		}
@@ -1280,7 +1308,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 						+ (this.mainMarginAuto(item, true) ? 1 : 0);
 			}
 			final MainDistribution dist = this.distributeMain(axis.mainBase - lineUsed, line.count(),
-					autoMargins, axis.mainGap());
+					autoMargins, axis.mainGap(), true);
 			double lineCursor = dist.leading();
 			for (int k = line.from(); k < line.to(); ++k) {
 				final FlexItemContent item = this.items.get(seq[k]);
@@ -1453,7 +1481,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 				autoMargins += (this.crossMarginAuto(item, false) ? 1 : 0) + (this.crossMarginAuto(item, true) ? 1 : 0);
 			}
 			final MainDistribution main = this.distributeMain(axis.mainBase - used, col.count(), autoMargins,
-					axis.mainGap());
+					axis.mainGap(), false);
 			double mainCursor = main.leading();
 			singleColLeading = main.leading();
 			for (int k = col.from(); k < col.to(); ++k) {
