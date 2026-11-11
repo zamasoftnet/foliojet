@@ -329,26 +329,13 @@ public class FlowContainer implements Container {
 	 * {@link #invalidateNonDecorationContent()} invalidates <b>only ancestors</b>
 	 * (boxes remember their container via {@code AbstractBox.getContentParent()}).
 	 * Splitting at one level therefore never discards lower-level memos, giving O(1) per level.
-	 * If a box cannot remember its container (an implementation other than AbstractBox),
-	 * advance the global generation to err on the safe side.
+	 * Every box is an {@code AbstractBox} (the only implementation of {@code IBox}), so every box remembers its
+	 * container. Until 2026-11-11 a process-wide generation counter stood by for boxes that could not; nothing ever
+	 * advanced it, and every lookup read it.
 	 * </p>
 	 */
 	private boolean nonDecorationCached;
 	private boolean nonDecorationResult;
-	private long nonDecorationVersion;
-
-	/**
-	 * The global generation for changes to boxes that cannot remember their container.
-	 *
-	 * <p>
-	 * One generation covers the whole process, so multiple threads advance it during parallel conversions.
-	 * {@code ++} on a {@code volatile long} has three steps: read, add, write. Concurrent increments
-	 * can lose one update, leaving a memo with a matching stale generation alive
-	 * (identified in the 2026-09-02 design review).
-	 * Make it atomic as a prerequisite for laying out EPUB items in parallel.
-	 * </p>
-	 */
-	private static final java.util.concurrent.atomic.AtomicLong STRUCTURE_VERSION = new java.util.concurrent.atomic.AtomicLong();
 
 	/**
 	 * How many times a text block whose first line was pushed below the cut by a fragmented float was moved to
@@ -367,54 +354,19 @@ public class FlowContainer implements Container {
 
 	/** Accepts a box as content of this container and invalidates ancestor memos. */
 	private void adopt(final IBox box) {
-		if (box instanceof net.zamasoft.foliojet.layout.box.AbstractBox abstractBox) {
-			abstractBox.setContentParent(this);
-		} else {
-			STRUCTURE_VERSION.incrementAndGet();
-		}
+		((net.zamasoft.foliojet.layout.box.AbstractBox) box).setContentParent(this);
 		this.invalidateNonDecorationContent();
 	}
 
 	@Override
 	public final boolean hasNonDecorationContent() {
-		final long version = STRUCTURE_VERSION.get();
-		if (this.nonDecorationCached && this.nonDecorationVersion == version) {
+		if (this.nonDecorationCached) {
 			return this.nonDecorationResult;
 		}
-		final boolean result = this.computeNonDecorationContent();
-		this.nonDecorationVersion = version;
+		final boolean result = this.hasNonDecorationContentExcludingFloatings(java.util.Set.of());
 		this.nonDecorationResult = result;
 		this.nonDecorationCached = true;
 		return result;
-	}
-
-	private boolean computeNonDecorationContent() {
-		if (this.flows != null) {
-			for (int i = 0; i < this.flows.size(); ++i) {
-				if (hasNonDecorationContent(this.flows.get(i).box)) {
-					return true;
-				}
-			}
-		}
-		if (this.floatings != null) {
-			for (int i = 0; i < this.floatings.getCount(); ++i) {
-				if (hasNonDecorationContent(this.floatings.getFloating(i).box)) {
-					return true;
-				}
-			}
-		}
-		if (this.absolutes != null) {
-			for (int i = 0; i < this.absolutes.getCount(); ++i) {
-				final IAbsoluteBox box = this.absolutes.getAbsolute(i).box;
-				final net.zamasoft.foliojet.css.StructureElement element = box.getParams().element;
-				final boolean generatedDecoration = element != null && element.elementKey() < 0
-						&& ("before".equals(element.lName()) || "after".equals(element.lName()));
-				if (!generatedDecoration && hasNonDecorationContent(box)) {
-					return true;
-				}
-			}
-		}
-		return false;
 	}
 
 	@Override

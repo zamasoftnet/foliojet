@@ -215,7 +215,11 @@ public final class ContinuationStats {
 
 	/** Observes the number of retained LayoutSource events (E-6 increment 1; retains the maximum). */
 	public static void recordSourceEventRetention(final int size) {
-		SOURCE_EVENT_HIGH_WATER.accumulateAndGet(size, Math::max);
+		// Called for every appended event: read first, and write only a new maximum. An unconditional
+		// accumulateAndGet is a write to a line of cache that every concurrent conversion shares (2026-11-11).
+		if (size > SOURCE_EVENT_HIGH_WATER.get()) {
+			SOURCE_EVENT_HIGH_WATER.accumulateAndGet(size, Math::max);
+		}
 	}
 
 	/**
@@ -234,7 +238,10 @@ public final class ContinuationStats {
 
 	/** Observes retained inline text payload (E-6 increment 3b-2; retains the maximum). */
 	public static void recordLiveTextPayloadBytes(final long bytes) {
-		LIVE_TEXT_PAYLOAD_BYTES.accumulateAndGet(bytes, Math::max);
+		// Called for every text event: read first (see recordSourceEventRetention)
+		if (bytes > LIVE_TEXT_PAYLOAD_BYTES.get()) {
+			LIVE_TEXT_PAYLOAD_BYTES.accumulateAndGet(bytes, Math::max);
+		}
 	}
 
 	/** Observes text payload spills (E-6 increment 3b-2). */

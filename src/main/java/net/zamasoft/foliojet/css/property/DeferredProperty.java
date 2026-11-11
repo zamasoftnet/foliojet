@@ -48,6 +48,12 @@ public final class DeferredProperty implements Property {
 		return this.important;
 	}
 
+	@Override
+	public boolean mayApply(final PrimitivePropertyInfo info) {
+		// A longhand with var() sets itself (or its own group); what a shorthand sets is known only after substitution
+		return this.propertyInfo == info || !(this.propertyInfo instanceof PrimitivePropertyInfo);
+	}
+
 	/**
 	 * Resolves var() for each element, then reruns ordinary property parsing.
 	 * If the referenced custom property is absent (with no fallback), references form a
@@ -60,12 +66,6 @@ public final class DeferredProperty implements Property {
 	 * because they can occur for each element (to avoid flooding warnings when the same
 	 * rule matches thousands of elements).
 	 */
-	@Override
-	public boolean mayApply(final PrimitivePropertyInfo info) {
-		// A longhand with var() sets itself (or its own group); what a shorthand sets is known only after substitution
-		return this.propertyInfo == info || !(this.propertyInfo instanceof PrimitivePropertyInfo);
-	}
-
 	public void applyProperty(CSSStyle style) {
 		List<CssToken> substituted = VarSubstitution.substitute(this.tokens, style);
 		if (substituted == null) {

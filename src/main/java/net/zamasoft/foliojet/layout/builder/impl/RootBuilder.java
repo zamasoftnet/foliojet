@@ -960,6 +960,10 @@ public class RootBuilder extends BreakableBuilder {
 
 	@Override
 	protected ExclusionSpace pageFloatExclusionsForLineLayout() {
+		if (this.pageFloatExclusionSnapshot.isEmpty()) {
+			// The usual page has no page float. Asked for every line: answer before walking the open flows.
+			return ExclusionSpace.EMPTY;
+		}
 		if (!this.hasRootWritingModePath()) {
 			// Orthogonal flows share the same flowStack even inside RootBuilder. If any ancestor
 			// transforms axes, leave placement to the outer frame instead of passing page coordinates inside.

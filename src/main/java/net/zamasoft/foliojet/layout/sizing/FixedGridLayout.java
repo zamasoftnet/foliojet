@@ -12,6 +12,9 @@ public final class FixedGridLayout {
 
 	private final double[] columnWidths;
 
+	/** Where each column starts on the line axis, summed once (asked for every item). */
+	private final double[] columnStarts;
+
 	private final double columnGap, rowGap;
 
 	public FixedGridLayout(final double[] columnWidths, final double columnGap, final double rowGap) {
@@ -21,6 +24,14 @@ public final class FixedGridLayout {
 		this.columnWidths = columnWidths.clone();
 		this.columnGap = columnGap;
 		this.rowGap = rowGap;
+		// One more than the columns: the index after the last column answered too (the sum of all), as before
+		this.columnStarts = new double[columnWidths.length + 1];
+		double start = 0;
+		for (int i = 0; i < columnWidths.length; ++i) {
+			this.columnStarts[i] = start;
+			start += this.columnWidths[i] + this.columnGap;
+		}
+		this.columnStarts[columnWidths.length] = start;
 	}
 
 	public int columnCount() {
@@ -39,11 +50,7 @@ public final class FixedGridLayout {
 
 	/** A column's line-axis start position (sum of preceding column widths and gaps). */
 	public double columnStart(final int columnIndex) {
-		double start = 0;
-		for (int i = 0; i < columnIndex; ++i) {
-			start += this.columnWidths[i] + this.columnGap;
-		}
-		return start;
+		return this.columnStarts[columnIndex];
 	}
 
 	/**

@@ -118,7 +118,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	}
 
 	public void startTextRun(final int charOffset, final FontStyle fontStyle, final FontMetrics fontMetrics) {
-		this.journal.run(charOffset);
 		this.builder.startTextRun(charOffset, fontStyle, fontMetrics);
 	}
 
@@ -138,11 +137,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	private int deliveredCharEnd = 0;
 
 	/**
-	 * Shadow journal of boundary events (M3b Phase 0: observation without behavioral changes).
-	 */
-	private final TextEventJournal journal = new TextEventJournal();
-
-	/**
 	 * Returns the end offset of delivered source characters (M6b v3).
 	 *
 	 * <p>
@@ -160,7 +154,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 	}
 
 	public void glyph(int charOffset, char[] ch, int coff, byte clen, int gid) {
-		this.journal.glyph(charOffset, charOffset + clen);
 		if (charOffset >= 0) {
 			this.deliveredCharEnd = Math.max(this.deliveredCharEnd, charOffset + clen);
 		}
@@ -176,7 +169,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 		boolean consumesBoundary = true;
 		if (quad instanceof InlineQuad) {
 			// Inline box
-			this.journal.inline();
 			final InlineQuad inlineQuad = (InlineQuad) quad;
 			switch (inlineQuad.getType()) {
 			case InlineQuad.INLINE_START: {
@@ -254,11 +246,9 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			}
 		} else if (quad instanceof net.zamasoft.foliojet.layout.text.LeaderQuad) {
 			// leader() L1: already shaped and assigned a minimum width; no calculation is needed here.
-			this.journal.inline();
 		} else {
 			// Control code
 			Control control = (Control) quad;
-			this.journal.control(control.getCharOffset());
 			switch (control.getControlChar()) {
 			case '\n':
 				this.toLineFeed = true;
@@ -286,7 +276,6 @@ public class BuilderGlyphHandler implements GlyphHandler {
 			return;
 		}
 		this.toLineFeed = false;
-		this.journal.flush();
 		this.builder.flush();
 	}
 	
