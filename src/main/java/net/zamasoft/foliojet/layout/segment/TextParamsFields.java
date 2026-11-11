@@ -50,7 +50,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		net.zamasoft.foliojet.css.value.RubyPositionValue rubyPosition, byte textAutospace, boolean textSpacingTrimOff,
 		boolean textSpacingTrimStart, boolean textSpacingTrimEnd, boolean textSpacingSpaceFirst,
 		boolean hangingPunctuationEnd, boolean hangingPunctuationFirst, boolean hangingPunctuationForceEnd,
-		byte textCombine, double tabSize, boolean tabSizeIsMultiple) {
+		byte textCombine, double tabSize, boolean tabSizeIsMultiple, byte textJustify) {
 	TextParamsFields {
 		// Clone the mutable array reference on freeze (its TextShadow elements
 		// have only final fields and are effectively immutable).
@@ -73,7 +73,7 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 				source.textSpacingTrimOff, source.textSpacingTrimStart, source.textSpacingTrimEnd,
 				source.textSpacingSpaceFirst, source.hangingPunctuationEnd, source.hangingPunctuationFirst,
 				source.hangingPunctuationForceEnd,
-				source.textCombine, source.tabSize, source.tabSizeIsMultiple);
+				source.textCombine, source.tabSize, source.tabSizeIsMultiple, source.textJustify);
 	}
 
 	/**
@@ -133,5 +133,8 @@ record TextParamsFields(ParamsFields common, FontStyle fontStyle, WritingMode fl
 		target.textCombine = this.textCombine;
 		target.tabSize = this.tabSize;
 		target.tabSizeIsMultiple = this.tabSizeIsMultiple;
+		// text-justify (2026-11-11): it was not among the fields, so a box rebuilt from a recipe - a table cell, a
+		// flex or grid item, a float, a block carried over a page - justified as auto whatever the style said.
+		target.textJustify = this.textJustify;
 	}
 }

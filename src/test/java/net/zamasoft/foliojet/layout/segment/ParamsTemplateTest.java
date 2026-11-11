@@ -288,4 +288,37 @@ public class ParamsTemplateTest extends TestCase {
 		assertEquals(4, m1.span);
 		assertEquals(4, m2.span);
 	}
+
+	/**
+	 * Every field of a Params class is a component of the record that freezes it (2026-11-11).
+	 *
+	 * <p>
+	 * A field the record does not list is silently reset when a box is rebuilt from a recipe (a table cell, a flex or
+	 * grid item, a float, a block carried over a page). It happened again and again - percentage translate,
+	 * aspect-ratio, line-clamp, the decoration style - and until 2026-11-11 {@code textJustify} was missing: in a table
+	 * cell {@code text-justify: none} and {@code inter-word} justified between the characters. This test names the
+	 * missing field the day it is added to the class.
+	 * </p>
+	 */
+	public void testEveryParamsFieldIsFrozen() {
+		assertFrozen(net.zamasoft.foliojet.layout.box.params.Params.class, ParamsFields.class);
+		assertFrozen(net.zamasoft.foliojet.layout.box.params.AbstractTextParams.class, TextParamsFields.class);
+		assertFrozen(net.zamasoft.foliojet.layout.box.params.AbstractLineParams.class, LineParamsFields.class);
+		assertFrozen(BlockParams.class, BlockParamsFields.class);
+	}
+
+	private static void assertFrozen(final Class<?> params, final Class<? extends Record> fields) {
+		final java.util.Set<String> frozen = new java.util.HashSet<>();
+		for (final java.lang.reflect.RecordComponent component : fields.getRecordComponents()) {
+			frozen.add(component.getName());
+		}
+		final java.util.List<String> missing = new java.util.ArrayList<>();
+		for (final java.lang.reflect.Field field : params.getDeclaredFields()) {
+			final int modifiers = field.getModifiers();
+			if (!java.lang.reflect.Modifier.isStatic(modifiers) && !field.isSynthetic() && !frozen.contains(field.getName())) {
+				missing.add(field.getName());
+			}
+		}
+		assertTrue(fields.getSimpleName() + " does not freeze " + missing + " of " + params.getSimpleName(), missing.isEmpty());
+	}
 }
