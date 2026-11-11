@@ -2117,7 +2117,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// FlexBuilder.distributeMain now starts such a line at the far side, and the table is back at y=305 to 368
 			// (Chrome 307 to 368). The other three items run off the top, in Chrome as here (it prints T0 to T11 only).
 			new IndividualExclusion(90_416_903, "fit-v1", 1_075_451_939,
-					"作者の溢れ(直しの後の残り): 縦組みの紙の折り返さないrow-reverseのflexの中身が約1280ptで行の380ptに入らず、表より後ろの項目が紙の上の外(Chromeも表だけ刷る)", "2026-11-12"));
+					"作者の溢れ(直しの後の残り): 縦組みの紙の折り返さないrow-reverseのflexの中身が約1280ptで行の380ptに入らず、表より後ろの項目が紙の上の外(Chromeも表だけ刷る)", "2026-11-12"),
+			// Triage §202, the author's overflow, placed as Chrome places it since f75d665b: on 200x200pt paper a
+			// row-reverse flex without wrapping, 39pt wide at the left edge, holds an inline-block of 127pt and an item of
+			// flex: 1 0 8em (48pt), 175pt in 39pt. The first item stays in the box and the line runs off the left of the
+			// paper: T0 at x=-88, T1 at -131. Chrome prints nothing either; with the box 190pt wide, or 150pt from the
+			// left, both print every text at the same place (T0 at 63 and at 62). Until f75d665b (19124 too) the line
+			// started at the box's left and ran right: all on the paper, but 136pt from Chrome's places.
+			new IndividualExclusion(91_175_501, "fit-v1", 2_015_872_716,
+					"作者の溢れ: 紙の左端の幅39ptの折り返さないrow-reverseのflexに127ptと48ptの項目、最初の項目が箱に残り行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
