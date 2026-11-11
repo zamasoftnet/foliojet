@@ -2137,7 +2137,23 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// table 97pt wide. The blocks run leftwards out of the float: the radio button at x=-15, the ruby at -23.
 			// Chrome prints nothing either; with the float 180pt wide both print them on the paper (within 9pt).
 			new IndividualExclusion(91_998_134, "fit-v1", 1_115_889_456,
-					"作者の溢れ: 縦組み(左から右)の紙の左端の幅8emの右から左のfloatに、最小幅8emの直交のinlineと幅97ptの表、中身が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"));
+					"作者の溢れ: 縦組み(左から右)の紙の左端の幅8emの右から左のfloatに、最小幅8emの直交のinlineと幅97ptの表、中身が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"),
+			// Triage §204, three of one stop. Two are the shape of §202 (a reversed flex line wider than its box at the
+			// left edge of 200pt paper; Chrome prints nothing; with a margin at the left both print T0 at the same place):
+			// 92014750 holds an inline-block of 162pt in 8em (88pt), T0 at x=-74; 92075633 is a horizontal-tb flex of
+			// 104pt on vertical-lr paper holding 174pt, T0 at x=-70 (before f75d665b it lost T0 past the right edge and
+			// kept the others).
+			new IndividualExclusion(92_014_750, "fit-v1", 524_903_842,
+					"作者の溢れ: 紙の左端の幅8emの折り返さないrow-reverseのflexに幅162ptのinline-block、行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"),
+			new IndividualExclusion(92_075_633, "fit-v1", 1_397_472_714,
+					"作者の溢れ: 縦組みの紙の左端の幅104ptの横組みの折り返さないrow-reverseのflexに幅174ptのinline-blockほか、行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は最初の項目だけ右の外)", "2026-11-12"),
+			// 92153346 has no flex and is as it was in 19124, a known limitation: on vertical-lr paper an inline-block of
+			// vertical-rl with width: calc(35% + 8em) holds a horizontal-tb block with an inline-block of 184pt. The
+			// percentage of an auto-sized parent is taken of the paper here (166pt, the intended rule of indefinite
+			// percentages) and the block runs 18pt out at the left, T0 with it (5pt off the paper); Chrome treats the
+			// width as auto (184pt) and prints T0 at x=0.
+			new IndividualExclusion(92_153_346, "fit-v1", 387_242_992,
+					"既知の制限: 縦組みの紙の右から左のinline-blockの幅calc(35% + 8em)を紙の幅で解いて166pt、中の幅184ptの直交の箱が左へ18pt出て字が紙の外(Chromeは幅をautoにして刷る。19124から同じ)", "2026-11-12"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
