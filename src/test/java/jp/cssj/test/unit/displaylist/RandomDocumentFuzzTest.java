@@ -2094,7 +2094,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// hasUntypesettableOppositeProgression does not count the inline-block's. 19124 and Chrome print nothing either;
 			// with the inline-block 170pt wide both print T0 at the same place (within 0.2pt).
 			new IndividualExclusion(86_835_851, "fit-v1", 2_140_701_288,
-					"作者の溢れ: 縦組み(左から右)の紙の幅123ptの右から左のinline-blockの中の幅139ptの横組みの箱が左へ溢れ紙の左の外(19124もChromeも刷らない)", "2026-11-11"));
+					"作者の溢れ: 縦組み(左から右)の紙の幅123ptの右から左のinline-blockの中の幅139ptの横組みの箱が左へ溢れ紙の左の外(19124もChromeも刷らない)", "2026-11-11"),
+			// Triage §199, the author's overflow: on vertical-rl 120x400pt paper a horizontal box holds a list-item 24pt wide
+			// whose ul keeps the default 30pt of padding, so the items start 6pt past the box, which lies at the paper's
+			// right edge: T0 to T2 at x=126. 19124 puts them at the same x and Chrome prints nothing either; with the
+			// list-item 70pt wide both print T0 to T2 at x=87.
+			new IndividualExclusion(88_737_073, "fit-v1", 492_600_508,
+					"作者の溢れ: 縦組みの紙の右端の幅24ptの横組みの箱の中のulの既定の字下げ30ptで項目が紙の右の外(19124もChromeも刷らない)", "2026-11-11"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
