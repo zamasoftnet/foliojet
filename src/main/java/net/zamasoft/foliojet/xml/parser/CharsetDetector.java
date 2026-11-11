@@ -19,9 +19,12 @@ public final class CharsetDetector {
 	public static Charset detectCharset(InputStream in) throws IOException {
 		in.mark(MAX_BUFF_SIZE);
 		byte[] b = new byte[MAX_BUFF_SIZE];
-		int len = in.read(b);
+		// Read until the sample is full or the input ends. One read() of a slow stream (a network body) may give only
+		// what has arrived, and a sample that ends in the ASCII head of the document is taken for ISO-2022-JP. Until
+		// 2026-11-11 the comment filter that sat on every HTML input filled each read, and this relied on it.
+		int len = in.readNBytes(b, 0, b.length);
 		in.reset();
-		if (len == -1) {
+		if (len == 0) {
 			return CHARSETS[CHARSETS.length - 1];
 		}
 		ByteBuffer bbuff = ByteBuffer.wrap(b, 0, len);
