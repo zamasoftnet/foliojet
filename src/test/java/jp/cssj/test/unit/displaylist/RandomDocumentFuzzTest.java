@@ -2185,7 +2185,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// side and runs 52pt out to the right, so its list lies at x=629, past the paper. Chrome prints nothing either;
 			// with a 150pt box before it both print the list on the paper, Copper 2.2pt left of Chrome as in every variant.
 			new IndividualExclusion(96_803_936, "fit-v1", 1_134_352_393,
-					"作者の溢れ: 縦組み(右から左)のA4の右端の幅61ptの左から右の箱に幅113ptの右から左の表、表が右へ溢れ字が紙の右の外(Chromeも刷らない。19124から同じ)", "2026-11-13"));
+					"作者の溢れ: 縦組み(右から左)のA4の右端の幅61ptの左から右の箱に幅113ptの右から左の表、表が右へ溢れ字が紙の右の外(Chromeも刷らない。19124から同じ)", "2026-11-13"),
+			// Triage §209, the author's overflow (since 19124): on 60x60pt paper a right float holds a table whose spans
+			// overlap (a table model error) and a cell with a list. Copper resolves the overlaps into a table about 150pt
+			// wide (118pt without the list), Chrome into one about 82pt; neither fits. Copper starts the float at the left
+			// edge and it runs out to the right; Chrome sets it at the right edge and it runs out to the left, printing no
+			// word on the first page. Without the spans both lay the table about 88pt wide; on 300pt paper both print T17
+			// at x=286.
+			new IndividualExclusion(97_344_038, "fit-v1", 1_758_328_348,
+					"作者の溢れ: 60ptの紙の右のfloatに重なるセルの表があり、Copperは約150pt、Chromeは約82ptに組んでどちらも紙に入らない(Chromeは左へ溢れて1頁目に字を刷らない。19124から同じ)", "2026-11-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
