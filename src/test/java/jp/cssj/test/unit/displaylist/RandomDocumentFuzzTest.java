@@ -2179,7 +2179,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// laid from the float's right side and runs 46pt out to the left, so T0 lies at x=-35. Chrome prints nothing
 			// either; with a 150pt box before the float both print T0 at x=114.7 (Chrome 114.6).
 			new IndividualExclusion(94_615_973, "fit-v1", 1_115_895_082,
-					"作者の溢れ: 縦組み(左から右)の紙の左端の幅8em(56pt)の右から左のfloatの中に幅102ptの左から右の表、表が左へ溢れ字が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"));
+					"作者の溢れ: 縦組み(左から右)の紙の左端の幅8em(56pt)の右から左のfloatの中に幅102ptの左から右の表、表が左へ溢れ字が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"),
+			// Triage §208, the author's overflow (since 19124), §207 mirrored: at the right edge of vertical-rl A4 paper a
+			// vertical-lr box 61pt wide holds a vertical-rl display:table 113pt wide. The table is laid from the box's left
+			// side and runs 52pt out to the right, so its list lies at x=629, past the paper. Chrome prints nothing either;
+			// with a 150pt box before it both print the list on the paper, Copper 2.2pt left of Chrome as in every variant.
+			new IndividualExclusion(96_803_936, "fit-v1", 1_134_352_393,
+					"作者の溢れ: 縦組み(右から左)のA4の右端の幅61ptの左から右の箱に幅113ptの右から左の表、表が右へ溢れ字が紙の右の外(Chromeも刷らない。19124から同じ)", "2026-11-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
