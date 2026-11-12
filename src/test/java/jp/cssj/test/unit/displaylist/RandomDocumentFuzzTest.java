@@ -1453,6 +1453,32 @@ public class RandomDocumentFuzzTest extends TestCase {
 	}
 
 	/**
+	 * Drawings all beyond the paper's left edge from a reversed flex line wider than its box (added 2026-11-12).
+	 *
+	 * <p>
+	 * Since foliojet4 f75d665b a {@code row-reverse} line that does not fit starts past its box's start side, as in
+	 * Chrome: the first items stay at the far end and the rest run out at the left. Before, it started at the box's
+	 * left and ran out at the right, where the paper often had room. So a narrow box at the paper's left edge now
+	 * puts everything off the paper, and Chrome prints nothing either. The user decided on 2026-11-12 to keep
+	 * Chrome's side; the sweep had stopped on five such documents (triage §202 to §204 and §206).
+	 * </p>
+	 *
+	 * <p>
+	 * {@link #hasReversedFlexLineWiderThanItsBox} proves the overflow from the document, and only for the shape the
+	 * sweep met; the drawings must also all lie beyond the left edge, the side the overflow takes. A reversed line
+	 * that may fit, or anything off the paper elsewhere, still fails. A line placed even further left than Chrome
+	 * places it would not be seen.
+	 * </p>
+	 */
+	private static final class ExcludedByReversedFlexOverflow extends AssertionError {
+		private static final long serialVersionUID = 1L;
+
+		ExcludedByReversedFlexOverflow(final String message) {
+			super(message);
+		}
+	}
+
+	/**
 	 * Off-paper placement in documents containing <b>content that physically cannot fit</b> in the type area
 	 * (added 2026-09-17).
 	 *
@@ -2118,40 +2144,20 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// (Chrome 307 to 368). The other three items run off the top, in Chrome as here (it prints T0 to T11 only).
 			new IndividualExclusion(90_416_903, "fit-v1", 1_075_451_939,
 					"作者の溢れ(直しの後の残り): 縦組みの紙の折り返さないrow-reverseのflexの中身が約1280ptで行の380ptに入らず、表より後ろの項目が紙の上の外(Chromeも表だけ刷る)", "2026-11-12"),
-			// Triage §202, the author's overflow, placed as Chrome places it since f75d665b: on 200x200pt paper a
-			// row-reverse flex without wrapping, 39pt wide at the left edge, holds an inline-block of 127pt and an item of
-			// flex: 1 0 8em (48pt), 175pt in 39pt. The first item stays in the box and the line runs off the left of the
-			// paper: T0 at x=-88, T1 at -131. Chrome prints nothing either; with the box 190pt wide, or 150pt from the
-			// left, both print every text at the same place (T0 at 63 and at 62). Until f75d665b (19124 too) the line
-			// started at the box's left and ran right: all on the paper, but 136pt from Chrome's places.
-			new IndividualExclusion(91_175_501, "fit-v1", 2_015_872_716,
-					"作者の溢れ: 紙の左端の幅39ptの折り返さないrow-reverseのflexに127ptと48ptの項目、最初の項目が箱に残り行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"),
-			// Triage §203, two of one stop. 91852174 is the shape of §202 on A4: a row-reverse flex without wrapping, 99pt
-			// wide at the left edge, whose first item holds an inline-block of 189pt; the line of about 500pt runs off the
-			// left (T0 at x=-90). Chrome prints nothing; 590pt wide, or 300pt from the left, every text is at Chrome's
-			// place. Until f75d665b it ran right and stayed on the paper.
-			new IndividualExclusion(91_852_174, "fit-v1", 711_624_389,
-					"作者の溢れ: A4の紙の左端の幅99ptの折り返さないrow-reverseのflexに幅189ptのinline-blockほか約500pt、行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"),
-			// 91998134 has no flex and is as it was in 19124: on 200pt vertical-lr paper a float of vertical-rl, 8em (56pt)
-			// wide at the left edge, holds 15pt of margins and padding, an orthogonal inline box of min-width 8em and a
-			// table 97pt wide. The blocks run leftwards out of the float: the radio button at x=-15, the ruby at -23.
-			// Chrome prints nothing either; with the float 180pt wide both print them on the paper (within 9pt).
+			// Triage §202 to §204 also met a reversed flex line wider than its box (91175501, 91852174, 92014750 and
+			// 92075633); ExcludedByReversedFlexOverflow takes them, and §206's 94213248, since 2026-11-12.
+			// Triage §203: 91998134 has no flex and is as it was in 19124: on 200pt vertical-lr paper a float of
+			// vertical-rl, 8em (56pt) wide at the left edge, holds 15pt of margins and padding, an orthogonal inline
+			// box of min-width 8em and a table 97pt wide. The blocks run leftwards out of the float: the radio button
+			// at x=-15, the ruby at -23. Chrome prints nothing either; with the float 180pt wide both print them on the
+			// paper (within 9pt).
 			new IndividualExclusion(91_998_134, "fit-v1", 1_115_889_456,
 					"作者の溢れ: 縦組み(左から右)の紙の左端の幅8emの右から左のfloatに、最小幅8emの直交のinlineと幅97ptの表、中身が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"),
-			// Triage §204, three of one stop. Two are the shape of §202 (a reversed flex line wider than its box at the
-			// left edge of 200pt paper; Chrome prints nothing; with a margin at the left both print T0 at the same place):
-			// 92014750 holds an inline-block of 162pt in 8em (88pt), T0 at x=-74; 92075633 is a horizontal-tb flex of
-			// 104pt on vertical-lr paper holding 174pt, T0 at x=-70 (before f75d665b it lost T0 past the right edge and
-			// kept the others).
-			new IndividualExclusion(92_014_750, "fit-v1", 524_903_842,
-					"作者の溢れ: 紙の左端の幅8emの折り返さないrow-reverseのflexに幅162ptのinline-block、行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は右へ溢れて紙の上)", "2026-11-12"),
-			new IndividualExclusion(92_075_633, "fit-v1", 1_397_472_714,
-					"作者の溢れ: 縦組みの紙の左端の幅104ptの横組みの折り返さないrow-reverseのflexに幅174ptのinline-blockほか、行が紙の左の外へ(Chromeも刷らない。flexの直しf75d665bの前は最初の項目だけ右の外)", "2026-11-12"),
-			// 92153346 has no flex and is as it was in 19124, a known limitation: on vertical-lr paper an inline-block of
-			// vertical-rl with width: calc(35% + 8em) holds a horizontal-tb block with an inline-block of 184pt. The
-			// percentage of an auto-sized parent is taken of the paper here (166pt, the intended rule of indefinite
-			// percentages) and the block runs 18pt out at the left, T0 with it (5pt off the paper); Chrome treats the
-			// width as auto (184pt) and prints T0 at x=0.
+			// Triage §204: 92153346 has no flex and is as it was in 19124, a known limitation: on vertical-lr paper an
+			// inline-block of vertical-rl with width: calc(35% + 8em) holds a horizontal-tb block with an inline-block
+			// of 184pt. The percentage of an auto-sized parent is taken of the paper here (166pt, the intended rule of
+			// indefinite percentages) and the block runs 18pt out at the left, T0 with it (5pt off the paper); Chrome
+			// treats the width as auto (184pt) and prints T0 at x=0.
 			new IndividualExclusion(92_153_346, "fit-v1", 387_242_992,
 					"既知の制限: 縦組みの紙の右から左のinline-blockの幅calc(35% + 8em)を紙の幅で解いて166pt、中の幅184ptの直交の箱が左へ18pt出て字が紙の外(Chromeは幅をautoにして刷る。19124から同じ)", "2026-11-12"),
 			// Triage §205, the author's overflow, no flex, as it was in 19124: on A4 vertical-lr paper a float of
@@ -2160,7 +2166,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// end: T0 at x=-10, 0.4pt off the paper. Chrome prints nothing either; with the table 60pt wide both print
 			// T0 at the same place (x=11 and 12).
 			new IndividualExclusion(93_819_730, "fit-v1", 2_079_733_179,
-					"作者の溢れ: 縦組みの紙の左端の幅80ptの右から左のfloatの中(内側62pt)に幅81ptの左から右の表、表が左へ溢れ字が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"));
+					"作者の溢れ: 縦組みの紙の左端の幅80ptの右から左のfloatの中(内側62pt)に幅81ptの左から右の表、表が左へ溢れ字が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"),
+			// Triage §206, a known limitation (since 19124), as §196: on vertical-rl 120x400pt paper a vertical-lr float
+			// holds 7pt of margin and 4pt of padding around an inline-block 117pt wide, 139pt in all, wider than the
+			// paper. It starts at the paper's right edge and runs left; T0, at its left end, lies at x=-8, 0.8pt off the
+			// paper. Nothing after it breaks the page, so it is not rescue-sliced. Chrome's print slices it and prints T0
+			// on a second page; with the inline-block 90pt wide (112pt in all) both print T0 at x=19 (Chrome 19.7).
+			new IndividualExclusion(94_142_916, "fit-v1", 414_533_821,
+					"既知の制限: 縦組みの紙(幅120pt)の左から右のfloatが余白込みで139pt、紙の左の外へ出て、後ろに頁を切るものが無いので救済分割されない(Chromeは2頁目に刷る。19124から同じ)", "2026-11-12"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
@@ -2221,6 +2234,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		}
 		if (t instanceof ExcludedByFlexMulticolMinContent) {
 			return "(除外)flex内の段組表によるmin-content幅";
+		}
+		if (t instanceof ExcludedByReversedFlexOverflow) {
+			return "(除外)逆向きのflexの行の溢れ";
 		}
 		if (t instanceof ExcludedByUnfittableContent) {
 			return "(除外)収まらない内容: " + ((ExcludedByUnfittableContent) t).reason;
@@ -4372,6 +4388,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// assertNoUnexplainedOffPage): something beyond the line axis, and something lost in the page axis.
 		boolean beyondLine = false, beyondPage = false;
 		String nearestAt = null;
+		// Shown drawings, and whether one reaches right of the paper's left edge (ExcludedByReversedFlexOverflow)
+		int shown = 0;
+		boolean shownNotLeft = false;
 		for (final File page : pages) {
 			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
 			for (final String raw : dump.split("\n")) {
@@ -4397,6 +4416,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 							: x >= doc.pageWidth() || x + width <= 0;
 					beyondLine |= (pageAxisY ? dx : dy) > 0;
 					beyondPage |= (pageAxisY ? dy : dx) > 0 || pageOutside && paintsText(raw);
+					++shown;
+					shownNotLeft |= x + width > 0;
 				}
 				if (distance < nearest) {
 					nearest = distance;
@@ -4429,6 +4450,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		final String unfittable = findUnfittableContent(doc.html());
 		if (unfittable != null) {
 			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
+		}
+		// A reversed flex line wider than its box runs out at the left, as in Chrome (user decision on 2026-11-12;
+		// see {@link ExcludedByReversedFlexOverflow}).
+		if (shown > 0 && !shownNotLeft && hasReversedFlexLineWiderThanItsBox(doc.html())) {
+			throw new ExcludedByReversedFlexOverflow(detail + " [逆向きのflexの行の溢れ]");
 		}
 		// Overflow in the line axis only: some drawing lies beyond it and nothing is lost in the page axis (fit seed
 		// 34950126, 2026-10-24). Before, the nearest drawing decided the axis: a list marker in the margin, touching the
@@ -6155,6 +6181,82 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		return html.length();
+	}
+
+	/** The generator's fixed box at the start of a {@code <p>}: an inline-block of pt width and height. */
+	private static final Pattern FIXED_INLINE_BLOCK = Pattern
+			.compile("<span style=\"display:inline-block;width:([\\d.]+)pt;height:[\\d.]+pt\">");
+	/** Declarations that keep a reversed line at the start (rtl, justify-content) or change the em (font). */
+	private static final Pattern REVERSED_FLEX_SIDE_CHANGER = Pattern
+			.compile("(?:^|[;\\s\"])(?:direction|justify-content|font(?:-size)?)\\s*:|dir=");
+	private static final Pattern AUTO_MARGIN = Pattern.compile("margin[a-z-]*\\s*:[^;\"]*auto");
+
+	/**
+	 * Whether the body's only element is a horizontal {@code row-reverse} flex container whose line cannot fit
+	 * (2026-11-12, see {@link ExcludedByReversedFlexOverflow}). Its width is at most a pt or em length (the last
+	 * {@code width}, or the last {@code min-width} when larger; {@code max-width} only narrows it), and one of its
+	 * items is a plain {@code <p>} that starts with the generator's fixed inline-block wider than that. Such an item
+	 * cannot shrink below the inline-block (a flex item's automatic minimum is its min-content), so the line starts
+	 * past the box's left edge. Anything that keeps the line at the start (justify-content, rtl, an auto margin) or
+	 * leaves the width open (a percentage, no width) makes it false.
+	 */
+	static boolean hasReversedFlexLineWiderThanItsBox(final String html) {
+		final Matcher font = BODY_FONT_SIZE.matcher(html);
+		final int body = html.indexOf("<body");
+		if (!font.find() || body < 0) {
+			return false;
+		}
+		final Matcher tag = TAG_OR_WM.matcher(html);
+		tag.region(html.indexOf('>', body) + 1, html.length());
+		if (!tag.find() || !"div".equals(tag.group(2))) {
+			return false;
+		}
+		final String attrs = String.valueOf(tag.group(3));
+		final int from = tag.end(), to = elementEnd(html, from);
+		// The container's end tag, then the body's: nothing else is in the body
+		tag.region(to, html.length());
+		if (!tag.find() || !tag.find() || !"body".equals(tag.group(1))) {
+			return false;
+		}
+		String mode = null, flexDirection = null;
+		for (final Matcher m = STYLE_WRITING_MODE.matcher(attrs); m.find();) {
+			mode = m.group(1);
+		}
+		if (mode == null) {
+			final Matcher bm = BODY_WRITING_MODE.matcher(html);
+			mode = bm.find() ? bm.group(1) : "horizontal-tb";
+		}
+		for (final Matcher m = STYLE_FLEX_DIRECTION.matcher(attrs); m.find();) {
+			flexDirection = m.group(1);
+		}
+		if (!STYLE_FLEX.matcher(attrs).find() || !"row-reverse".equals(flexDirection) || !"horizontal-tb".equals(mode)
+				|| REVERSED_FLEX_SIDE_CHANGER.matcher(attrs).find() || AUTO_MARGIN.matcher(html.substring(from, to)).find()) {
+			return false;
+		}
+		final double em = Double.parseDouble(font.group(1));
+		final double box = Math.max(lastLength(STYLE_WIDTH_DECLARATION, attrs, em, Double.NaN),
+				STYLE_MIN_WIDTH_DECLARATION.matcher(attrs).find()
+						? lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, em, Double.NaN)
+						: 0);
+		if (Double.isNaN(box)) {
+			return false;
+		}
+		int depth = 0;
+		tag.region(from, to);
+		while (tag.find()) {
+			if (tag.group(1) != null) {
+				--depth;
+			} else if (!String.valueOf(tag.group(3)).endsWith("/")) {
+				if (depth == 0 && "p".equals(tag.group(2)) && tag.group(3).isEmpty()) {
+					final Matcher fixed = FIXED_INLINE_BLOCK.matcher(html).region(tag.end(), to);
+					if (fixed.lookingAt() && Double.parseDouble(fixed.group(1)) > box) {
+						return true;
+					}
+				}
+				++depth;
+			}
+		}
+		return false;
 	}
 
 	/**

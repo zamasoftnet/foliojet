@@ -1586,6 +1586,104 @@ public class FuzzOraclePredicateTest extends TestCase {
 				+ "  x=-20.00 y=900.00 Text[\"T1\" asc=3.00 desc=3.00] clip=[0.00 0.00 100.00 50.00] w=6.00 h=6.00\n"));
 	}
 
+	// ------------------------------------------------------------------
+	// hasReversedFlexLineWiderThanItsBox: a reversed flex line that runs out at the left (2026-11-12).
+	// ------------------------------------------------------------------
+
+	private static final String WIDE_ITEM = "<p><span style=\"display:inline-block;width:127pt;height:186pt\">T0</span></p>\n";
+
+	private static String reversedFlex(final String container, final String items) {
+		return doc("", "\n<div style=\"display:flex;" + container + "\">\n" + items + "</div>\n\n");
+	}
+
+	private static boolean reversedOverflow(final String html) {
+		return RandomDocumentFuzzTest.hasReversedFlexLineWiderThanItsBox(html);
+	}
+
+	/** The sweep's documents: fit seeds 91175501, 91852174, 92014750, 92075633 and 94213248 (triage §202 to §206). */
+	public void testSweepSeedsHaveAReversedFlexLineWiderThanItsBox() {
+		for (final int v2 : new int[] { 2_015_872_716, 711_624_389, 524_903_842, 1_397_472_714, 883_415_429 }) {
+			assertTrue(String.valueOf(v2),
+					reversedOverflow(RandomDocumentFuzzTest.generate(v2, true, false, false).html()));
+		}
+	}
+
+	public void testReversedFlexLineWiderThanItsBox() {
+		assertTrue(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;flex-wrap:nowrap;gap:0pt;", WIDE_ITEM)));
+		// em at the body's 6pt: 8em is 48pt; the last width counts, min-width when larger, max-width only narrows
+		assertTrue(reversedOverflow(reversedFlex(
+				"width:125pt;flex-direction:row-reverse;width:8em;min-width:8em;max-width:90%;", WIDE_ITEM)));
+		// Any wrap: the wide item has a line of its own
+		assertTrue(reversedOverflow(reversedFlex("writing-mode:horizontal-tb;width:39pt;flex-direction:row-reverse;flex-wrap:wrap;",
+				"<div>T1</div>\n" + WIDE_ITEM)));
+	}
+
+	public void testReversedFlexLineThatMayFitIsNotProven() {
+		assertFalse(reversedOverflow(reversedFlex("width:127pt;flex-direction:row-reverse;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;min-width:130pt;flex-direction:row-reverse;", WIDE_ITEM)));
+		// A width not known from the document
+		assertFalse(reversedOverflow(reversedFlex("width:39%;flex-direction:row-reverse;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;min-width:50%;flex-direction:row-reverse;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(reversedFlex("flex-direction:row-reverse;", WIDE_ITEM)));
+		// The wide box may shrink with its item or is not an item
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;",
+				"<div style=\"min-width:0\">" + WIDE_ITEM + "</div>\n")));
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;",
+				"<p style=\"width:20pt\"><span style=\"display:inline-block;width:127pt;height:186pt\">T0</span></p>\n")));
+	}
+
+	public void testReversedFlexLineOverflowingElsewhereIsNotTaken() {
+		// Not reversed, or kept at the start: justify-content, rtl, an auto margin
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;flex-direction:row;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;justify-content:center;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;direction:rtl;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;",
+				WIDE_ITEM + "<div style=\"margin-left:auto\">T1</div>\n")));
+		// Vertical: the main axis is the height, the overflow goes up
+		assertFalse(reversedOverflow(reversedFlex("writing-mode:vertical-rl;width:39pt;flex-direction:row-reverse;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(doc(";writing-mode:vertical-rl",
+				"<div style=\"display:flex;width:39pt;flex-direction:row-reverse;\">" + WIDE_ITEM + "</div>")));
+		// Something else in the body
+		assertFalse(reversedOverflow(reversedFlex("width:39pt;flex-direction:row-reverse;", WIDE_ITEM)
+				.replace("</body>", "<p>T9</p></body>")));
+	}
+
+	/**
+	 * The drawings must all lie beyond the left edge, the overflow's side; a line that may fit still fails with them
+	 * there (a misplaced reversed line is not hidden).
+	 */
+	public void testReversedFlexOverflowNeedsEveryDrawingBeyondTheLeftEdge() throws Exception {
+		final RandomDocumentFuzzTest.Generated doc = new RandomDocumentFuzzTest.Generated(
+				reversedFlex("width:39pt;flex-direction:row-reverse;flex-wrap:nowrap;gap:0pt;", WIDE_ITEM), List.of("T0"),
+				Set.of(), 200, 200, 127, false, false);
+		final String left = "  x=-88.00 y=0.00 Text[\"T0\" asc=5.15 desc=2.05] w=6.67 h=7.20\n";
+		assertEquals("[逆向きのflexの行の溢れ]", offPageFailure(doc, left));
+		assertEquals("", offPageFailure(doc, left + "  x=210.00 y=0.00 Text[\"T1\" asc=5.15 desc=2.05] w=6.67 h=7.20\n"));
+		assertEquals("", offPageFailure(doc, "  x=10.00 y=210.00 Text[\"T0\" asc=5.15 desc=2.05] w=6.67 h=7.20\n"));
+		final RandomDocumentFuzzTest.Generated fits = new RandomDocumentFuzzTest.Generated(
+				reversedFlex("width:139pt;flex-direction:row-reverse;", WIDE_ITEM), List.of("T0"), Set.of(), 200, 200, 139,
+				false, false);
+		assertEquals("", offPageFailure(fits, left));
+	}
+
+	/**
+	 * How many fit documents hasReversedFlexLineWiderThanItsBox takes (only with -Dfoliojet.reversedFlexRate=count):
+	 * the share of the sweep where a reversed flex line further out at the left would go unseen.
+	 */
+	public void testReversedFlexOverflowRate() {
+		final int n = Integer.getInteger("foliojet.reversedFlexRate", 0).intValue();
+		if (n == 0) {
+			return;
+		}
+		int hits = 0;
+		for (int seed = 0; seed < n; ++seed) {
+			if (reversedOverflow(RandomDocumentFuzzTest.generateFit(94_000_000 + seed, true).html())) {
+				++hits;
+			}
+		}
+		System.out.println("[reversedFlexRate] n=" + n + " hits=" + hits);
+	}
+
 	/** The bracketed exclusion of {@link RandomDocumentFuzzTest#assertSomeDrawingOnPage}, or "" for a failure. */
 	private static String offPageFailure(final RandomDocumentFuzzTest.Generated doc, final String lines) throws Exception {
 		final File dump = writeDump(lines);
