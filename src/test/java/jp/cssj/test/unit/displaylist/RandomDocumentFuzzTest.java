@@ -2153,7 +2153,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// percentages) and the block runs 18pt out at the left, T0 with it (5pt off the paper); Chrome treats the
 			// width as auto (184pt) and prints T0 at x=0.
 			new IndividualExclusion(92_153_346, "fit-v1", 387_242_992,
-					"既知の制限: 縦組みの紙の右から左のinline-blockの幅calc(35% + 8em)を紙の幅で解いて166pt、中の幅184ptの直交の箱が左へ18pt出て字が紙の外(Chromeは幅をautoにして刷る。19124から同じ)", "2026-11-12"));
+					"既知の制限: 縦組みの紙の右から左のinline-blockの幅calc(35% + 8em)を紙の幅で解いて166pt、中の幅184ptの直交の箱が左へ18pt出て字が紙の外(Chromeは幅をautoにして刷る。19124から同じ)", "2026-11-12"),
+			// Triage §205, the author's overflow, no flex, as it was in 19124: on A4 vertical-lr paper a float of
+			// vertical-rl, 80pt wide at the left edge, holds a block with 9pt of margin and padding (62pt inside) and in it
+			// a table of vertical-lr 81pt wide. The table runs 19pt out at the left, and its first line is at its left
+			// end: T0 at x=-10, 0.4pt off the paper. Chrome prints nothing either; with the table 60pt wide both print
+			// T0 at the same place (x=11 and 12).
+			new IndividualExclusion(93_819_730, "fit-v1", 2_079_733_179,
+					"作者の溢れ: 縦組みの紙の左端の幅80ptの右から左のfloatの中(内側62pt)に幅81ptの左から右の表、表が左へ溢れ字が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
