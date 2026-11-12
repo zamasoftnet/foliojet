@@ -2173,7 +2173,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// paper. Nothing after it breaks the page, so it is not rescue-sliced. Chrome's print slices it and prints T0
 			// on a second page; with the inline-block 90pt wide (112pt in all) both print T0 at x=19 (Chrome 19.7).
 			new IndividualExclusion(94_142_916, "fit-v1", 414_533_821,
-					"既知の制限: 縦組みの紙(幅120pt)の左から右のfloatが余白込みで139pt、紙の左の外へ出て、後ろに頁を切るものが無いので救済分割されない(Chromeは2頁目に刷る。19124から同じ)", "2026-11-12"));
+					"既知の制限: 縦組みの紙(幅120pt)の左から右のfloatが余白込みで139pt、紙の左の外へ出て、後ろに頁を切るものが無いので救済分割されない(Chromeは2頁目に刷る。19124から同じ)", "2026-11-12"),
+			// Triage §207, the author's overflow (since 19124): on vertical-lr 200x200pt paper a vertical-rl float 8em
+			// (56pt) wide at the paper's left edge holds a vertical-lr box with a display:table 102pt wide. The box is
+			// laid from the float's right side and runs 46pt out to the left, so T0 lies at x=-35. Chrome prints nothing
+			// either; with a 150pt box before the float both print T0 at x=114.7 (Chrome 114.6).
+			new IndividualExclusion(94_615_973, "fit-v1", 1_115_895_082,
+					"作者の溢れ: 縦組み(左から右)の紙の左端の幅8em(56pt)の右から左のfloatの中に幅102ptの左から右の表、表が左へ溢れ字が紙の左の外(Chromeも刷らない。19124から同じ)", "2026-11-12"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
