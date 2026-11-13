@@ -437,6 +437,22 @@ public class DirectSession extends AbstractCTISession
 			{ "hangul", new int[] { 0xAC00, 0xC950, 0xD034 } }, // 가 쥐 퀴
 	};
 
+	/**
+	 * The labels the scripts attribute of ctip/fonts can carry, in table order (2026-11-12).
+	 *
+	 * <p>
+	 * Whoever describes or checks a script filter reads them here, so the wording cannot drift from the
+	 * data: copper-mcp's list_fonts said "han" while the data said "cjk", and script=han found nothing.
+	 * </p>
+	 */
+	public static List<String> fontScriptLabels() {
+		final List<String> labels = new ArrayList<>(SCRIPT_PROBES.length);
+		for (final Object[] probe : SCRIPT_PROBES) {
+			labels.add((String) probe[0]);
+		}
+		return Collections.unmodifiableList(labels);
+	}
+
 	private static String scriptsOf(final FontSource font) {
 		final StringBuilder sb = new StringBuilder();
 		for (final Object[] probe : SCRIPT_PROBES) {
