@@ -2212,7 +2212,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 25pt wide with a list whose default 30pt start padding is wider than the box, so the words start at x=125,
 			// right of the paper. 19124 sets them at the same x (1.44pt lower).
 			new IndividualExclusion(104_923_568, "fit-v1", 1_522_775_259,
-					"作者の溢れ: 縦組みの紙の横組みの箱の幅25ptのinline-blockに、既定の左の余白30ptのリスト。字がx=125で紙の右の外(19124も同じx)", "2026-11-14"));
+					"作者の溢れ: 縦組みの紙の横組みの箱の幅25ptのinline-blockに、既定の左の余白30ptのリスト。字がx=125で紙の右の外(19124も同じx)", "2026-11-14"),
+			// Triage §215, the author's overflow: on 120x400pt paper (100pt type area) a cell of a nested table holds a
+			// nowrap row-reverse flex of four items, each min-width:8em (80pt), so its min-content is 326pt. 19124 kept
+			// the column narrower and drew T11 over T18; 19170 widens the column to the flex's min-content, so T17, T18,
+			// T21 and T22 move 112pt further right, past the 2x page slack.
+			new IndividualExclusion(105_114_216, "fit-v1", 2_062_484_809,
+					"作者の溢れ: 入れ子の表のセルにmin-width:8emの項目4つのnowrapのflex(最小326pt)。19124は列が狭くT11とT18が重なり、19170は列を広げて右へ112pt", "2026-11-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
