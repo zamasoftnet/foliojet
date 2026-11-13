@@ -6262,9 +6262,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 			return false;
 		}
 		final double em = Double.parseDouble(font.group(1));
-		final double box = Math.max(lastLength(STYLE_WIDTH_DECLARATION, attrs, em, Double.NaN),
+		final double area = bodyContentWidth(html);
+		final double box = Math.max(containerLength(STYLE_WIDTH_DECLARATION, attrs, em, area),
 				STYLE_MIN_WIDTH_DECLARATION.matcher(attrs).find()
-						? lastLength(STYLE_MIN_WIDTH_DECLARATION, attrs, em, Double.NaN)
+						? containerLength(STYLE_MIN_WIDTH_DECLARATION, attrs, em, area)
 						: 0);
 		if (Double.isNaN(box)) {
 			return false;
@@ -6285,6 +6286,57 @@ public class RandomDocumentFuzzTest extends TestCase {
 			}
 		}
 		return false;
+	}
+
+	/** {@code calc(N% + M)} with M in pt or em, as the generator writes widths. */
+	private static final Pattern CALC_PERCENT_PLUS_LENGTH = Pattern
+			.compile("calc\\(\\s*([\\d.]+)%\\s*\\+\\s*([\\d.]+)(pt|em)\\s*\\)");
+	/** The body rule, to see that the body adds no padding or border around its content. */
+	private static final Pattern BODY_RULE = Pattern.compile("body\\{[^}]*\\}");
+
+	/**
+	 * The width of the body's content box: the page width property less the page margins, when the body rule adds
+	 * nothing around its content (the generator's {@code body{margin:0;...}}). NaN if the document does not say.
+	 */
+	static double bodyContentWidth(final String html) {
+		final Matcher width = PAGE_WIDTH_PROPERTY.matcher(html);
+		final Matcher margin = PAGE_MARGIN.matcher(html);
+		final Matcher body = BODY_RULE.matcher(html);
+		if (!width.find() || !margin.find() || !body.find() || !body.group().startsWith("body{margin:0;")
+				|| body.group().contains("padding") || body.group().contains("border")) {
+			return Double.NaN;
+		}
+		return Double.parseDouble(width.group(1)) - 2 * Double.parseDouble(margin.group(1));
+	}
+
+	/**
+	 * The last declaration of a length on a child of the body, in pt: pt, em, or a percentage or {@code calc(% + pt|em)}
+	 * of the body's content width {@code area} (2026-11-14, triage §212: {@code width:calc(35% + 8em)} was read as
+	 * unknown). NaN if absent or unreadable, or if a percentage meets an unknown {@code area}.
+	 */
+	static double containerLength(final Pattern declaration, final String attrs, final double font, final double area) {
+		final Matcher m = declaration.matcher(attrs);
+		String last = null;
+		while (m.find()) {
+			last = m.group(1).trim();
+		}
+		if (last == null) {
+			return Double.NaN;
+		}
+		final Matcher length = PT_OR_EM_LENGTH.matcher(last);
+		if (length.matches()) {
+			return Double.parseDouble(length.group(1)) * ("em".equals(length.group(2)) ? font : 1);
+		}
+		final Matcher percent = PERCENT_LENGTH.matcher(last);
+		if (percent.matches()) {
+			return area * Double.parseDouble(percent.group(1)) / 100;
+		}
+		final Matcher calc = CALC_PERCENT_PLUS_LENGTH.matcher(last);
+		if (calc.matches()) {
+			return area * Double.parseDouble(calc.group(1)) / 100
+					+ Double.parseDouble(calc.group(2)) * ("em".equals(calc.group(3)) ? font : 1);
+		}
+		return Double.NaN;
 	}
 
 	/**

@@ -1618,6 +1618,29 @@ public class FuzzOraclePredicateTest extends TestCase {
 				"<div>T1</div>\n" + WIDE_ITEM)));
 	}
 
+	/**
+	 * A percentage or calc() width is read against the body's content width when the document gives the page
+	 * (2026-11-14, strict seed 103251799, triage §212: {@code width:calc(35% + 8em)}, 118pt on a 200pt page).
+	 */
+	public void testReversedFlexLineWiderThanItsPercentageBox() {
+		final String page = "<?jp.cssj.property name=\"output.page-width\" value=\"200pt\"?>\n"
+				+ "<style>@page{margin:10pt}</style>";
+		// 35% of 180pt + 48pt = 111pt, 39% of 180pt = 70.2pt: narrower than the 127pt item
+		assertTrue(reversedOverflow(page + reversedFlex("flex-direction:row-reverse;width:calc(35% + 8em);", WIDE_ITEM)));
+		assertTrue(reversedOverflow(page + reversedFlex("flex-direction:row-reverse;width:39%;", WIDE_ITEM)));
+		assertTrue(reversedOverflow(page + reversedFlex("flex-direction:row-reverse;width:calc(25% + 20pt);", WIDE_ITEM)));
+		// 70% of 180pt is 126pt, then 72% is 129.6pt; min-width 80% is 144pt
+		assertTrue(reversedOverflow(page + reversedFlex("flex-direction:row-reverse;width:70%;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(page + reversedFlex("flex-direction:row-reverse;width:72%;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(page + reversedFlex("flex-direction:row-reverse;width:39pt;min-width:80%;", WIDE_ITEM)));
+		// Without the page margin, or with a body that pads its content, the percentage is not known
+		assertFalse(reversedOverflow("<?jp.cssj.property name=\"output.page-width\" value=\"200pt\"?>\n"
+				+ reversedFlex("flex-direction:row-reverse;width:39%;", WIDE_ITEM)));
+		assertFalse(reversedOverflow(page + reversedFlex("flex-direction:row-reverse;width:39%;", WIDE_ITEM)
+				.replace("serif}", "serif;padding:0 40pt}")));
+		assertTrue(reversedOverflow(RandomDocumentFuzzTest.generate(103_251_799, true, false, false).html()));
+	}
+
 	public void testReversedFlexLineThatMayFitIsNotProven() {
 		assertFalse(reversedOverflow(reversedFlex("width:127pt;flex-direction:row-reverse;", WIDE_ITEM)));
 		assertFalse(reversedOverflow(reversedFlex("width:39pt;min-width:130pt;flex-direction:row-reverse;", WIDE_ITEM)));
