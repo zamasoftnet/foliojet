@@ -2201,7 +2201,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// first page (with the flex moved down 180pt it sets T0 107.5pt above the box). 19124 and the 11-09 build
 			// printed T0 at y=27; with row, a shorter inline-block or no multicol both print it on the paper.
 			new IndividualExclusion(100_072_009, "fit-v1", 1_373_209_779,
-					"作者の溢れ: 縦組みの200ptの紙に折り返さないrow-reverseのflex、2段の段組の項目が約370ptで行が紙の上へ溢れT0がy=-171(Chromeも1頁目に字を刷らない。§201の直しで溢れる側がChromeと同じになった形)", "2026-11-13"));
+					"作者の溢れ: 縦組みの200ptの紙に折り返さないrow-reverseのflex、2段の段組の項目が約370ptで行が紙の上へ溢れT0がy=-171(Chromeも1頁目に字を刷らない。§201の直しで溢れる側がChromeと同じになった形)", "2026-11-13"),
+			// Triage §213, the author's overflow: on vertical-lr 120x400pt paper a vertical-rl box fixed at 8em (64pt) wide
+			// holds two tables, a float and two boxes of about 270pt along its block axis. A vertical-rl box overflows at its
+			// left (its block end), so every word lands left of the paper (T16 nearest, at x=-36). 19124 sets the same
+			// positions.
+			new IndividualExclusion(104_688_378, "fit-v1", 501_517_378,
+					"作者の溢れ: vertical-lrの紙の上の幅64ptに固定したvertical-rlの箱に、ブロック方向に約270ptの表や箱が入り、箱の左(ブロックの終わり)へ溢れて字が全部紙の左の外(19124から同じ位置)", "2026-11-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
