@@ -165,6 +165,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 		this.restyleLineHeight = LayoutUtils.NONE;
 	}
 
+	/** Whether the next {@link #calculateSize} applies a line-axis size given by {@link #prepareRestyleLineExtent}. */
+	protected final boolean hasRestyleLineExtent() {
+		return !LayoutUtils.isNone(this.params.flow.isVertical() ? this.restyleLineHeight : this.restyleLineWidth);
+	}
+
 	/**
 	 * Whether the placement coordinator owns per-item auto margins (flex §8.1).
 	 * FlexBuilder has already resolved flex item auto margins from free space in the line

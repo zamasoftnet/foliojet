@@ -160,6 +160,35 @@ public class GridItemBox extends FlowBlockBox {
 	}
 
 	/**
+	 * A grid item keeps its track along the line axis when it is laid out again (2026-11-13, triage §211). The track
+	 * width is injected (the constructor, {@code setTrackWidth}), and {@code calculateSize} resolves the auto width
+	 * to the containing width. A row split passes the track ({@code RowSplitContainer.prepareRestyleLineExtents}) and a
+	 * continuation carries it as an absolute size ({@link #fragmentRecipe}), but a page break inside that restyle moves
+	 * the item whole to the next grid fragment, whose resume lays the same box out again with neither: a 22pt item came
+	 * out 273pt wide (the width of the page), the auto margin of a 43pt block inside took 230pt, and the block's inner
+	 * width of -187pt stopped the conversion (ContinuationValidator).
+	 */
+	@Override
+	public void calculateSize(final net.zamasoft.foliojet.layout.builder.LayoutStack layoutStack,
+			final double xmargin, final double lineSize) {
+		final boolean vertical = this.getBlockParams().flow.isVertical();
+		final double inner = vertical ? this.height : this.width;
+		final double track = this.hasRestyleLineExtent()
+				|| net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(inner) || !(inner >= 0)
+						?net.zamasoft.foliojet.layout.util.LayoutUtils.NONE
+				: inner + (vertical ? this.frame.getFrameHeight() : this.frame.getFrameWidth());
+		super.calculateSize(layoutStack, xmargin, lineSize);
+		if (net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(track)) {
+			return;
+		}
+		if (vertical) {
+			this.height = Math.max(0, track - this.frame.getFrameHeight());
+		} else {
+			this.width = Math.max(0, track - this.frame.getFrameWidth());
+		}
+	}
+
+	/**
 	 * GridBuilder resolves a grid item's auto margins in its area (css-grid-1 §11.1; 2026-10-09, as flex items do,
 	 * see {@link FlowBlockBox#coordinatorOwnsAutoMargins}): a rebuild keeps them instead of resolving them again.
 	 */
