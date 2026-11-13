@@ -2207,7 +2207,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// left (its block end), so every word lands left of the paper (T16 nearest, at x=-36). 19124 sets the same
 			// positions.
 			new IndividualExclusion(104_688_378, "fit-v1", 501_517_378,
-					"作者の溢れ: vertical-lrの紙の上の幅64ptに固定したvertical-rlの箱に、ブロック方向に約270ptの表や箱が入り、箱の左(ブロックの終わり)へ溢れて字が全部紙の左の外(19124から同じ位置)", "2026-11-14"));
+					"作者の溢れ: vertical-lrの紙の上の幅64ptに固定したvertical-rlの箱に、ブロック方向に約270ptの表や箱が入り、箱の左(ブロックの終わり)へ溢れて字が全部紙の左の外(19124から同じ位置)", "2026-11-14"),
+			// Triage §214, the author's overflow: on vertical-rl 120x400pt paper a horizontal-tb block holds an inline-block
+			// 25pt wide with a list whose default 30pt start padding is wider than the box, so the words start at x=125,
+			// right of the paper. 19124 sets them at the same x (1.44pt lower).
+			new IndividualExclusion(104_923_568, "fit-v1", 1_522_775_259,
+					"作者の溢れ: 縦組みの紙の横組みの箱の幅25ptのinline-blockに、既定の左の余白30ptのリスト。字がx=125で紙の右の外(19124も同じx)", "2026-11-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
