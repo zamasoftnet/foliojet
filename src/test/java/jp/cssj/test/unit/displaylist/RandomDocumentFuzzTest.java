@@ -2193,7 +2193,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// word on the first page. Without the spans both lay the table about 88pt wide; on 300pt paper both print T17
 			// at x=286.
 			new IndividualExclusion(97_344_038, "fit-v1", 1_758_328_348,
-					"作者の溢れ: 60ptの紙の右のfloatに重なるセルの表があり、Copperは約150pt、Chromeは約82ptに組んでどちらも紙に入らない(Chromeは左へ溢れて1頁目に字を刷らない。19124から同じ)", "2026-11-13"));
+					"作者の溢れ: 60ptの紙の右のfloatに重なるセルの表があり、Copperは約150pt、Chromeは約82ptに組んでどちらも紙に入らない(Chromeは左へ溢れて1頁目に字を刷らない。19124から同じ)", "2026-11-13"),
+			// Triage §210, the author's overflow (the reversed flex's overflow side, as Chrome since §201): on vertical-rl
+			// 200x200pt paper a vertical-lr row-reverse flex that does not wrap holds a two-column multicol whose float
+			// table holds an inline-block 184pt tall, and a 24pt item. The multicol comes to about 370pt along the line, the
+			// line overflows at its far end (the top of the paper) and T0 lands at y=-171. Chrome too prints nothing on the
+			// first page (with the flex moved down 180pt it sets T0 107.5pt above the box). 19124 and the 11-09 build
+			// printed T0 at y=27; with row, a shorter inline-block or no multicol both print it on the paper.
+			new IndividualExclusion(100_072_009, "fit-v1", 1_373_209_779,
+					"作者の溢れ: 縦組みの200ptの紙に折り返さないrow-reverseのflex、2段の段組の項目が約370ptで行が紙の上へ溢れT0がy=-171(Chromeも1頁目に字を刷らない。§201の直しで溢れる側がChromeと同じになった形)", "2026-11-13"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
