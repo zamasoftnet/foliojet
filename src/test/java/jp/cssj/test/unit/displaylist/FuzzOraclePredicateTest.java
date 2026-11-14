@@ -1641,6 +1641,25 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertTrue(reversedOverflow(RandomDocumentFuzzTest.generate(103_251_799, true, false, false).html()));
 	}
 
+	/**
+	 * A wide item inside the generator's multicol wrapper widens the multicol (2026-11-14, fit seed 106285240,
+	 * triage §216: a 151pt inline-block in {@code column-count:2} as the first item of a 124pt box).
+	 */
+	public void testReversedFlexLineWiderThanItsBoxThroughAMulticol() {
+		final String multicol = "<div style=\"column-count:2;column-gap:15pt\">\n" + WIDE_ITEM + "</div>\n";
+		assertTrue(reversedOverflow(reversedFlex("flex-direction:row-reverse;width:39pt;", multicol)));
+		assertFalse(reversedOverflow(reversedFlex("flex-direction:row-reverse;width:130pt;", multicol)));
+		// A multicol with a width of its own, or another wrapper, is not read
+		assertFalse(reversedOverflow(reversedFlex("flex-direction:row-reverse;width:39pt;",
+				multicol.replace("15pt\"", "15pt;width:20pt\""))));
+		assertFalse(reversedOverflow(reversedFlex("flex-direction:row-reverse;width:39pt;",
+				"<div style=\"writing-mode:horizontal-tb\">\n" + WIDE_ITEM + "</div>\n")));
+		// Only the multicol's own children: a <p> one level further in is not read
+		assertFalse(reversedOverflow(reversedFlex("flex-direction:row-reverse;width:39pt;",
+				"<div style=\"column-count:2;column-gap:15pt\">\n<div>\n" + WIDE_ITEM + "</div>\n</div>\n")));
+		assertTrue(reversedOverflow(RandomDocumentFuzzTest.generate(386_517_794, true, false, false).html()));
+	}
+
 	public void testReversedFlexLineThatMayFitIsNotProven() {
 		assertFalse(reversedOverflow(reversedFlex("width:127pt;flex-direction:row-reverse;", WIDE_ITEM)));
 		assertFalse(reversedOverflow(reversedFlex("width:39pt;min-width:130pt;flex-direction:row-reverse;", WIDE_ITEM)));

@@ -6287,23 +6287,34 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (Double.isNaN(box)) {
 			return false;
 		}
+		// An item is a bare <p>, or the generator's multicol wrapper around one: a multicol is at least as wide as
+		// its widest unbreakable content (2026-11-14, fit seed 106285240, triage §216)
 		int depth = 0;
+		boolean inMulticol = false;
 		tag.region(from, to);
 		while (tag.find()) {
 			if (tag.group(1) != null) {
-				--depth;
+				if (--depth == 0) {
+					inMulticol = false;
+				}
 			} else if (!String.valueOf(tag.group(3)).endsWith("/")) {
-				if (depth == 0 && "p".equals(tag.group(2)) && tag.group(3).isEmpty()) {
+				if ((depth == 0 || depth == 1 && inMulticol) && "p".equals(tag.group(2)) && tag.group(3).isEmpty()) {
 					final Matcher fixed = FIXED_INLINE_BLOCK.matcher(html).region(tag.end(), to);
 					if (fixed.lookingAt() && Double.parseDouble(fixed.group(1)) > box) {
 						return true;
 					}
+				}
+				if (depth == 0) {
+					inMulticol = "div".equals(tag.group(2)) && MULTICOL_WRAPPER.matcher(tag.group(3)).matches();
 				}
 				++depth;
 			}
 		}
 		return false;
 	}
+
+	/** The generator's multicol wrapper, with nothing that sets its width. */
+	private static final Pattern MULTICOL_WRAPPER = Pattern.compile(" style=\"column-count:\\d+;column-gap:\\d+pt\"");
 
 	/** {@code calc(N% + M)} with M in pt or em, as the generator writes widths. */
 	private static final Pattern CALC_PERCENT_PLUS_LENGTH = Pattern
