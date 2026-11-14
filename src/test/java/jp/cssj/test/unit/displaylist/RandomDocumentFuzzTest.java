@@ -2239,7 +2239,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 75pt and 99pt wide, horizontal boxes 80pt and 85pt wide in a multicol, and items at least 8em wide; it is far
 			// wider than the paper, and the words beyond it land right of the paper (T15 at x=392). 19124 sets the same x.
 			new IndividualExclusion(109_222_685, "fit-v1", 1_964_647_270,
-					"作者の溢れ: vertical-lrの幅120ptの紙の右のfloatのgridに、幅75ptと99ptのinline-block・段組の中の幅80ptと85ptの横組みの箱・最小8emの項目。中身が紙より広く字が紙の右の外(T15はx=392、19124も同じx)", "2026-11-15"));
+					"作者の溢れ: vertical-lrの幅120ptの紙の右のfloatのgridに、幅75ptと99ptのinline-block・段組の中の幅80ptと85ptの横組みの箱・最小8emの項目。中身が紙より広く字が紙の右の外(T15はx=392、19124も同じx)", "2026-11-15"),
+			// Triage §224, the author's overflow: on vertical-lr 200x200pt paper a vertical-rl list item 8em (56pt) wide
+			// holds a horizontal grid 136pt wide and an inline-block at least 8em wide. A vertical-rl box overflows at its
+			// left (its block end), so every word lands left of the paper (T6 at x=-81, T7 at x=-137). 19124 sets the same
+			// positions.
+			new IndividualExclusion(110_141_423, "fit-v1", 2_136_734_661,
+					"作者の溢れ: vertical-lrの紙の上の幅8em(56pt)のvertical-rlのlist-itemに、幅136ptの横組みのgrid。箱の左(ブロックの終わり)へ溢れて字が全部紙の左の外(T6はx=-81、19124から同じ位置)", "2026-11-15"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
