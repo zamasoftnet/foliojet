@@ -1469,6 +1469,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * that may fit, or anything off the paper elsewhere, still fails. A line placed even further left than Chrome
 	 * places it would not be seen.
 	 * </p>
+	 *
+	 * <p>
+	 * In vertical writing the line runs along the height and out at the top, and the drawings must all lie above the
+	 * top edge (2026-11-15, fit seeds 109226042 and 109344150, triage §220 and §222).
+	 * </p>
 	 */
 	private static final class ExcludedByReversedFlexOverflow extends AssertionError {
 		private static final long serialVersionUID = 1L;
@@ -2230,13 +2235,6 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// x=-337.
 			new IndividualExclusion(108_827_922, "fit-v1", 1_252_083_043,
 					"作者の溢れ: vertical-lrの紙の上のmax-content幅のvertical-rlの箱に、幅98ptのfloatと幅101ptの表と最小8emの項目を並べた折り返すflex。箱の左(ブロックの終わり)へ溢れて字が紙の左の外(T0はx=-345、19124は-337)", "2026-11-14"),
-			// Triage §220, a reversed flex line wider than its box (user decision on 2026-11-12, §206) in vertical-rl: on
-			// 200x200pt paper a two-column multicol holds a nowrap row-reverse flex whose items start with inline-blocks
-			// 176pt and 99pt along the line, longer than the 91pt column, so the line runs out at the top (T0 at y=-90).
-			// 19124 kept it at the start (the side changed with §201). hasReversedFlexLineWiderThanItsBox reads
-			// horizontal containers only.
-			new IndividualExclusion(109_226_042, "fit-v1", 532_686_048,
-					"逆向きのflexの行の溢れ(ユーザー判断11-12、§206)の縦組みの形: vertical-rlの2段の段組(段の長さ91pt)にnowrapのrow-reverseのflex、項目は行方向176ptと99ptのinline-block。行は上へ溢れて字が紙の上の外(T0はy=-90)。19124は先頭に置いた(向きは§201で変えた)。共通の判定は横組みだけ", "2026-11-15"),
 			// Triage §221, the author's overflow: on vertical-lr 120x400pt paper a right float of a grid holds inline-blocks
 			// 75pt and 99pt wide, horizontal boxes 80pt and 85pt wide in a multicol, and items at least 8em wide; it is far
 			// wider than the paper, and the words beyond it land right of the paper (T15 at x=392). 19124 sets the same x.
@@ -4456,9 +4454,10 @@ public class RandomDocumentFuzzTest extends TestCase {
 		// assertNoUnexplainedOffPage): something beyond the line axis, and something lost in the page axis.
 		boolean beyondLine = false, beyondPage = false;
 		String nearestAt = null;
-		// Shown drawings, and whether one reaches right of the paper's left edge (ExcludedByReversedFlexOverflow)
+		// Shown drawings, and whether one reaches right of the paper's left edge or below its top edge
+		// (ExcludedByReversedFlexOverflow)
 		int shown = 0;
-		boolean shownNotLeft = false;
+		boolean shownNotLeft = false, shownNotAbove = false;
 		for (final File page : pages) {
 			final String dump = Files.readString(Path.of(page.toURI()), StandardCharsets.UTF_8);
 			for (final String raw : dump.split("\n")) {
@@ -4486,6 +4485,7 @@ public class RandomDocumentFuzzTest extends TestCase {
 					beyondPage |= (pageAxisY ? dy : dx) > 0 || pageOutside && paintsText(raw);
 					++shown;
 					shownNotLeft |= x + width > 0;
+					shownNotAbove |= y + height > 0;
 				}
 				if (distance < nearest) {
 					nearest = distance;
@@ -4519,9 +4519,11 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (unfittable != null) {
 			throw new ExcludedByUnfittableContent(detail + " [" + unfittable + "]", unfittable);
 		}
-		// A reversed flex line wider than its box runs out at the left, as in Chrome (user decision on 2026-11-12;
-		// see {@link ExcludedByReversedFlexOverflow}).
-		if (shown > 0 && !shownNotLeft && hasReversedFlexLineWiderThanItsBox(doc.html())) {
+		// A reversed flex line wider than its box runs out at its start, as in Chrome (user decision on 2026-11-12;
+		// see {@link ExcludedByReversedFlexOverflow}): at the left in horizontal writing, at the top in vertical
+		final String reversedSide = shown > 0 ? reversedFlexOverflowSide(doc.html()) : null;
+		if (REVERSED_FLEX_LEFT.equals(reversedSide) && !shownNotLeft
+				|| REVERSED_FLEX_TOP.equals(reversedSide) && !shownNotAbove) {
 			throw new ExcludedByReversedFlexOverflow(detail + " [逆向きのflexの行の溢れ]");
 		}
 		// Overflow in the line axis only: some drawing lies beyond it and nothing is lost in the page axis (fit seed
@@ -6253,38 +6255,79 @@ public class RandomDocumentFuzzTest extends TestCase {
 
 	/** The generator's fixed box at the start of a {@code <p>}: an inline-block of pt width and height. */
 	private static final Pattern FIXED_INLINE_BLOCK = Pattern
-			.compile("<span style=\"display:inline-block;width:([\\d.]+)pt;height:[\\d.]+pt\">");
+			.compile("<span style=\"display:inline-block;width:([\\d.]+)pt;height:([\\d.]+)pt\">");
+	private static final Pattern STYLE_MIN_HEIGHT_DECLARATION = Pattern
+			.compile("(?:^|[;\\s\"])min-height\\s*:\\s*([^;\"']*)");
+	/** The sides {@link #reversedFlexOverflowSide} names. */
+	static final String REVERSED_FLEX_LEFT = "left", REVERSED_FLEX_TOP = "top";
 	/** Declarations that keep a reversed line at the start (rtl, justify-content) or change the em (font). */
 	private static final Pattern REVERSED_FLEX_SIDE_CHANGER = Pattern
 			.compile("(?:^|[;\\s\"])(?:direction|justify-content|font(?:-size)?)\\s*:|dir=");
 	private static final Pattern AUTO_MARGIN = Pattern.compile("margin[a-z-]*\\s*:[^;\"]*auto");
 
 	/**
-	 * Whether the body's only element is a horizontal {@code row-reverse} flex container whose line cannot fit
-	 * (2026-11-12, see {@link ExcludedByReversedFlexOverflow}). Its width is at most a pt or em length (the last
-	 * {@code width}, or the last {@code min-width} when larger; {@code max-width} only narrows it), and one of its
-	 * items is a plain {@code <p>} that starts with the generator's fixed inline-block wider than that. Such an item
-	 * cannot shrink below the inline-block (a flex item's automatic minimum is its min-content), so the line starts
-	 * past the box's left edge. Anything that keeps the line at the start (justify-content, rtl, an auto margin) or
-	 * leaves the width open (a percentage, no width) makes it false.
+	 * Whether the body's only element is a {@code row-reverse} flex container whose line cannot fit (2026-11-12, see
+	 * {@link ExcludedByReversedFlexOverflow}), {@link #reversedFlexOverflowSide} not null.
 	 */
 	static boolean hasReversedFlexLineWiderThanItsBox(final String html) {
+		return reversedFlexOverflowSide(html) != null;
+	}
+
+	/**
+	 * The side a reversed flex line that cannot fit runs out at, {@link #REVERSED_FLEX_LEFT} in horizontal writing and
+	 * {@link #REVERSED_FLEX_TOP} in vertical, or null when the document does not prove one (2026-11-12, see
+	 * {@link ExcludedByReversedFlexOverflow}).
+	 *
+	 * <p>
+	 * The body's only element is a {@code row-reverse} flex container, or the generator's multicol wrapper with nothing
+	 * in it but one (2026-11-15, fit seeds 109226042 and 109344150, triage §220 and §222). Its length along the line is
+	 * at most a pt or em length (the last {@code width}, or {@code height} in vertical writing, or the last
+	 * {@code min-width} or {@code min-height} when larger; the maximum only narrows it); inside the multicol, when it
+	 * sets none, a column's length. One of its items is a plain {@code <p>} that starts with the generator's fixed
+	 * inline-block longer than that along the line (its width, or its height in vertical writing). Such an item
+	 * cannot shrink below the inline-block (a flex item's automatic minimum is its min-content), so the line starts
+	 * past the box's start. Anything that keeps the line at the start (justify-content, rtl, an auto margin) or leaves
+	 * the length open (a percentage height, no length outside a multicol) makes it null.
+	 * </p>
+	 */
+	static String reversedFlexOverflowSide(final String html) {
 		final Matcher font = BODY_FONT_SIZE.matcher(html);
 		final int body = html.indexOf("<body");
 		if (!font.find() || body < 0) {
-			return false;
+			return null;
 		}
 		final Matcher tag = TAG_OR_WM.matcher(html);
 		tag.region(html.indexOf('>', body) + 1, html.length());
 		if (!tag.find() || !"div".equals(tag.group(2))) {
-			return false;
+			return null;
 		}
-		final String attrs = String.valueOf(tag.group(3));
-		final int from = tag.end(), to = elementEnd(html, from);
-		// The container's end tag, then the body's: nothing else is in the body
+		String attrs = String.valueOf(tag.group(3));
+		int from = tag.end(), to = elementEnd(html, from);
+		// The element's end tag, then the body's: nothing else is in the body
 		tag.region(to, html.length());
 		if (!tag.find() || !tag.find() || !"body".equals(tag.group(1))) {
-			return false;
+			return null;
+		}
+		// The generator's multicol wrapper around the container and nothing else: the line is a column long at most
+		final Matcher multicol = MULTICOL_WRAPPER.matcher(attrs);
+		int columns = 0;
+		double columnGap = 0;
+		if (multicol.matches()) {
+			columns = Integer.parseInt(multicol.group(1));
+			columnGap = Double.parseDouble(multicol.group(2));
+			tag.region(from, to);
+			if (columns < 1 || !tag.find() || tag.group(1) != null || !"div".equals(tag.group(2))
+					|| !html.substring(from, tag.start()).isBlank()) {
+				return null;
+			}
+			attrs = String.valueOf(tag.group(3));
+			final int inner = tag.end(), innerTo = elementEnd(html, inner);
+			tag.region(innerTo, to);
+			if (!tag.find() || !html.substring(tag.end(), to).isBlank()) {
+				return null;
+			}
+			from = inner;
+			to = innerTo;
 		}
 		String mode = null, flexDirection = null;
 		for (final Matcher m = STYLE_WRITING_MODE.matcher(attrs); m.find();) {
@@ -6294,21 +6337,31 @@ public class RandomDocumentFuzzTest extends TestCase {
 			final Matcher bm = BODY_WRITING_MODE.matcher(html);
 			mode = bm.find() ? bm.group(1) : "horizontal-tb";
 		}
+		final boolean horizontal = "horizontal-tb".equals(mode);
+		if (!horizontal && !"vertical-rl".equals(mode) && !"vertical-lr".equals(mode)) {
+			return null;
+		}
 		for (final Matcher m = STYLE_FLEX_DIRECTION.matcher(attrs); m.find();) {
 			flexDirection = m.group(1);
 		}
-		if (!STYLE_FLEX.matcher(attrs).find() || !"row-reverse".equals(flexDirection) || !"horizontal-tb".equals(mode)
+		if (!STYLE_FLEX.matcher(attrs).find() || !"row-reverse".equals(flexDirection)
 				|| REVERSED_FLEX_SIDE_CHANGER.matcher(attrs).find() || AUTO_MARGIN.matcher(html.substring(from, to)).find()) {
-			return false;
+			return null;
 		}
 		final double em = Double.parseDouble(font.group(1));
-		final double area = bodyContentWidth(html);
-		final double box = Math.max(containerLength(STYLE_WIDTH_DECLARATION, attrs, em, area),
-				STYLE_MIN_WIDTH_DECLARATION.matcher(attrs).find()
-						? containerLength(STYLE_MIN_WIDTH_DECLARATION, attrs, em, area)
-						: 0);
+		// A percentage width is read against the body's content width; a percentage height is left unknown
+		final double area = horizontal ? bodyContentWidth(html) : Double.NaN;
+		final Pattern length = horizontal ? STYLE_WIDTH_DECLARATION : STYLE_HEIGHT_DECLARATION;
+		final Pattern minLength = horizontal ? STYLE_MIN_WIDTH_DECLARATION : STYLE_MIN_HEIGHT_DECLARATION;
+		double own = containerLength(length, attrs, em, area);
+		if (Double.isNaN(own) && columns > 0 && !length.matcher(attrs).find()) {
+			final double line = horizontal ? bodyContentWidth(html) : bodyContentHeight(html);
+			own = (line - (columns - 1) * columnGap) / columns;
+		}
+		final double box = Math.max(own,
+				minLength.matcher(attrs).find() ? containerLength(minLength, attrs, em, area) : 0);
 		if (Double.isNaN(box)) {
-			return false;
+			return null;
 		}
 		// An item is a bare <p>, or the generator's multicol wrapper around one: a multicol is at least as wide as
 		// its widest unbreakable content (2026-11-14, fit seed 106285240, triage §216)
@@ -6323,8 +6376,8 @@ public class RandomDocumentFuzzTest extends TestCase {
 			} else if (!String.valueOf(tag.group(3)).endsWith("/")) {
 				if ((depth == 0 || depth == 1 && inMulticol) && "p".equals(tag.group(2)) && tag.group(3).isEmpty()) {
 					final Matcher fixed = FIXED_INLINE_BLOCK.matcher(html).region(tag.end(), to);
-					if (fixed.lookingAt() && Double.parseDouble(fixed.group(1)) > box) {
-						return true;
+					if (fixed.lookingAt() && Double.parseDouble(fixed.group(horizontal ? 1 : 2)) > box) {
+						return horizontal ? REVERSED_FLEX_LEFT : REVERSED_FLEX_TOP;
 					}
 				}
 				if (depth == 0) {
@@ -6333,11 +6386,24 @@ public class RandomDocumentFuzzTest extends TestCase {
 				++depth;
 			}
 		}
-		return false;
+		return null;
+	}
+
+	/**
+	 * The height of the body's content box: the page height property less the page margins, when
+	 * {@link #bodyContentWidth} is known. NaN if the document does not say.
+	 */
+	static double bodyContentHeight(final String html) {
+		final Matcher height = PAGE_HEIGHT_PROPERTY.matcher(html);
+		final Matcher margin = PAGE_MARGIN.matcher(html);
+		if (Double.isNaN(bodyContentWidth(html)) || !height.find() || !margin.find()) {
+			return Double.NaN;
+		}
+		return Double.parseDouble(height.group(1)) - 2 * Double.parseDouble(margin.group(1));
 	}
 
 	/** The generator's multicol wrapper, with nothing that sets its width. */
-	private static final Pattern MULTICOL_WRAPPER = Pattern.compile(" style=\"column-count:\\d+;column-gap:\\d+pt\"");
+	private static final Pattern MULTICOL_WRAPPER = Pattern.compile(" style=\"column-count:(\\d+);column-gap:(\\d+)pt\"");
 
 	/** {@code calc(N% + M)} with M in pt or em, as the generator writes widths. */
 	private static final Pattern CALC_PERCENT_PLUS_LENGTH = Pattern

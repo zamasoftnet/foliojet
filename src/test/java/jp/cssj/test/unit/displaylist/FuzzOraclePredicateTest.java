@@ -1660,6 +1660,66 @@ public class FuzzOraclePredicateTest extends TestCase {
 		assertTrue(reversedOverflow(RandomDocumentFuzzTest.generate(386_517_794, true, false, false).html()));
 	}
 
+	/**
+	 * In vertical writing the line runs along the height and out at the top; the generator's multicol around the
+	 * container bounds the line by a column (2026-11-15, fit seeds 109226042 and 109344150, triage §220 and §222).
+	 */
+	public void testReversedFlexLineLongerThanItsBoxInVerticalWriting() {
+		final String vertical = ";writing-mode:vertical-rl";
+		final String flex = "<div style=\"display:flex;flex-direction:row-reverse;%s\">\n" + WIDE_ITEM + "</div>\n";
+		// The 186pt tall inline-block against the height
+		assertEquals("top", side(doc(vertical, String.format(flex, "height:39pt;"))));
+		assertNull(side(doc(vertical, String.format(flex, "height:190pt;"))));
+		assertNull(side(doc(vertical, String.format(flex, "height:39pt;min-height:190pt;"))));
+		// A width is not its length along the line, and a percentage height is not known
+		assertNull(side(doc(vertical, String.format(flex, "width:39pt;"))));
+		assertNull(side(doc(vertical, String.format(flex, "height:20%;"))));
+		assertEquals("top", side(doc(";writing-mode:vertical-lr", String.format(flex, "height:39pt;"))));
+		assertNull(side(doc(";writing-mode:sideways-rl", String.format(flex, "height:39pt;"))));
+		// The horizontal shape keeps its side
+		assertEquals("left", side(reversedFlex("width:39pt;flex-direction:row-reverse;", WIDE_ITEM)));
+	}
+
+	public void testReversedFlexLineLongerThanAColumnOfItsMulticol() {
+		final String page = "<?jp.cssj.property name=\"output.page-width\" value=\"200pt\"?>\n"
+				+ "<?jp.cssj.property name=\"output.page-height\" value=\"300pt\"?>\n<style>@page{margin:10pt}</style>";
+		final String flex = "<div style=\"display:flex;flex-direction:row-reverse;%s\">\n" + WIDE_ITEM + "</div>\n";
+		final String two = "<div style=\"column-count:2;column-gap:20pt\">\n%s</div>\n";
+		// Vertical: columns of (280 - 20) / 2 = 130pt, shorter than the 186pt inline-block; one column of 280pt is not
+		assertEquals("top", side(page + doc(";writing-mode:vertical-lr", String.format(two, String.format(flex, "width:111pt;")))));
+		assertNull(side(page + doc(";writing-mode:vertical-lr",
+				"<div style=\"column-count:1;column-gap:20pt\">\n" + String.format(flex, "") + "</div>\n")));
+		// Horizontal: columns of (180 - 20) / 2 = 80pt, narrower than the 127pt inline-block; a length of its own counts
+		assertEquals("left", side(page + doc("", String.format(two, String.format(flex, "")))));
+		assertNull(side(page + doc("", String.format(two, String.format(flex, "width:130pt;")))));
+		// Without the page, a column's length is not known
+		assertNull(side(doc("", String.format(two, String.format(flex, "")))));
+		// Something else in the multicol, a multicol with a width of its own, or another wrapper
+		assertNull(side(page + doc("", String.format(two, "<p>T9</p>\n" + String.format(flex, "")))));
+		assertNull(side(page + doc("", String.format(two, String.format(flex, "") + "<p>T9</p>\n"))));
+		assertNull(side(page + doc("", String.format(two.replace("20pt\"", "20pt;width:300pt\""), String.format(flex, "")))));
+		assertNull(side(page + doc("", "<div style=\"writing-mode:horizontal-tb\">\n" + String.format(flex, "") + "</div>\n")));
+		// The sweep's documents
+		assertEquals("top", side(RandomDocumentFuzzTest.generate(532_686_048, true, false, false).html()));
+		assertEquals("top", side(RandomDocumentFuzzTest.generate(1_894_775_728, true, false, false).html()));
+	}
+
+	/** In vertical writing the drawings must all lie above the top edge, the overflow's side there. */
+	public void testVerticalReversedFlexOverflowNeedsEveryDrawingAboveTheTopEdge() throws Exception {
+		final RandomDocumentFuzzTest.Generated doc = new RandomDocumentFuzzTest.Generated(
+				doc(";writing-mode:vertical-rl",
+						"<div style=\"display:flex;flex-direction:row-reverse;height:39pt;\">\n" + WIDE_ITEM + "</div>\n"),
+				List.of("T0"), Set.of(), 200, 200, 186, false, false);
+		final String above = "  x=180.00 y=-90.00 Text[\"T0\" asc=5.15 desc=2.05] w=7.20 h=6.67\n";
+		assertEquals("[逆向きのflexの行の溢れ]", offPageFailure(doc, above));
+		assertEquals("", offPageFailure(doc, above + "  x=-20.00 y=10.00 Text[\"T1\" asc=5.15 desc=2.05] w=7.20 h=6.67\n"));
+		assertEquals("", offPageFailure(doc, "  x=-20.00 y=10.00 Text[\"T0\" asc=5.15 desc=2.05] w=7.20 h=6.67\n"));
+	}
+
+	private static String side(final String html) {
+		return RandomDocumentFuzzTest.reversedFlexOverflowSide(html);
+	}
+
 	public void testReversedFlexLineThatMayFitIsNotProven() {
 		assertFalse(reversedOverflow(reversedFlex("width:127pt;flex-direction:row-reverse;", WIDE_ITEM)));
 		assertFalse(reversedOverflow(reversedFlex("width:39pt;min-width:130pt;flex-direction:row-reverse;", WIDE_ITEM)));
