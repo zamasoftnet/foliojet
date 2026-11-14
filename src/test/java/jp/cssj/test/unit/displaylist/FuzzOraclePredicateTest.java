@@ -1720,6 +1720,30 @@ public class FuzzOraclePredicateTest extends TestCase {
 		return RandomDocumentFuzzTest.reversedFlexOverflowSide(html);
 	}
 
+	/**
+	 * The generator's wrappers that set no length, around the container and around the wide paragraph in an item, at
+	 * any depth (2026-11-15, fit seed 109595770, triage §223: a box around the flex, a keep-together block around the
+	 * paragraph).
+	 */
+	public void testReversedFlexLineWiderThanItsBoxThroughLengthlessWrappers() {
+		final String box = "<div style=\"margin:1pt;padding:0pt;border:0pt solid black\">\n%s</div>\n";
+		final String keep = "<div style=\"page-break-inside:avoid;margin:5pt\">\n%s</div>\n";
+		final String flex = "<div style=\"display:flex;flex-direction:row-reverse;width:39pt;\">\n%s</div>\n";
+		assertEquals("left", side(doc("", String.format(box, String.format(flex, WIDE_ITEM)))));
+		assertEquals("left", side(doc("", String.format(flex, String.format(keep, WIDE_ITEM)))));
+		assertEquals("left", side(doc("", String.format(box, String.format(box, String.format(flex,
+				String.format(keep, String.format(box, "<p>T1</p>\n" + WIDE_ITEM))))))));
+		// The container fits its item, or a wrapper sets a length or is another kind
+		assertNull(side(doc("", String.format(box, String.format(flex.replace("39pt", "140pt"), String.format(keep, WIDE_ITEM))))));
+		assertNull(side(doc("", String.format(flex, String.format(keep.replace("margin:5pt", "margin:5pt;width:20pt"), WIDE_ITEM)))));
+		assertNull(side(doc("", String.format(flex, "<div style=\"flex:1 2 auto;\">\n" + WIDE_ITEM + "</div>\n"))));
+		assertNull(side(doc("", String.format(flex, String.format(keep, "<div style=\"float:right\">\n" + WIDE_ITEM + "</div>\n")))));
+		assertNull(side(doc("", "<div style=\"margin:1pt;width:300pt\">\n" + String.format(flex, WIDE_ITEM) + "</div>\n")));
+		// Something else beside the container inside a wrapper
+		assertNull(side(doc("", String.format(box, "<p>T9</p>\n" + String.format(flex, WIDE_ITEM)))));
+		assertEquals("left", side(RandomDocumentFuzzTest.generate(1_349_228_486, true, false, false).html()));
+	}
+
 	public void testReversedFlexLineThatMayFitIsNotProven() {
 		assertFalse(reversedOverflow(reversedFlex("width:127pt;flex-direction:row-reverse;", WIDE_ITEM)));
 		assertFalse(reversedOverflow(reversedFlex("width:39pt;min-width:130pt;flex-direction:row-reverse;", WIDE_ITEM)));

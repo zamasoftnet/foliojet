@@ -6279,12 +6279,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * {@link ExcludedByReversedFlexOverflow}).
 	 *
 	 * <p>
-	 * The body's only element is a {@code row-reverse} flex container, or the generator's multicol wrapper with nothing
-	 * in it but one (2026-11-15, fit seeds 109226042 and 109344150, triage §220 and §222). Its length along the line is
+	 * The body's only element is a {@code row-reverse} flex container, or the generator's wrappers that set no length
+	 * (a box, a keep-together block, a multicol), each with nothing in it but the next, around one (2026-11-15, fit
+	 * seeds 109226042, 109344150 and 109595770, triage §220, §222 and §223). Its length along the line is
 	 * at most a pt or em length (the last {@code width}, or {@code height} in vertical writing, or the last
-	 * {@code min-width} or {@code min-height} when larger; the maximum only narrows it); inside the multicol, when it
-	 * sets none, a column's length. One of its items is a plain {@code <p>} that starts with the generator's fixed
-	 * inline-block longer than that along the line (its width, or its height in vertical writing). Such an item
+	 * {@code min-width} or {@code min-height} when larger; the maximum only narrows it); inside a multicol, when it
+	 * sets none, a column's length. One of its items is a plain {@code <p>}, or such wrappers around one, that starts
+	 * with the generator's fixed inline-block longer than that along the line (its width, or its height in vertical
+	 * writing). Such an item
 	 * cannot shrink below the inline-block (a flex item's automatic minimum is its min-content), so the line starts
 	 * past the box's start. Anything that keeps the line at the start (justify-content, rtl, an auto margin) or leaves
 	 * the length open (a percentage height, no length outside a multicol) makes it null.
@@ -6308,15 +6310,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (!tag.find() || !tag.find() || !"body".equals(tag.group(1))) {
 			return null;
 		}
-		// The generator's multicol wrapper around the container and nothing else: the line is a column long at most
-		final Matcher multicol = MULTICOL_WRAPPER.matcher(attrs);
+		// The generator's wrappers that set no length, each around the next and nothing else (2026-11-15, fit seed
+		// 109595770, triage §223: a box wrapper). The first multicol bounds the line by a column; an inner one or a
+		// wrapper's margins would only shorten it.
 		int columns = 0;
 		double columnGap = 0;
-		if (multicol.matches()) {
-			columns = Integer.parseInt(multicol.group(1));
-			columnGap = Double.parseDouble(multicol.group(2));
+		for (Matcher multicol = MULTICOL_WRAPPER.matcher(attrs); multicol.matches()
+				|| LENGTHLESS_WRAPPER.matcher(attrs).matches(); multicol = MULTICOL_WRAPPER.matcher(attrs)) {
+			if (multicol.matches() && columns == 0) {
+				columns = Integer.parseInt(multicol.group(1));
+				columnGap = Double.parseDouble(multicol.group(2));
+				if (columns < 1) {
+					return null;
+				}
+			}
 			tag.region(from, to);
-			if (columns < 1 || !tag.find() || tag.group(1) != null || !"div".equals(tag.group(2))
+			if (!tag.find() || tag.group(1) != null || !"div".equals(tag.group(2))
 					|| !html.substring(from, tag.start()).isBlank()) {
 				return null;
 			}
@@ -6363,27 +6372,28 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (Double.isNaN(box)) {
 			return null;
 		}
-		// An item is a bare <p>, or the generator's multicol wrapper around one: a multicol is at least as wide as
-		// its widest unbreakable content (2026-11-14, fit seed 106285240, triage §216)
-		int depth = 0;
-		boolean inMulticol = false;
+		// An item is a bare <p>, or the generator's wrappers that set no length around one, at any depth: a box, a
+		// keep-together block or a multicol is at least as wide as its widest unbreakable content (2026-11-14, fit seed
+		// 106285240, triage §216: a multicol; 2026-11-15, fit seed 109595770, triage §223: a keep-together block)
+		final java.util.ArrayDeque<Boolean> open = new java.util.ArrayDeque<>();
 		tag.region(from, to);
 		while (tag.find()) {
 			if (tag.group(1) != null) {
-				if (--depth == 0) {
-					inMulticol = false;
+				if (open.pollFirst() == null) {
+					return null;
 				}
 			} else if (!String.valueOf(tag.group(3)).endsWith("/")) {
-				if ((depth == 0 || depth == 1 && inMulticol) && "p".equals(tag.group(2)) && tag.group(3).isEmpty()) {
+				// Whether this element and every one around it inside the container are such wrappers
+				final boolean through = !open.contains(Boolean.FALSE);
+				if (through && "p".equals(tag.group(2)) && tag.group(3).isEmpty()) {
 					final Matcher fixed = FIXED_INLINE_BLOCK.matcher(html).region(tag.end(), to);
 					if (fixed.lookingAt() && Double.parseDouble(fixed.group(horizontal ? 1 : 2)) > box) {
 						return horizontal ? REVERSED_FLEX_LEFT : REVERSED_FLEX_TOP;
 					}
 				}
-				if (depth == 0) {
-					inMulticol = "div".equals(tag.group(2)) && MULTICOL_WRAPPER.matcher(tag.group(3)).matches();
-				}
-				++depth;
+				final String a = String.valueOf(tag.group(3));
+				open.push(through && "div".equals(tag.group(2))
+						&& (MULTICOL_WRAPPER.matcher(a).matches() || LENGTHLESS_WRAPPER.matcher(a).matches()));
 			}
 		}
 		return null;
@@ -6402,6 +6412,9 @@ public class RandomDocumentFuzzTest extends TestCase {
 		return Double.parseDouble(height.group(1)) - 2 * Double.parseDouble(margin.group(1));
 	}
 
+	/** The generator's box and keep-together wrappers: margins, padding and a border, nothing that sets a length. */
+	private static final Pattern LENGTHLESS_WRAPPER = Pattern.compile(
+			" style=\"(?:margin:\\d+pt;padding:\\d+pt;border:\\d+pt solid black|page-break-inside:avoid;margin:\\d+pt)\"");
 	/** The generator's multicol wrapper, with nothing that sets its width. */
 	private static final Pattern MULTICOL_WRAPPER = Pattern.compile(" style=\"column-count:(\\d+);column-gap:(\\d+)pt\"");
 
