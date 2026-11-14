@@ -2229,7 +2229,19 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// overflows at its left (its block end), so the words land left of the paper (T0 at x=-345). 19124 sets T0 at
 			// x=-337.
 			new IndividualExclusion(108_827_922, "fit-v1", 1_252_083_043,
-					"作者の溢れ: vertical-lrの紙の上のmax-content幅のvertical-rlの箱に、幅98ptのfloatと幅101ptの表と最小8emの項目を並べた折り返すflex。箱の左(ブロックの終わり)へ溢れて字が紙の左の外(T0はx=-345、19124は-337)", "2026-11-14"));
+					"作者の溢れ: vertical-lrの紙の上のmax-content幅のvertical-rlの箱に、幅98ptのfloatと幅101ptの表と最小8emの項目を並べた折り返すflex。箱の左(ブロックの終わり)へ溢れて字が紙の左の外(T0はx=-345、19124は-337)", "2026-11-14"),
+			// Triage §220, a reversed flex line wider than its box (user decision on 2026-11-12, §206) in vertical-rl: on
+			// 200x200pt paper a two-column multicol holds a nowrap row-reverse flex whose items start with inline-blocks
+			// 176pt and 99pt along the line, longer than the 91pt column, so the line runs out at the top (T0 at y=-90).
+			// 19124 kept it at the start (the side changed with §201). hasReversedFlexLineWiderThanItsBox reads
+			// horizontal containers only.
+			new IndividualExclusion(109_226_042, "fit-v1", 532_686_048,
+					"逆向きのflexの行の溢れ(ユーザー判断11-12、§206)の縦組みの形: vertical-rlの2段の段組(段の長さ91pt)にnowrapのrow-reverseのflex、項目は行方向176ptと99ptのinline-block。行は上へ溢れて字が紙の上の外(T0はy=-90)。19124は先頭に置いた(向きは§201で変えた)。共通の判定は横組みだけ", "2026-11-15"),
+			// Triage §221, the author's overflow: on vertical-lr 120x400pt paper a right float of a grid holds inline-blocks
+			// 75pt and 99pt wide, horizontal boxes 80pt and 85pt wide in a multicol, and items at least 8em wide; it is far
+			// wider than the paper, and the words beyond it land right of the paper (T15 at x=392). 19124 sets the same x.
+			new IndividualExclusion(109_222_685, "fit-v1", 1_964_647_270,
+					"作者の溢れ: vertical-lrの幅120ptの紙の右のfloatのgridに、幅75ptと99ptのinline-block・段組の中の幅80ptと85ptの横組みの箱・最小8emの項目。中身が紙より広く字が紙の右の外(T15はx=392、19124も同じx)", "2026-11-15"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
