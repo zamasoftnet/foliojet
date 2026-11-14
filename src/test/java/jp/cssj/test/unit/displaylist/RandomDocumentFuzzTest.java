@@ -2223,7 +2223,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// wide sits at the right edge and holds a list whose default 40pt start padding is wider than the box, so the
 			// words start at x=128, right of the paper. 19124 sets them at the same x (about 1pt lower).
 			new IndividualExclusion(107_547_192, "fit-v1", 1_070_920_005,
-					"作者の溢れ(§214の兄弟): 縦組みの紙の右端の幅22ptの横組みの箱に、既定の左の余白40ptのリスト。字がx=128で紙の右の外(19124も同じx)", "2026-11-14"));
+					"作者の溢れ(§214の兄弟): 縦組みの紙の右端の幅22ptの横組みの箱に、既定の左の余白40ptのリスト。字がx=128で紙の右の外(19124も同じx)", "2026-11-14"),
+			// Triage §219, the author's overflow: on vertical-lr 120x400pt paper a vertical-rl box of max-content width holds
+			// a 98pt float with a 101pt table and a wrapping column flex whose items are each at least 8em wide. The box
+			// overflows at its left (its block end), so the words land left of the paper (T0 at x=-345). 19124 sets T0 at
+			// x=-337.
+			new IndividualExclusion(108_827_922, "fit-v1", 1_252_083_043,
+					"作者の溢れ: vertical-lrの紙の上のmax-content幅のvertical-rlの箱に、幅98ptのfloatと幅101ptの表と最小8emの項目を並べた折り返すflex。箱の左(ブロックの終わり)へ溢れて字が紙の左の外(T0はx=-345、19124は-337)", "2026-11-14"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
