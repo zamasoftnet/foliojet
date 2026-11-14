@@ -2413,6 +2413,21 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return this.openRunFontMetrics;
 	}
 
+	/** The text run the shaper has open ({@link #startTextRun} to {@link #endTextRun}), null fields when none. */
+	record OpenRun(FontStyle fontStyle, FontMetrics fontMetrics) {
+	}
+
+	/** The run the shaper has open now, for {@link #reopenRun} to give back. */
+	final OpenRun openRun() {
+		return new OpenRun(this.openRunFontStyle, this.openRunFontMetrics);
+	}
+
+	/** Gives back the run {@link #openRun} took, after something that is not the shaper ended it. */
+	final void reopenRun(final OpenRun run) {
+		this.openRunFontStyle = run.fontStyle();
+		this.openRunFontMetrics = run.fontMetrics();
+	}
+
 	public void startTextRun(int charOffset, FontStyle fontStyle, FontMetrics fontMetrics) {
 		this.openRunFontStyle = fontStyle;
 		this.openRunFontMetrics = fontMetrics;

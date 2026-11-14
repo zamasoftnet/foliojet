@@ -134,13 +134,23 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		return this.restyleNesting > 0;
 	}
 
+	/**
+	 * The text run the shaper had open when each resume began (2026-11-14, sweep triage §224). A break taken at a flush
+	 * between a run's start and its first glyph lays the rest out again on this builder, and the lines it replays end
+	 * their own runs; the glyphs after the flush still belong to the run opened before it. Without the run they came
+	 * with neither a text block nor a font, and the conversion stopped ("glyph outside a text run").
+	 */
+	private final java.util.ArrayDeque<OpenRun> resumedRuns = new java.util.ArrayDeque<>();
+
 	protected final void beginRestyling() {
 		++this.restyleNesting;
+		this.resumedRuns.push(this.openRun());
 	}
 
 	protected final void endRestyling() {
 		--this.restyleNesting;
 		assert this.restyleNesting >= 0;
+		this.reopenRun(this.resumedRuns.pop());
 	}
 
 	protected final java.util.EnumSet<FloatSide> breakFloats = java.util.EnumSet.noneOf(FloatSide.class);

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="334pt"?>
+<?jp.cssj.property name="output.page-height" value="491pt"?>
+<html><head><meta charset="utf-8" />
+<title>column break at a flush keeps the open run</title>
+<style>
+@page{margin:10pt 5pt 15pt 0pt}
+html{writing-mode:horizontal-tb;text-orientation:sideways}
+body{margin:0;font:normal 12pt/14.5pt serif}
+</style></head>
+<body><div style="display:flex;block-size:61pt;"><div></div></div>
+<p style="margin-inline-start:1pt;"><br />T53</p>
+<div style="column-count:2;"><table style="margin-block-end:8pt;"><caption>T55</caption>
+<tr><th style="border-style:solid;padding-block-end:9pt;"><br />T60</th></tr>
+<tr><td style="border-style:solid;padding-block-end:9pt;">T62</td></tr>
+</table>
+<ul style="list-style-type:lower-alpha;"><li>T63 T64 T65 T66 T67 T68</li>
+</ul>
+<div style="display:flex;flex-direction:column;flex-wrap:wrap;gap:4pt;height:77pt;padding-bottom:8pt;"><div style="background:#eee;flex:0 1 35pt;"></div>
+<div style="background:#eee;">T71</div>
+<div style="background:#eee;inline-size:68pt;"><div style="column-count:3;"><p>T72 T73 T74 T75<br />T76 T77 T79 T80 T81 T82 T83 T84 T85 T86 T87</p>
+<p style="margin-block-start:auto;">T88 T89 T90 T91<br />T92 T93 T94<br />T95 T96<br />T97 T98 T102 T103 T104 T105 T106 T107 T108 T109</p>
+</div>
+</div>
+</div>
+</div>
+</body></html>
