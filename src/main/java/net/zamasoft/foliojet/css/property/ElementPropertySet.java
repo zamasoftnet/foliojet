@@ -470,6 +470,8 @@ public final class ElementPropertySet extends PropertySet {
 		// mix-blend-mode/isolation (compositing-1) and text-overflow (css-overflow-3), 2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.box.MixBlendMode.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.box.Isolation.INFO);
+		// box-decoration-break (css-break-3), 2026-11-15
+		reg(net.zamasoft.foliojet.css.impl.property.box.BoxDecorationBreak.INFO);
 		// filter (filter-effects-1), 2026-08-29
 		reg(net.zamasoft.foliojet.css.impl.property.box.Filter.INFO);
 		reg(net.zamasoft.foliojet.css.impl.property.text.TextOverflow.INFO);
@@ -579,6 +581,7 @@ public final class ElementPropertySet extends PropertySet {
 		// Vendor-prefixed aliases (2026-08-29, observations from 50 sites). Standard names
 		// are implemented; sites also specify prefixes for backward compatibility. Accept aliases only.
 		alias("-webkit-box-sizing", BoxSizing.INFO);
+		alias("-webkit-box-decoration-break", net.zamasoft.foliojet.css.impl.property.box.BoxDecorationBreak.INFO);
 		alias("-moz-box-sizing", BoxSizing.INFO);
 		alias("-ms-transform", Transform.INFO);
 		alias("-o-transform", Transform.INFO);

@@ -862,6 +862,12 @@ public class DocumentBuilder implements TableBuilderHost {
 				colParams.columns = oldColumns;
 				break;
 			} else {
+				// The spanner cuts this box as a break does (2026-11-15, publishing report TECH-20261115-001): it ends
+				// here without its end margin, border and padding, and the box endColumnSpan opens goes on without the
+				// start ones. Each piece used to be a whole box: a boxed aside with two display equations had an empty
+				// box, all frame, between them, and after them a top margin, rule and padding in the left column only
+				// (the right column held a sliced continuation).
+				blockBox.cutPageEndAtSpanner();
 				this.endContainer();
 				builder.endFlowBlock();
 				this.startContainer();
@@ -887,6 +893,7 @@ public class DocumentBuilder implements TableBuilderHost {
 				flowBox = new MulticolumnBlockBox(flowBox.getBlockParams(), flowBox.getFlowPos());
 			} else {
 				flowBox = new FlowBlockBox(flowBox.getBlockParams(), flowBox.getFlowPos());
+				flowBox.cutPageStartAtSpanner();
 			}
 			builder.startFlowBlock(flowBox);
 			this.startContainer();

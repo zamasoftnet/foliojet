@@ -1353,6 +1353,9 @@ final class BoxStyleMapper {
 		}
 		RectFrame frame = RectFrame.create(margin, border, background, padding,
 				net.zamasoft.foliojet.css.impl.property.box.BoxShadow.get(style), createOutline(style));
+		if (net.zamasoft.foliojet.css.impl.property.box.BoxDecorationBreak.isClone(style)) {
+			frame = frame.cloningAtBreaks();
+		}
 		return frame;
 	}
 

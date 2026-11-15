@@ -55,7 +55,7 @@ public class RectFrame {
 		return new RectFrame(margin, border, background, padding, shadows, outline);
 	}
 
-	private RectFrame(Insets margin, RectBorder border, Background background, Insets padding, BoxShadow[] shadows,
+	RectFrame(Insets margin, RectBorder border, Background background, Insets padding, BoxShadow[] shadows,
 			Outline outline) {
 		this.margin = margin;
 		this.border = border;
@@ -63,6 +63,47 @@ public class RectFrame {
 		this.padding = padding;
 		this.shadows = shadows;
 		this.outline = outline;
+	}
+
+	/**
+	 * This frame for a box with {@code box-decoration-break: clone} ({@link CloningRectFrame}, 2026-11-15); itself
+	 * when it has no border to close.
+	 */
+	public RectFrame cloningAtBreaks() {
+		if (!this.border.isVisible()) {
+			return this;
+		}
+		return new CloningRectFrame(this, null);
+	}
+
+	/**
+	 * {@link #cut} where a break (or a {@code column-span: all} element) cuts a block box: the frame of a
+	 * {@code box-decoration-break: clone} box goes on painting its whole border ({@link #paintedBorder}).
+	 */
+	public RectFrame cutAtBreak(boolean top, boolean right, boolean bottom, boolean left) {
+		return this.cut(top, right, bottom, left);
+	}
+
+	/**
+	 * The border a fragment of a {@code box-decoration-break: clone} box paints in place of {@link #border}: the box's
+	 * whole border, with the sides a break cut away. They are painted inside the fragment's own area, so the layout is
+	 * that of the cut {@link #border}. Null when {@link #border} is what is painted.
+	 */
+	public RectBorder paintedBorder() {
+		return null;
+	}
+
+	/** Whether a fragment paints sides of the border that a break cut away ({@link #paintedBorder}). */
+	public final boolean paintsCutBorder() {
+		final RectBorder painted = this.paintedBorder();
+		return painted != null && painted.isVisible();
+	}
+
+	/** This frame with {@link #paintedBorder} for its border, to paint a fragment of a clone box; itself without one. */
+	public final RectFrame painted() {
+		final RectBorder painted = this.paintedBorder();
+		return painted == null ? this
+				: new RectFrame(this.margin, painted, this.background, this.padding, this.shadows, this.outline);
 	}
 
 	public boolean isVisible() {

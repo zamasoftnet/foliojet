@@ -107,6 +107,13 @@ public class AbsoluteRectFrameDrawable extends AbstractDrawable {
 			s.append(String.format(java.util.Locale.ROOT, " outline[style=%d w=%.2f offset=%.2f]",
 					f.outline.border.style, f.outline.border.width, f.outline.offset));
 		}
+		// The sides a break cut away that this fragment still paints (box-decoration-break: clone, 2026-11-15)
+		if (this.part() != AbsoluteRectFrame.Part.BACKGROUND) {
+			final String cutSides = this.frame.cutSidesPainted(this.width, this.height);
+			if (!cutSides.isEmpty()) {
+				s.append(" cut-border[").append(cutSides).append(']');
+			}
+		}
 		// Append a fill summary for gradient backgrounds (2026-08-29; goldens for boxes
 		// without them remain unchanged).
 		if (this.part() != AbsoluteRectFrame.Part.DECORATIONS) {

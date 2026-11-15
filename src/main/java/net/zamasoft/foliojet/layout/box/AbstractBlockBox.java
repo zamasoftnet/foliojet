@@ -211,9 +211,10 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	private void visitFrame(final PageBox pageBox, final Drawer drawer, final Shape clip,
 			final AffineTransform transform, final double x, final double y, final AbsoluteRectFrame.Part part) {
 		final RectFrame f = this.frame.frame;
+		// A fragment of a box-decoration-break: clone box may have nothing left but the sides a break cut away
 		final boolean visible = switch (part) {
-		case ALL -> f.isVisible();
-		case DECORATIONS -> f.border.isVisible() || f.shadows != null || f.outline != null;
+		case ALL -> f.isVisible() || f.paintsCutBorder();
+		case DECORATIONS -> f.border.isVisible() || f.shadows != null || f.outline != null || f.paintsCutBorder();
 		case BACKGROUND -> f.background.isVisible();
 		};
 		if (this.params.opacity == 0f || !visible) {
@@ -300,6 +301,23 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		this.container.pushDrawFlows(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y, worklist);
 		this.container.pushDrawFloatings(pageBox, drawer, visitor, clip, transform, contextX, contextY, x, y,
 				worklist);
+	}
+
+	/**
+	 * Ends this box where a {@code column-span: all} element inside it cuts it: without its end margin, border and
+	 * padding, as at a break (2026-11-15, publishing report TECH-20261115-001; {@code DocumentBuilder.startColumnSpan}).
+	 * Before the box is closed.
+	 */
+	public final void cutPageEndAtSpanner() {
+		this.frame = this.frame.cutPageEnd(this.params.flow);
+	}
+
+	/**
+	 * Makes this new box the rest of a box that a {@code column-span: all} element cut: without the start margin, border
+	 * and padding ({@link #cutPageEndAtSpanner}). Before the box is opened.
+	 */
+	public final void cutPageStartAtSpanner() {
+		this.frame = this.frame.cutPageStart(this.params.flow);
 	}
 
 	/**

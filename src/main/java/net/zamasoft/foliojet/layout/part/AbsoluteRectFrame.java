@@ -254,16 +254,19 @@ public class AbsoluteRectFrame {
 		// Outer shadows are below the background; inner shadows are above it and below borders;
 		// outlines are above borders. Outlines should be above content, but this frame drawable
 		// draws them just after borders (negative offsets overlapping content place them below it).
+		// box-decoration-break: clone (2026-11-15): a fragment paints the box's whole border, the cut sides inside its
+		// own area. A fragment thinner than those borders (an empty piece between two spanners) paints as laid out.
+		final RectFrame frame = this.paintedFrame(width, height);
 		if (part != Part.BACKGROUND) {
-			BoxDecorationRenderer.drawOuterShadows(gc, this.frame, x, y, width, height);
+			BoxDecorationRenderer.drawOuterShadows(gc, frame, x, y, width, height);
 		}
 		if (part != Part.DECORATIONS) {
-			this.frame.background.draw(gc, x, y, width, height, this.frame.border, this.frame.padding, textClip);
+			frame.background.draw(gc, x, y, width, height, frame.border, frame.padding, textClip);
 		}
 		if (part != Part.BACKGROUND) {
-			BoxDecorationRenderer.drawInsetShadows(gc, this.frame, x, y, width, height);
-			this.frame.border.draw(gc, x, y, width, height);
-			BoxDecorationRenderer.drawOutline(gc, this.frame, x, y, width, height);
+			BoxDecorationRenderer.drawInsetShadows(gc, frame, x, y, width, height);
+			frame.border.draw(gc, x, y, width, height);
+			BoxDecorationRenderer.drawOutline(gc, frame, x, y, width, height);
 		}
 	}
 
@@ -280,9 +283,9 @@ public class AbsoluteRectFrame {
 	 */
 	public AbsoluteRectFrame cutPageEnd(WritingMode flow) {
 		return switch (flow) {
-		case TB -> this.cut(true, true, false, true);
-		case RL -> this.cut(true, true, true, false);
-		case LR -> this.cut(true, false, true, true);
+		case TB -> this.cutAtBreak(true, true, false, true);
+		case RL -> this.cutAtBreak(true, true, true, false);
+		case LR -> this.cutAtBreak(true, false, true, true);
 		};
 	}
 
@@ -294,10 +297,42 @@ public class AbsoluteRectFrame {
 	 */
 	public AbsoluteRectFrame cutPageStart(WritingMode flow) {
 		return switch (flow) {
-		case TB -> this.cut(false, true, true, true);
-		case RL -> this.cut(true, false, true, true);
-		case LR -> this.cut(true, true, true, false);
+		case TB -> this.cutAtBreak(false, true, true, true);
+		case RL -> this.cutAtBreak(true, false, true, true);
+		case LR -> this.cutAtBreak(true, true, true, false);
 		};
+	}
+
+	/** The frame to paint in a border box of this size: with the cut sides of a clone box's border when they fit. */
+	private RectFrame paintedFrame(final double width, final double height) {
+		final RectFrame frame = this.frame;
+		if (frame.paintsCutBorder() && LayoutUtils.compare(frame.paintedBorder().getFrameWidth(), width) <= 0
+				&& LayoutUtils.compare(frame.paintedBorder().getFrameHeight(), height) <= 0) {
+			return frame.painted();
+		}
+		return frame;
+	}
+
+	/**
+	 * The sides of the border that a break cut away and {@link #draw} still paints over a margin box of this size
+	 * ({@code box-decoration-break: clone}), as the letters t, r, b and l; empty when none (for the display list dump).
+	 */
+	public String cutSidesPainted(final double width, final double height) {
+		if (this.paintedFrame(width - this.margin.getFrameWidth(), height - this.margin.getFrameHeight()) == this.frame) {
+			return "";
+		}
+		final net.zamasoft.foliojet.layout.box.params.RectBorder laidOut = this.frame.border,
+				painted = this.frame.paintedBorder();
+		return (laidOut.getTop().isNull() && !painted.getTop().isNull() ? "t" : "")
+				+ (laidOut.getRight().isNull() && !painted.getRight().isNull() ? "r" : "")
+				+ (laidOut.getBottom().isNull() && !painted.getBottom().isNull() ? "b" : "")
+				+ (laidOut.getLeft().isNull() && !painted.getLeft().isNull() ? "l" : "");
+	}
+
+	/** {@link #cut} at a break of a block box ({@link RectFrame#cutAtBreak}). */
+	private AbsoluteRectFrame cutAtBreak(boolean top, boolean right, boolean bottom, boolean left) {
+		return new AbsoluteRectFrame(this.frame.cutAtBreak(top, right, bottom, left),
+				this.margin.cut(top, right, bottom, left), this.padding.cut(top, right, bottom, left));
 	}
 
 	public String toString() {
