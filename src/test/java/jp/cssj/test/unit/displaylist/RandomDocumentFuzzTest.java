@@ -2259,7 +2259,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// line cannot go on to the next page, and the last cells land below the paper (T28 at y=400.7). 19124 sets
 			// them further down (T28 at y=433).
 			new IndividualExclusion(114_612_617, "fit-v1", 835_500_969,
-					"作者の溢れ: vertical-rlの200pt四方の紙(余白0)の右のfloatの表のセルに、表を持つ2段の段組。段組は段数ぶん長く、表は行の方向に415ptで紙より長い。行は次の頁へ送れず最後のセルが紙の下の外(T28はy=400.7、19124はy=433でもっと外)", "2026-11-16"));
+					"作者の溢れ: vertical-rlの200pt四方の紙(余白0)の右のfloatの表のセルに、表を持つ2段の段組。段組は段数ぶん長く、表は行の方向に415ptで紙より長い。行は次の頁へ送れず最後のセルが紙の下の外(T28はy=400.7、19124はy=433でもっと外)", "2026-11-16"),
+			// Triage §227, the author's overflow: on vertical-lr 200x200pt paper (no margin) a vertical-rl grid is
+			// width:130pt, its block size, but its rows (a wrap-reverse flex container whose items are 8em wide at least)
+			// are about 620pt long. They run out at its block end, the left, and land left of the paper (T28 at
+			// x=-490.8). 19124 sets them further out (T28 at x=-500.9).
+			new IndividualExclusion(115_602_107, "fit-v1", 1_566_340_870,
+					"作者の溢れ: vertical-lrの200pt四方の紙(余白0)のwidth:130ptのvertical-rlのgridに、最小8emの項目を持つwrap-reverseのflexなど約620pt分の行。ブロックの終わり(左)へ溢れて字が紙の左の外(T28はx=-490.8、19124はx=-500.9でもっと外)", "2026-11-16"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
