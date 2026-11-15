@@ -2245,7 +2245,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// left (its block end), so every word lands left of the paper (T6 at x=-81, T7 at x=-137). 19124 sets the same
 			// positions.
 			new IndividualExclusion(110_141_423, "fit-v1", 2_136_734_661,
-					"作者の溢れ: vertical-lrの紙の上の幅8em(56pt)のvertical-rlのlist-itemに、幅136ptの横組みのgrid。箱の左(ブロックの終わり)へ溢れて字が全部紙の左の外(T6はx=-81、19124から同じ位置)", "2026-11-15"));
+					"作者の溢れ: vertical-lrの紙の上の幅8em(56pt)のvertical-rlのlist-itemに、幅136ptの横組みのgrid。箱の左(ブロックの終わり)へ溢れて字が全部紙の左の外(T6はx=-81、19124から同じ位置)", "2026-11-15"),
+			// Triage §225, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): on vertical-lr
+			// 300x150pt paper a horizontal row-reverse nowrap flex container, width:fit-content(70%) up to max-width:90%
+			// (252pt), holds a four-column multicol around an image 177pt wide (764pt with the table item). The line runs
+			// out at the left and every word lands left of the paper (T0 at x=-510); 19124 kept it at the start. The
+			// common test does not read an image or a fit-content() width, and a multicol's columns multiply its width.
+			new IndividualExclusion(112_871_902, "fit-v1", 1_556_613_420,
+					"逆向きのflexの行の溢れ: vertical-lrの紙の上の横組みのrow-reverse・nowrapのflex(width:fit-content(70%)、max-width:90%で252pt)に、幅177ptの画像を持つ4段の段組とtableの項目。行は764ptで左へ溢れ字が全部紙の左の外(T0はx=-510、19124は先頭に置いて紙の中)", "2026-11-15"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
