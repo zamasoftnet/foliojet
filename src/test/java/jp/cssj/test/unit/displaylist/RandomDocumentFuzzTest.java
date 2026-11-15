@@ -2265,7 +2265,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// are about 620pt long. They run out at its block end, the left, and land left of the paper (T28 at
 			// x=-490.8). 19124 sets them further out (T28 at x=-500.9).
 			new IndividualExclusion(115_602_107, "fit-v1", 1_566_340_870,
-					"作者の溢れ: vertical-lrの200pt四方の紙(余白0)のwidth:130ptのvertical-rlのgridに、最小8emの項目を持つwrap-reverseのflexなど約620pt分の行。ブロックの終わり(左)へ溢れて字が紙の左の外(T28はx=-490.8、19124はx=-500.9でもっと外)", "2026-11-16"));
+					"作者の溢れ: vertical-lrの200pt四方の紙(余白0)のwidth:130ptのvertical-rlのgridに、最小8emの項目を持つwrap-reverseのflexなど約620pt分の行。ブロックの終わり(左)へ溢れて字が紙の左の外(T28はx=-490.8、19124はx=-500.9でもっと外)", "2026-11-16"),
+			// Triage §228, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): a horizontal
+			// row-reverse nowrap flex container 131pt wide has an item with an inline-block 175pt wide, so the line runs
+			// out at the left and every word lands left of the paper (T0 at x=-44); 19124 kept it on the paper. The common
+			// test misses it only because the item wraps the <p> in a writing-mode:horizontal-tb div, the flex's own mode.
+			new IndividualExclusion(115_809_113, "fit-v1", 500_535_923,
+					"逆向きのflexの行の溢れ: 幅131ptの横組みのrow-reverse・nowrapのflexに、幅175ptのinline-blockを持つ項目(writing-mode:horizontal-tbのdivで包む)。行が左へ溢れ字が全部紙の左の外(T0はx=-44、19124は紙の中)", "2026-11-16"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
