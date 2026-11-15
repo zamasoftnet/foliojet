@@ -933,12 +933,58 @@ public class FlowContainer implements Container {
 
 	public double getBalanceCutPointBelow(final double from, final double pageAxis) {
 		final double cut = this.getCutPointBelow(pageAxis);
-		if (LayoutUtils.compare(cut, from) > 0 || this.firstLineEndsAfter(from, pageAxis)) {
+		if (LayoutUtils.compare(cut, from) > 0) {
+			return this.keepAvoidedBreak(from, cut);
+		}
+		if (this.firstLineEndsAfter(from, pageAxis)) {
 			return cut;
 		}
 		// No boundary that this oracle sees (inside a table, a float or a flex item next to an empty one): the actual cut
 		// may still find one, so the content is taken as cut at the proposed position.
 		return pageAxis;
+	}
+
+	/**
+	 * Moves a cut between two flows that the actual cut keeps together ({@code break-after: avoid} on the one before or
+	 * {@code break-before: avoid} on the one after) back to the boundary before them, as {@code FlowCutter} does, unless
+	 * that leaves nothing in the column after {@code from}: the actual cut then gives up the avoidance (2026-11-15,
+	 * publishing report TECH-20261115-001). A heading with {@code break-after: avoid} at the end of the first column went
+	 * to the second with its paragraph, so the last column ran a line past the balanced height into the next block.
+	 */
+	private double keepAvoidedBreak(final double from, final double cut) {
+		if (!this.hasFlows()) {
+			return cut;
+		}
+		final WritingMode flow = this.box.getBlockParams().flow;
+		int k = -1;
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow f = (Flow) this.flows.get(i);
+			final int c = LayoutUtils.compare(f.pageAxis + f.box.getPageExtent(flow), cut);
+			if (c == 0) {
+				k = i;
+			} else if (c > 0) {
+				break;
+			}
+		}
+		double result = cut;
+		for (; k >= 1 && k + 1 < this.flows.size(); --k) {
+			final IFlowBox before = ((Flow) this.flows.get(k)).box, after = ((Flow) this.flows.get(k + 1)).box;
+			if (!before.avoidBreakAfter() && !after.avoidBreakBefore()) {
+				return result;
+			}
+			final Flow previous = (Flow) this.flows.get(k - 1);
+			final double boundary = previous.pageAxis + previous.box.getPageExtent(flow);
+			if (LayoutUtils.compare(boundary, from) <= 0) {
+				return cut;
+			}
+			result = boundary;
+		}
+		if (k == 0 && this.flows.size() > 1 && (((Flow) this.flows.get(0)).box.avoidBreakAfter()
+				|| ((Flow) this.flows.get(1)).box.avoidBreakBefore())) {
+			// Kept with the first flow too: nothing would be left in the column
+			return cut;
+		}
+		return result;
 	}
 
 	/**
