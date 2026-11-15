@@ -1239,6 +1239,7 @@ public class FlowContainer implements Container {
 		// (2026-07-25, vertical-lr support; previously used handwritten RL-only formulas here).
 		final WritingMode flow = this.box.getBlockParams().flow;
 		final double parentPageExtent = this.box.getInnerWidth();
+		this.joinCloneFragments(flow);
 		// Normal flows (push onto the stack in reverse order to preserve traversal order)
 		for (int i = this.flows.size() - 1; i >= 0; --i) {
 			final Flow c = (Flow) this.flows.get(i);
@@ -1258,6 +1259,48 @@ public class FlowContainer implements Container {
 			} else {
 				worklist.push(AbstractContainerBox.framesStep((AbstractBlockBox) c.box, pageBox, drawer, clip,
 						transform, cx, cy));
+			}
+		}
+	}
+
+	/**
+	 * Joins the fragments of a {@code box-decoration-break: clone} box that lie one after the other in this container
+	 * (2026-11-15). Balancing that lays the boxes out again (before a {@code column-span: all} element, or a multicol
+	 * already split) stacks the fragments an earlier column break made, and where the new break falls elsewhere two of
+	 * them stay together in one column: without a border between them they look like one box, and each closed with its
+	 * own border they showed a rule across the box. A box joined to its neighbour passes the join on to the fragment
+	 * of a box inside it that the same break cut. Run before the frames of the flows are painted.
+	 */
+	private void joinCloneFragments(final WritingMode flow) {
+		final AbstractBlockBox owner = this.box instanceof AbstractBlockBox b ? b : null;
+		// The fragment before, when it paints a cut page-end side (nearly always none: the loop then only looks)
+		AbstractBlockBox before = null;
+		Flow beforeFlow = null;
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow f = (Flow) this.flows.get(i);
+			if (f.box.getType() != BoxType.BLOCK || !(f.box instanceof AbstractBlockBox block)) {
+				before = null;
+				continue;
+			}
+			if (block.paintsCutPageSide(false)) {
+				if (before != null && before.getBlockParams() == block.getBlockParams() && LayoutUtils
+						.compare(beforeFlow.pageAxis + before.getPageExtent(flow), f.pageAxis) == 0) {
+					before.joinPageSide(true);
+					block.joinPageSide(false);
+				} else if (i == 0 && owner != null && owner.isJoinedPageSide(false)) {
+					block.joinPageSide(false);
+				}
+			}
+			if (block.paintsCutPageSide(true)) {
+				if (i == this.flows.size() - 1 && owner != null && owner.isJoinedPageSide(true)) {
+					block.joinPageSide(true);
+					before = null;
+				} else {
+					before = block;
+					beforeFlow = f;
+				}
+			} else {
+				before = null;
 			}
 		}
 	}

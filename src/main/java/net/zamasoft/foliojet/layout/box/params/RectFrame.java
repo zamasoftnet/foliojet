@@ -93,6 +93,19 @@ public class RectFrame {
 		return null;
 	}
 
+	/**
+	 * This frame without the given cut sides in {@link #paintedBorder}: the fragment goes on into the next fragment of
+	 * the same box there (they were put back together in one column), so no border closes it ({@link #isJoined}).
+	 */
+	public RectFrame joinedAt(boolean top, boolean right, boolean bottom, boolean left) {
+		return this;
+	}
+
+	/** Whether {@link #joinedAt} joined this fragment to its neighbour on the top, right, bottom or left side. */
+	public boolean isJoined(boolean top, boolean right, boolean bottom, boolean left) {
+		return false;
+	}
+
 	/** Whether a fragment paints sides of the border that a break cut away ({@link #paintedBorder}). */
 	public final boolean paintsCutBorder() {
 		final RectBorder painted = this.paintedBorder();

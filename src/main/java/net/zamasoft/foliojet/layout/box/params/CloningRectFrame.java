@@ -13,9 +13,24 @@ final class CloningRectFrame extends RectFrame {
 	/** The box's whole border on a fragment that a break cut; null on the box before any cut. */
 	private final RectBorder paintedBorder;
 
+	/**
+	 * The cut sides where this fragment goes on into the next fragment of the same box ({@link #joinedAt}); they are
+	 * not in {@link #paintedBorder}.
+	 */
+	private final boolean joinedTop, joinedRight, joinedBottom, joinedLeft;
+
 	CloningRectFrame(final RectFrame frame, final RectBorder paintedBorder) {
+		this(frame, paintedBorder, false, false, false, false);
+	}
+
+	private CloningRectFrame(final RectFrame frame, final RectBorder paintedBorder, final boolean joinedTop,
+			final boolean joinedRight, final boolean joinedBottom, final boolean joinedLeft) {
 		super(frame.margin, frame.border, frame.background, frame.padding, frame.shadows, frame.outline);
 		this.paintedBorder = paintedBorder;
+		this.joinedTop = joinedTop;
+		this.joinedRight = joinedRight;
+		this.joinedBottom = joinedBottom;
+		this.joinedLeft = joinedLeft;
 	}
 
 	@Override
@@ -25,8 +40,25 @@ final class CloningRectFrame extends RectFrame {
 
 	@Override
 	public RectFrame cutAtBreak(final boolean top, final boolean right, final boolean bottom, final boolean left) {
+		// A side joined before stays out of the painted border: a new cut elsewhere does not bring it back
 		return new CloningRectFrame(this.cut(top, right, bottom, left),
-				this.paintedBorder != null ? this.paintedBorder : this.border);
+				this.paintedBorder != null ? this.paintedBorder : this.border, this.joinedTop, this.joinedRight,
+				this.joinedBottom, this.joinedLeft);
+	}
+
+	@Override
+	public RectFrame joinedAt(final boolean top, final boolean right, final boolean bottom, final boolean left) {
+		if (this.paintedBorder == null) {
+			return this;
+		}
+		return new CloningRectFrame(this, this.paintedBorder.cut(!top, !right, !bottom, !left), this.joinedTop || top,
+				this.joinedRight || right, this.joinedBottom || bottom, this.joinedLeft || left);
+	}
+
+	@Override
+	public boolean isJoined(final boolean top, final boolean right, final boolean bottom, final boolean left) {
+		return top && this.joinedTop || right && this.joinedRight || bottom && this.joinedBottom
+				|| left && this.joinedLeft;
 	}
 
 	@Override

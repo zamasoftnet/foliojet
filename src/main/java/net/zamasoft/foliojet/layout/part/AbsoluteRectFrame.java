@@ -329,6 +329,45 @@ public class AbsoluteRectFrame {
 				+ (laidOut.getLeft().isNull() && !painted.getLeft().isNull() ? "l" : "");
 	}
 
+	/**
+	 * Whether this fragment of a {@code box-decoration-break: clone} box paints a border on its page-end side
+	 * ({@code end}) or page-start side that a break cut away.
+	 */
+	public boolean paintsCutPageSide(final WritingMode flow, final boolean end) {
+		final net.zamasoft.foliojet.layout.box.params.RectBorder painted = this.frame.paintedBorder();
+		if (painted == null) {
+			return false;
+		}
+		final net.zamasoft.foliojet.layout.box.params.RectBorder laidOut = this.frame.border;
+		return switch (flow) {
+		case TB -> end ? laidOut.getBottom().isNull() && !painted.getBottom().isNull()
+				: laidOut.getTop().isNull() && !painted.getTop().isNull();
+		case RL -> end ? laidOut.getLeft().isNull() && !painted.getLeft().isNull()
+				: laidOut.getRight().isNull() && !painted.getRight().isNull();
+		case LR -> end ? laidOut.getRight().isNull() && !painted.getRight().isNull()
+				: laidOut.getLeft().isNull() && !painted.getLeft().isNull();
+		};
+	}
+
+	/**
+	 * This frame joined to the next fragment of its box on its page-end side ({@code end}) or to the one before on its
+	 * page-start side: that cut side is not painted ({@link RectFrame#joinedAt}).
+	 */
+	public AbsoluteRectFrame joinPageSide(final WritingMode flow, final boolean end) {
+		final boolean top = flow == WritingMode.TB && !end, bottom = flow == WritingMode.TB && end;
+		final boolean right = flow == WritingMode.RL && !end || flow == WritingMode.LR && end;
+		final boolean left = flow == WritingMode.RL && end || flow == WritingMode.LR && !end;
+		return new AbsoluteRectFrame(this.frame.joinedAt(top, right, bottom, left), this.margin, this.padding);
+	}
+
+	/** Whether {@link #joinPageSide} joined this fragment on that side. */
+	public boolean isJoinedPageSide(final WritingMode flow, final boolean end) {
+		final boolean top = flow == WritingMode.TB && !end, bottom = flow == WritingMode.TB && end;
+		final boolean right = flow == WritingMode.RL && !end || flow == WritingMode.LR && end;
+		final boolean left = flow == WritingMode.RL && end || flow == WritingMode.LR && !end;
+		return this.frame.isJoined(top, right, bottom, left);
+	}
+
 	/** {@link #cut} at a break of a block box ({@link RectFrame#cutAtBreak}). */
 	private AbsoluteRectFrame cutAtBreak(boolean top, boolean right, boolean bottom, boolean left) {
 		return new AbsoluteRectFrame(this.frame.cutAtBreak(top, right, bottom, left),

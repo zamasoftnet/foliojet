@@ -321,6 +321,28 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 	}
 
 	/**
+	 * Whether this fragment of a {@code box-decoration-break: clone} box paints a border on its page-end side
+	 * ({@code end}) or page-start side that a break cut away.
+	 */
+	public final boolean paintsCutPageSide(final boolean end) {
+		return this.frame.paintsCutPageSide(this.params.flow, end);
+	}
+
+	/** Whether {@link #joinPageSide} joined this fragment on that side. */
+	public final boolean isJoinedPageSide(final boolean end) {
+		return this.frame.isJoinedPageSide(this.params.flow, end);
+	}
+
+	/**
+	 * Joins this fragment to the next fragment of its box ({@code end}) or to the one before: a re-layout put the two
+	 * back together in one column, so the side between them is not closed with a border
+	 * ({@code FlowContainer.joinCloneFragments}). Only what is painted changes.
+	 */
+	public final void joinPageSide(final boolean end) {
+		this.frame = this.frame.joinPageSide(this.params.flow, end);
+	}
+
+	/**
 	 * Returns a reconstruction recipe for a fragment box (C1d-B). Implementations must capture
 	 * the required values without retaining a reference to this (see the FragmentRecipe contract).
 	 * Obtain it before splitPageState invalidates the anchor.

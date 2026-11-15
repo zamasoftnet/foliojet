@@ -117,6 +117,22 @@ public class BoxDecorationBreakCloneTest extends TestCase {
 		assertEquals(slice.get(0), clone.get(0).replaceAll(CUT, ""));
 	}
 
+	/**
+	 * Fragments that a re-layout puts back together in one column paint as one box. The box fills the first column and
+	 * goes on in the second; the spanner then balances the columns from the boxes, the new break falls earlier, and the
+	 * rest of the first fragment lies right before the second. Each closed with its own border, a rule ran across the
+	 * box. A box inside, cut by the same breaks, joins with them.
+	 */
+	public void testFragmentsPutBackTogether() throws Exception {
+		final String tail = "<div class=\"span\">S</div><p>B1</p></div>";
+		final String css = " .box{box-decoration-break:clone}";
+		assertEquals(List.of("b", "t"), cutBorders(
+				pages(css, "<div class=\"c\"><div class=\"box\">" + lines("A", 10) + "</div>" + tail).get(0)));
+		assertEquals(List.of("b", "b", "t", "t"), cutBorders(pages(css + " .box .box{margin:0}",
+				"<div class=\"c\"><div class=\"box\"><div class=\"box\">" + lines("A", 8) + "</div></div>" + tail)
+				.get(0)));
+	}
+
 	/** Without a border to close, and on a box that no break cuts, clone paints nothing more. */
 	public void testNothingToClose() throws Exception {
 		assertEquals(List.of(), cutBorders(String.join("", pages(" .box{box-decoration-break:clone}",
