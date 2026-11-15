@@ -2252,7 +2252,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// out at the left and every word lands left of the paper (T0 at x=-510); 19124 kept it at the start. The
 			// common test does not read an image or a fit-content() width, and a multicol's columns multiply its width.
 			new IndividualExclusion(112_871_902, "fit-v1", 1_556_613_420,
-					"逆向きのflexの行の溢れ: vertical-lrの紙の上の横組みのrow-reverse・nowrapのflex(width:fit-content(70%)、max-width:90%で252pt)に、幅177ptの画像を持つ4段の段組とtableの項目。行は764ptで左へ溢れ字が全部紙の左の外(T0はx=-510、19124は先頭に置いて紙の中)", "2026-11-15"));
+					"逆向きのflexの行の溢れ: vertical-lrの紙の上の横組みのrow-reverse・nowrapのflex(width:fit-content(70%)、max-width:90%で252pt)に、幅177ptの画像を持つ4段の段組とtableの項目。行は764ptで左へ溢れ字が全部紙の左の外(T0はx=-510、19124は先頭に置いて紙の中)", "2026-11-15"),
+			// Triage §226, the author's overflow: on vertical-rl 200x200pt paper (no margin) a right float holds a table
+			// whose cell holds a two-column multicol around another table. A multicol is at least its columns times
+			// the inner table long, so the outer table is 415pt long along the line, more than the paper; a vertical
+			// line cannot go on to the next page, and the last cells land below the paper (T28 at y=400.7). 19124 sets
+			// them further down (T28 at y=433).
+			new IndividualExclusion(114_612_617, "fit-v1", 835_500_969,
+					"作者の溢れ: vertical-rlの200pt四方の紙(余白0)の右のfloatの表のセルに、表を持つ2段の段組。段組は段数ぶん長く、表は行の方向に415ptで紙より長い。行は次の頁へ送れず最後のセルが紙の下の外(T28はy=400.7、19124はy=433でもっと外)", "2026-11-16"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
