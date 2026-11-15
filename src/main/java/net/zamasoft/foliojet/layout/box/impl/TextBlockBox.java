@@ -473,6 +473,39 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 	}
 
 	/**
+	 * Returns the line boundary before the proposed position that the actual cut ({@code LineCutter}) would take, for
+	 * column balancing: at least {@code orphans} lines before it and {@code widows} after it; 0 if there is none
+	 * (2026-11-15, publishing report TECH-20261115-001). Balancing took the boundary after a paragraph's first line, the
+	 * actual cut moved that line to the next column (and the heading kept with it), and the last column ran past the
+	 * balanced height into the column-span: all element after it.
+	 *
+	 * @param pageAxis proposed position
+	 * @return the boundary (0 if none)
+	 */
+	public final double getBalanceCutPointBelow(final double pageAxis) {
+		final net.zamasoft.foliojet.layout.box.params.WritingMode flow = this.getBlockParams().flow;
+		int last = -1;
+		for (int i = 0; i < this.lines.size(); ++i) {
+			final Line line = (Line) this.lines.get(i);
+			if (LayoutUtils.compare(line.pageAxis + line.box.getPageExtent(flow), pageAxis) > 0) {
+				break;
+			}
+			last = i;
+		}
+		if (last < this.lines.size() - 1) {
+			last = Math.min(last, this.lines.size() - 1 - Math.max(1, this.params.widows));
+			if (last + 1 < Math.max(1, this.params.orphans)) {
+				return 0;
+			}
+		}
+		if (last < 0) {
+			return 0;
+		}
+		final Line line = (Line) this.lines.get(last);
+		return line.pageAxis + line.box.getPageExtent(flow);
+	}
+
+	/**
 	 * Returns whether the first line ending after {@code from} also ends after {@code pageAxis} (column balancing,
 	 * {@code FlowContainer.getBalanceCutPointBelow}).
 	 *

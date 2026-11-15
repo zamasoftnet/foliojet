@@ -885,6 +885,14 @@ public class FlowContainer implements Container {
 	}
 
 	public double getCutPointBelow(final double pageAxis) {
+		return this.cutPointBelow(pageAxis, false);
+	}
+
+	/**
+	 * {@link #getCutPointBelow(double)}; with {@code keepLines}, a paragraph is cut only where it keeps its orphans and
+	 * widows, as the actual cut does ({@link TextBlockBox#getBalanceCutPointBelow}, column balancing).
+	 */
+	private double cutPointBelow(final double pageAxis, final boolean keepLines) {
 		final WritingMode flow = this.box.getBlockParams().flow;
 		double result = 0;
 		if (this.hasFlows()) {
@@ -901,15 +909,17 @@ public class FlowContainer implements Container {
 					final FlowBlockBox blockBox = (FlowBlockBox) f.box;
 					if (blockBox.getBlockParams().pageBreakInside != PageBreakMode.AVOID) {
 						final double frameStart = blockBox.getFrame().getFramePageStart(flow);
-						final double inner = blockBox.getContainer()
-								.getCutPointBelow(pageAxis - f.pageAxis - frameStart);
+						final double inner = keepLines && blockBox.getContainer() instanceof FlowContainer innerFlows
+								? innerFlows.cutPointBelow(pageAxis - f.pageAxis - frameStart, true)
+								: blockBox.getContainer().getCutPointBelow(pageAxis - f.pageAxis - frameStart);
 						if (LayoutUtils.compare(inner, 0) > 0) {
 							result = Math.max(result, f.pageAxis + frameStart + inner);
 						}
 					}
 					// If there is no internal boundary, cut before the block (the preceding result).
 				} else if (f.box.getType() == BoxType.TEXT_BLOCK) {
-					final double inner = ((TextBlockBox) f.box).getCutPointBelow(pageAxis - f.pageAxis);
+					final double inner = keepLines ? ((TextBlockBox) f.box).getBalanceCutPointBelow(pageAxis - f.pageAxis)
+							: ((TextBlockBox) f.box).getCutPointBelow(pageAxis - f.pageAxis);
 					if (LayoutUtils.compare(inner, 0) > 0) {
 						result = Math.max(result, f.pageAxis + inner);
 					}
@@ -932,7 +942,7 @@ public class FlowContainer implements Container {
 	}
 
 	public double getBalanceCutPointBelow(final double from, final double pageAxis) {
-		final double cut = this.getCutPointBelow(pageAxis);
+		final double cut = this.cutPointBelow(pageAxis, true);
 		if (LayoutUtils.compare(cut, from) > 0) {
 			return this.keepAvoidedBreak(from, cut);
 		}
