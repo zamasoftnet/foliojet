@@ -653,6 +653,19 @@ public class BlockBuilder implements Builder, LayoutContext {
 		return null;
 	}
 
+	/**
+	 * The line length a page float with {@code column-span: all} takes for its containing block: that of the multicol
+	 * it is in, not a column's (2026-11-15, publishing report TECH-20261115-001; {@code width: 100%} came out a column
+	 * wide). {@link LayoutUtils#NONE} for any other box, or outside a multicol.
+	 */
+	public static double spanningPageFloatLine(final LayoutStack stack, final AbstractBlockBox box) {
+		if (!(box.getPos() instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos pos) || !pos.spanColumns) {
+			return LayoutUtils.NONE;
+		}
+		final AbstractContainerBox multicol = stack.getSpannedMulticolumnBox();
+		return multicol == null ? LayoutUtils.NONE : LayoutUtils.getMaxAdvance(multicol);
+	}
+
 	public AbstractContainerBox getSpannedMulticolumnBox() {
 		if (this.flowStack != null) {
 			for (int i = this.flowStack.size() - 1; i >= 0; --i) {
@@ -851,8 +864,32 @@ public class BlockBuilder implements Builder, LayoutContext {
 					borderStart + minExtent, floatBand);
 			if (pageBand.extent() > 0 && (LayoutUtils.compare(pageBand.start(), floatBand.start()) != 0
 					|| LayoutUtils.compare(pageBand.end(), floatBand.end()) != 0)) {
-				++this.pageFloatNarrowings;
-				this.calculateSizeIn(flowBox, pageBand, insetStart, insetEnd);
+				if (flowBox.getColumnCount() > 1 || flowBox.getBlockParams().columns.count >= 2) {
+					// A multicol does not run beside a page float: it starts below the float's band (2026-11-15,
+					// publishing report TECH-20261115-001). Narrowed beside it, a column-wide figure at the top of the
+					// page put both columns in the half beside it, the column gap off the middle and half the page
+					// empty below the figure, and a figure spanning the columns of a multicol narrower than the page
+					// left a sliver one character wide.
+					final ExclusionSpace pageSpace = this.pageFloatExclusionsForLineLayout();
+					double at = borderStart;
+					AxisSpan band = pageBand;
+					while (band.extent() > 0 && (LayoutUtils.compare(band.start(), floatBand.start()) != 0
+							|| LayoutUtils.compare(band.end(), floatBand.end()) != 0)) {
+						final double next = pageSpace.nextPageEndAfter(at);
+						if (Double.isNaN(next)) {
+							break;
+						}
+						at = next;
+						band = pageSpace.narrowLineBandOver(at, at + minExtent, floatBand);
+					}
+					if (LayoutUtils.compare(at, borderStart) > 0) {
+						this.poLastMargin = this.neLastMargin = 0;
+						this.pageAxis = at - frame.getMarginPageStart(cParams.flow);
+					}
+				} else {
+					++this.pageFloatNarrowings;
+					this.calculateSizeIn(flowBox, pageBand, insetStart, insetEnd);
+				}
 			}
 		}
 
@@ -2243,7 +2280,12 @@ public class BlockBuilder implements Builder, LayoutContext {
 			containerBox = this.getFlowBox();
 			if (!LayoutUtils.needsIntrinsicSizing(blockBox)) {
 				// Fixed width
-				staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false);
+				final double spanning = spanningPageFloatLine(this, blockBox);
+				if (LayoutUtils.isNone(spanning)) {
+					staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false);
+				} else {
+					staticBlockBox.shrinkToFit(this, IntrinsicSizes.ZERO, false, spanning, false);
+				}
 				if (blockBox.isFixedMulticolumn()) {
 					// Multi-column layout with a fixed page-direction size
 					builder = new ColumnBuilder(this, blockBox);

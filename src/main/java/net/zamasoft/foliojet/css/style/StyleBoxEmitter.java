@@ -294,6 +294,8 @@ public final class StyleBoxEmitter {
 					floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BLOCK_START,
 					floating == CSSFloatValue.PAGE_TOP || floating == CSSFloatValue.PAGE_BOTTOM);
 			this.mapper.setupStaticPos(pos, style);
+			pos.spanColumns = net.zamasoft.foliojet.css.impl.property.column.ColumnSpan
+					.get(style) == net.zamasoft.foliojet.layout.box.params.FlowPos.COLUMN_SPAN_ALL;
 			blockBox = new FloatBlockBox(params, pos);
 		} else if (floating == CSSFloatValue.PAGE_NOTE_START || floating == CSSFloatValue.PAGE_NOTE_END) {
 			// JLREQ parallel notes. Place separately in the page's logical inline-axis margins.

@@ -26,6 +26,13 @@ public final class PageFloatPos extends FloatPos {
 	 */
 	public final boolean physical;
 
+	/**
+	 * Whether the float spans the columns of the multicol it is in ({@code column-span: all}, 2026-11-15, publishing
+	 * report TECH-20261115-001): its containing block is the multicol's content box, not a column. The page ledger
+	 * places it as it places any page float as wide as that.
+	 */
+	public boolean spanColumns;
+
 	public PageFloatPos(final boolean top, final boolean physical) {
 		this.top = top;
 		this.physical = physical;

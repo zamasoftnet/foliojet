@@ -229,6 +229,15 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 	 * it, whatever box holds the call. NONE uses the existing measurement.
 	 */
 	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table, final double hostLineSize) {
+		this.shrinkToFit(layoutStack, sizes, table, hostLineSize, true);
+	}
+
+	/**
+	 * {@link #shrinkToFit(LayoutStack, IntrinsicSizes, boolean, double)}; {@code fillHost} false lets the box shrink to
+	 * its content within the given line length, as a page float spanning a multicol's columns does (2026-11-15).
+	 */
+	public void shrinkToFit(LayoutStack layoutStack, IntrinsicSizes sizes, boolean table, final double hostLineSize,
+			final boolean fillHost) {
 		final boolean columnFootnote = !LayoutUtils.isNone(hostLineSize);
 		final double minLineAxis = sizes.minContent(), maxLineAxis = sizes.maxContent();
 		final AbstractContainerBox containerBox;
@@ -415,7 +424,7 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 			lineExtent = Math.max(0, limitLine);
 		}
 		// Column footnotes fill the host's line length regardless of short text or the author's inline min/max.
-		if (columnFootnote) lineExtent = limitLine;
+		if (columnFootnote && fillHost) lineExtent = limitLine;
 
 		// Page axis: min/max and the specified size. Resolve percentages only when percentBasePage is definite.
 		double minPage;

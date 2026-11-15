@@ -1381,8 +1381,13 @@ public class DocumentBuilder implements TableBuilderHost {
 					}
 					if (entry.builder.isTwoPass()) {
 						final TwoPassBlockBuilder contentBuilder = (TwoPassBlockBuilder) entry.builder;
-						pageFloatBox.shrinkToFit(parentBuilder,
-								this.shrinkToFitSizes(pageFloatBox, contentBuilder, parentBuilder), false);
+						// column-span: all takes the multicol's line length for its containing block (2026-11-15,
+						// publishing report TECH-20261115-001): width: 100% was a column wide
+						final double host = net.zamasoft.foliojet.layout.builder.impl.BlockBuilder
+								.spanningPageFloatLine(parentBuilder, pageFloatBox);
+						pageFloatBox.shrinkToFit(parentBuilder, this.shrinkToFitSizes(pageFloatBox, contentBuilder,
+								sizes -> pageFloatBox.shrinkToFit(parentBuilder, sizes, false, host, false)), false, host,
+								false);
 						final BlockBuilder pageFloatBuilder = new BlockBuilder(this.pageContextBuilder(), pageFloatBox);
 						// Do not consume during disposable measurement, for the same reason as floats and footnotes.
 						contentBuilder.bind(pageFloatBuilder, this.replayIntent);

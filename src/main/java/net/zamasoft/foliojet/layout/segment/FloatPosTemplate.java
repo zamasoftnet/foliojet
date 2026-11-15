@@ -25,7 +25,7 @@ import net.zamasoft.foliojet.layout.box.params.ShapeOutsideParams;
  */
 
 public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating, Kind kind,
-		ShapeOutsideParams shapeOutside) {
+		ShapeOutsideParams shapeOutside, boolean spanColumns) {
 	public enum Kind {
 		NORMAL, FOOTNOTE, PAGE_TOP, PAGE_BOTTOM, PAGE_BLOCK_START, PAGE_BLOCK_END, PAGE_NOTE_START, PAGE_NOTE_END
 	}
@@ -37,7 +37,8 @@ public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating, K
 						? pageFloat.physical ? pageFloat.top ? Kind.PAGE_TOP : Kind.PAGE_BOTTOM
 								: pageFloat.top ? Kind.PAGE_BLOCK_START : Kind.PAGE_BLOCK_END
 						: Kind.NORMAL;
-		return new FloatPosTemplate(NormalFlowPosFields.freeze(source), source.floating, kind, source.shapeOutside);
+		return new FloatPosTemplate(NormalFlowPosFields.freeze(source), source.floating, kind, source.shapeOutside,
+				source instanceof PageFloatPos pageFloat && pageFloat.spanColumns);
 	}
 
 	/** Returns a fresh {@code FloatPos} on each call (multiple calls do not affect one another). */
@@ -55,6 +56,9 @@ public record FloatPosTemplate(NormalFlowPosFields common, FloatSide floating, K
 		this.common.materializeInto(pos);
 		pos.floating = this.floating;
 		pos.shapeOutside = this.shapeOutside;
+		if (pos instanceof PageFloatPos pageFloat) {
+			pageFloat.spanColumns = this.spanColumns;
+		}
 		return pos;
 	}
 }
