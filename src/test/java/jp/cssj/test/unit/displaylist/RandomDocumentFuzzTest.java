@@ -2277,7 +2277,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 640pt long. They run out at its block end, the left, and land left of the paper (T33 at x=-524.85, the
 			// same in 19124).
 			new IndividualExclusion(118_243_642, "fit-v1", 852_124_043,
-					"作者の溢れ: vertical-lrの200pt四方の紙のfloat:leftのvertical-rlのgridがwidth:115pt(ブロックの長さ)で、表・幅106ptのinline-block・flexなど約640pt分の行。ブロックの終わり(左)へ溢れて字が紙の左の外(T33はx=-524.85、19124も同じ)", "2026-11-16"));
+					"作者の溢れ: vertical-lrの200pt四方の紙のfloat:leftのvertical-rlのgridがwidth:115pt(ブロックの長さ)で、表・幅106ptのinline-block・flexなど約640pt分の行。ブロックの終わり(左)へ溢れて字が紙の左の外(T33はx=-524.85、19124も同じ)", "2026-11-16"),
+			// Triage §230, the author's overflow: on vertical-lr 300x150pt paper (no margin) a vertical-rl div is
+			// width:8em, its block size, but holds a table 105pt wide, an inline-block 79pt wide and an image 208pt
+			// wide. They run out at its block end, the left, and land left of the paper (T0 at x=-15, the image at
+			// x=-312). 19124 also sets every word left of the paper (T0 at x=-13.8).
+			new IndividualExclusion(119_078_811, "fit-v1", 546_732_345,
+					"作者の溢れ: vertical-lrの300x150ptの紙(余白0)のwidth:8em(ブロックの長さ)のvertical-rlのdivに、幅105ptの表・幅79ptのinline-block・幅208ptの画像。ブロックの終わり(左)へ溢れて全部が紙の左の外(T0はx=-15、画像はx=-312、19124もT0はx=-13.8で外)", "2026-11-16"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
