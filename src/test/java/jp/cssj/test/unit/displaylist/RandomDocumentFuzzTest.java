@@ -2333,7 +2333,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// right of the paper (T3 at x=336.8). Without the 89pt width everything moves 174pt left onto the paper. 19124
 			// sets every word off the paper too.
 			new IndividualExclusion(126_729_292, "fit-v1", 1_145_321_508,
-					"作者の溢れ: vertical-rlの300x150ptの紙の右端のvertical-lrのdivに、width:89pt(ブロックの長さ)のfloat。中に幅139ptの表を持つvertical-rlの箱と幅80pt以上のdiv。ブロックの終わり(右)へ溢れ、字が全部紙の右の外(T3はx=336.8、89ptを外すと174pt左へ動いて紙に載る、19124も紙の外)", "2026-11-18"));
+					"作者の溢れ: vertical-rlの300x150ptの紙の右端のvertical-lrのdivに、width:89pt(ブロックの長さ)のfloat。中に幅139ptの表を持つvertical-rlの箱と幅80pt以上のdiv。ブロックの終わり(右)へ溢れ、字が全部紙の右の外(T3はx=336.8、89ptを外すと174pt左へ動いて紙に載る、19124も紙の外)", "2026-11-18"),
+			// Triage §239, the author's overflow: on vertical-rl 120x400pt paper a horizontal-tb div sits at the right
+			// edge and holds a list-item div 28pt wide with a ul in it whose default left padding (40px, 30pt) is wider
+			// than the div, so T0 starts 2pt past the div's right edge, right of the paper (x=121). With the div 60pt wide
+			// or without its width T0 lands on the paper. 19124 sets it at the same x.
+			new IndividualExclusion(128_619_153, "fit-v1", 2_013_655_116,
+					"作者の溢れ: vertical-rlの120x400ptの紙の右端のhorizontal-tbのdivに、幅28ptのlist-itemのdiv。中のulの既定の左の余白(40px、30pt)がdivより広く、T0はdivの右端を越えて紙の右の外(x=121、幅を60ptにするか外すと紙に載る、19124も同じx)", "2026-11-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
