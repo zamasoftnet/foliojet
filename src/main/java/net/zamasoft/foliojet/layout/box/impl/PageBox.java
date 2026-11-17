@@ -29,6 +29,7 @@ import net.zamasoft.foliojet.layout.part.AbsoluteRectFrame;
 import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.ua.UserAgent;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 /**
  * A page.
@@ -382,6 +383,32 @@ public class PageBox extends AbstractBlockBox {
 	 * in a separate increment).
 	 */
 	private int structRepetitionDepth = 0;
+
+	/**
+	 * Text roles of the boxes being drawn, innermost first ({@link #pushTextRole}): a margin box, a footnote body,
+	 * an emphasis mark. A drawable takes the innermost one when it is made ({@code AbstractDrawable}) and opens it
+	 * around its drawing, so output that exposes text to reading aids (Paged SVG) can tell such text from the body.
+	 * Null until the first push.
+	 */
+	private java.util.ArrayDeque<TextRole> textRoles;
+
+	/** Makes {@code role} the innermost text role until the matching {@link #popTextRole}. */
+	public void pushTextRole(final TextRole role) {
+		if (this.textRoles == null) {
+			this.textRoles = new java.util.ArrayDeque<>();
+		}
+		this.textRoles.push(role);
+	}
+
+	/** The matching end for {@link #pushTextRole}. */
+	public void popTextRole() {
+		this.textRoles.pop();
+	}
+
+	/** The innermost text role of the boxes being drawn, or null for body text. */
+	public TextRole textRole() {
+		return this.textRoles == null ? null : this.textRoles.peek();
+	}
 
 	/** Document-order structure nesting (a stack of declared refs). */
 	private final java.util.ArrayDeque<net.zamasoft.pdfg2d.pdf.StructureRef> structStack = new java.util.ArrayDeque<>();

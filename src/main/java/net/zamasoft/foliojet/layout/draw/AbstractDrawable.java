@@ -11,6 +11,7 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 public abstract class AbstractDrawable implements Drawable {
 	protected final Shape clip;
@@ -30,6 +31,12 @@ public abstract class AbstractDrawable implements Drawable {
 	 * images. Set through {@link #withFilter}.
 	 */
 	protected FilterValue filter = FilterValue.NONE;
+	/**
+	 * The text role of the box this drawable belongs to (a margin box, a footnote body, an emphasis mark), taken from
+	 * the page when it is made ({@link PageBox#textRole()}); null for body text. Opened around the drawing on the GC
+	 * that receives it, inside any layer, so the text recorded in a layer keeps it.
+	 */
+	private final TextRole textRole;
 
 	public AbstractDrawable(final PageBox pageBox, final Shape clip, final float opacity,
 			final AffineTransform transform) {
@@ -37,6 +44,7 @@ public abstract class AbstractDrawable implements Drawable {
 		this.clip = clip;
 		this.opacity = opacity;
 		this.transform = transform;
+		this.textRole = pageBox == null ? null : pageBox.textRole();
 	}
 
 	/** Sets the blend mode and returns this instance (call immediately after construction). */
@@ -143,7 +151,13 @@ public abstract class AbstractDrawable implements Drawable {
 		}
 		/* NoAndroid end */
 
-		this.drawFilterApproximation(gc, x, y, f);
+		if (this.textRole == null) {
+			this.drawFilterApproximation(gc, x, y, f);
+		} else {
+			try (final GC.State role = gc.beginTextRole(this.textRole)) {
+				this.drawFilterApproximation(gc, x, y, f);
+			}
+		}
 
 		/* NoAndroid begin */
 		if (ggc != null) {

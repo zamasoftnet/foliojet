@@ -66,6 +66,7 @@ import net.zamasoft.foliojet.ua.CounterScope;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.foliojet.css.style.running.RunningRenderer;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 /**
  * Layout and drawing of page margin boxes (css-page-3 §7).
@@ -311,12 +312,18 @@ final class MarginBoxes {
 		// A vertical RL mini-page stacks lines from the right edge, so shift x to the left.
 		final double drawX = x + (box.params.flow == WritingMode.RL ? -dx : dx);
 		final double drawY = y + dy;
-		if (box.running != null) {
-			RunningRenderer.draw(mini, drawer, drawX, drawY);
-		} else {
-			// Keep the frame (background/borders) in the box fixed to the region; align only the drawn content.
-			mini.frames(mini, drawer, null, new AffineTransform(), x, y);
-			mini.draw(mini, drawer, visitor, null, new AffineTransform(), drawX, drawY, drawX, drawY);
+		// Running heads and page numbers are not body text (the run kind of Paged SVG)
+		mini.pushTextRole(TextRole.MARGIN);
+		try {
+			if (box.running != null) {
+				RunningRenderer.draw(mini, drawer, drawX, drawY);
+			} else {
+				// Keep the frame (background/borders) in the box fixed to the region; align only the drawn content.
+				mini.frames(mini, drawer, null, new AffineTransform(), x, y);
+				mini.draw(mini, drawer, visitor, null, new AffineTransform(), drawX, drawY, drawX, drawY);
+			}
+		} finally {
+			mini.popTextRole();
 		}
 	}
 

@@ -338,6 +338,104 @@ public class DirectPagedSvgTest extends TestCase {
 				expected, extent, 0.05);
 	}
 
+	/**
+	 * Page JSON tells reading aids what each text run is (2026-11-17, requested by the cti.li reader for read-aloud):
+	 * {@code kind} is {@code ruby}, {@code emphasis}, {@code margin} or {@code footnote}, absent for body text, and a
+	 * ruby names its base runs on the same page with {@code base}. Horizontal ruby draws the annotation before its
+	 * base and vertical ruby after it, so both orders are checked.
+	 */
+	public void testTextRunsCarryTheirKind() throws Exception {
+		final String html = "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style type=\"text/css\">"
+				+ "@page{size:300pt 300pt;margin:30pt;@top-center{content:\"柱見出\"}"
+				+ "@bottom-center{content:counter(page)}}body{margin:0;font-size:10pt}"
+				+ ".em{text-emphasis:filled sesame}.fn{float:footnote}"
+				+ ".v{writing-mode:vertical-rl;height:100pt}"
+				+ "</style></head><body>"
+				+ "<p>本文<ruby>漢字<rt>かんじ</rt></ruby>と<span class=\"em\">強調</span>です<span class=\"fn\">脚注文</span></p>"
+				+ "<div class=\"v\"><p>縦組<ruby>振仮名<rt>ふりがな</rt></ruby>です</p></div>"
+				+ "</body></html>";
+		final CapturingResults r = this.run(Map.of(), html);
+		assertEquals("one page", 1, pageCount(r));
+		final List<String[]> runs = runs(r.text("pages/0001.json"));
+		assertKind(runs, "本文", null);
+		assertKind(runs, "柱見出", "margin");
+		// "1" is also the footnote call in the body and the marker of the footnote, so look for the page number
+		int folios = 0, calls = 0;
+		for (final String[] run : runs) {
+			if (run[0].equals("1")) {
+				folios += "margin".equals(run[1]) ? 1 : 0;
+				calls += run[1] == null ? 1 : 0;
+			}
+		}
+		assertEquals("the page number is margin text: " + values(runs), 1, folios);
+		assertEquals("the footnote call stays body text: " + values(runs), 1, calls);
+		assertKind(runs, "脚注文", "footnote");
+		assertRubyBase(runs, "かんじ", "漢字");
+		assertRubyBase(runs, "ふりがな", "振仮名");
+		int marks = 0;
+		for (final String[] run : runs) {
+			if ("emphasis".equals(run[1])) {
+				++marks;
+			} else {
+				assertFalse("an emphasis mark must not be body text: " + run[0], run[0].equals("\uFE45"));
+			}
+		}
+		assertEquals("one emphasis mark per emphasised character", 2, marks);
+		final String svg = r.text("pages/0001.svg");
+		assertTrue("the mark is hidden from reading aids",
+				java.util.regex.Pattern.compile("<text [^>]*data-copper-kind=\"emphasis\"[^>]*aria-hidden=\"true\"")
+						.matcher(svg).find());
+		assertTrue("ruby keeps its kind in SVG", svg.contains("data-copper-kind=\"ruby\""));
+	}
+
+	/** The runs of a page JSON in order: {value, kind, base first, base last} (null when absent). */
+	private static List<String[]> runs(final String json) {
+		final java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\{\"value\":\"((?:[^\"\\\\]|\\\\.)*)\","
+				+ "\"font\":\"[^\"]*\",\"size\":[0-9.]+,\"transform\":\\[[^\\]]*\\],\"bounds\":\\[[^\\]]*\\]"
+				+ "(?:,\"kind\":\"([a-z]+)\")?(?:,\"base\":\\[([0-9]+),([0-9]+)\\])?\\}").matcher(json);
+		final List<String[]> runs = new ArrayList<>();
+		while (m.find()) {
+			runs.add(new String[] { m.group(1), m.group(2), m.group(3), m.group(4) });
+		}
+		assertFalse("page JSON must have text runs", runs.isEmpty());
+		return runs;
+	}
+
+	private static void assertKind(final List<String[]> runs, final String value, final String kind) {
+		for (final String[] run : runs) {
+			if (run[0].contains(value)) {
+				assertEquals("kind of " + value, kind, run[1]);
+				return;
+			}
+		}
+		fail("no run holds " + value + ": " + values(runs));
+	}
+
+	private static void assertRubyBase(final List<String[]> runs, final String ruby, final String base) {
+		for (final String[] run : runs) {
+			if (run[0].equals(ruby)) {
+				assertEquals("kind of " + ruby, "ruby", run[1]);
+				assertNotNull(ruby + " must name its base", run[2]);
+				final StringBuilder text = new StringBuilder();
+				for (int i = Integer.parseInt(run[2]); i <= Integer.parseInt(run[3]); ++i) {
+					assertNull("the base is body text", runs.get(i)[1]);
+					text.append(runs.get(i)[0]);
+				}
+				assertEquals("base of " + ruby, base, text.toString());
+				return;
+			}
+		}
+		fail("no run holds " + ruby + ": " + values(runs));
+	}
+
+	private static String values(final List<String[]> runs) {
+		final StringBuilder b = new StringBuilder();
+		for (final String[] run : runs) {
+			b.append(run[0]).append('/').append(run[1]).append(' ');
+		}
+		return b.toString();
+	}
+
 	private CapturingResults run(final Map<String, String> extraProps, final String html) throws Exception {
 		final CapturingResults results = new CapturingResults();
 		final DirectSession session = (DirectSession) new DirectDriver().getSession(COPPER_URI, null);

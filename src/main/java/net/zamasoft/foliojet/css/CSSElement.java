@@ -120,6 +120,13 @@ public class CSSElement implements StructureElement {
 	public static final CSSElement ANON_TR = new CSSElement("tr");
 	public static final CSSElement ANON_TD = new CSSElement("td");
 
+	/**
+	 * The anonymous element of the box that holds an emphasis mark ({@code text-emphasis}) over one character
+	 * (StyleEventMachine). Like {@link #ANON}, but its own singleton so that output can tell the mark from the text
+	 * (the run kind of Paged SVG).
+	 */
+	public static final CSSElement ANON_EMPHASIS_MARK = new CSSElement((String)null);
+
 	/** An XML/HTML element. */
 	public final String uri, lName;
 

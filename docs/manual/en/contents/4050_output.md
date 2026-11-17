@@ -750,6 +750,18 @@ Ctrl+F and copying do not work when you open the plain SVG in a browser. The ori
 </p>
 </div>
 
+Text in page JSON that is not body text carries `kind`. Use it to decide what read-aloud reads, skips, or reads in place of other text.
+
+| `kind` | Text | Example handling in read-aloud |
+| --- | --- | --- |
+| (none) | Body text, including warichu | Read |
+| `ruby` | Ruby | Read in place of its base |
+| `emphasis` | Emphasis marks | Skip |
+| `margin` | Page margin boxes (running heads, page numbers) | Skip |
+| `footnote` | Footnotes in the footnote area | Read apart from the body |
+
+Ruby also carries `base`, the range `[first,last]` of indices in the same page's `text` that holds its base. Ruby on both sides of a base names the same base. The base of ruby inside a footnote or a page margin box is `footnote` or `margin`. The `<text>` elements of page SVGs carry the same value in `data-copper-kind`, and emphasis marks also carry `aria-hidden="true"`. A line that holds Arabic or similar script and is reordered for display is written as one text item, so ruby inside it is not a separate item.
+
 Images are returned before the first page that references them, and page SVGs and JSON are returned sequentially as pages are finalized.
 Shared WOFF2 is returned after the glyphs used throughout the document are determined, and `manifest.json` is returned
 as the final result. The receiver can therefore start retrieving page data in advance, but should begin

@@ -10,6 +10,7 @@ import net.zamasoft.pdfg2d.gc.image.GroupImageGC;
 import net.zamasoft.pdfg2d.gc.image.Image;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.Text;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 /**
  * A graphics context that forwards the same drawing operations to two GCs
@@ -74,6 +75,19 @@ class TeeGC implements GC {
 	public State beginTextReplacement(final String logicalText) throws GraphicsException {
 		final State a = this.primary.beginTextReplacement(logicalText);
 		final State b = this.secondary.beginTextReplacement(logicalText);
+		return () -> {
+			try {
+				a.close();
+			} finally {
+				b.close();
+			}
+		};
+	}
+
+	@Override
+	public State beginTextRole(final TextRole role) throws GraphicsException {
+		final State a = this.primary.beginTextRole(role);
+		final State b = this.secondary.beginTextRole(role);
 		return () -> {
 			try {
 				a.close();

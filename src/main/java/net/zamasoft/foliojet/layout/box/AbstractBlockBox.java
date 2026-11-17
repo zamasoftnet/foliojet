@@ -25,6 +25,7 @@ import net.zamasoft.foliojet.layout.util.LayoutUtils;
 import net.zamasoft.foliojet.layout.visitor.Visitor;
 import net.zamasoft.foliojet.layout.util.DebugFlags;
 import net.zamasoft.pdfg2d.gc.text.TextClip;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 /**
  * A block box implementation.
@@ -253,12 +254,29 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 		return textClip;
 	}
 
+	/**
+	 * The text role of this box's subtree: the body of a footnote, or the box that holds an emphasis mark
+	 * ({@link net.zamasoft.foliojet.css.CSSElement#ANON_EMPHASIS_MARK}); null otherwise.
+	 */
+	private TextRole textRole() {
+		if (this.params.element == net.zamasoft.foliojet.css.CSSElement.ANON_EMPHASIS_MARK) {
+			return TextRole.EMPHASIS;
+		}
+		return this.getPos() instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos ? TextRole.FOOTNOTE : null;
+	}
+
 	public void pushDrawSteps(PageBox pageBox, Drawer drawer, Visitor visitor, Shape clip, AffineTransform transform,
 			double contextX, double contextY, double x, double y, final Deque<DrawStep> worklist) {
 		x += this.offsetX;
 		y += this.offsetY;
 		assert !LayoutUtils.isNone(x);
 		assert !LayoutUtils.isNone(y);
+
+		// The text role of this box's subtree, popped by the step pushed first below, so after every child step
+		final TextRole textRole = this.textRole();
+		if (textRole != null) {
+			pageBox.pushTextRole(textRole);
+		}
 
 		transform = this.transform(transform, x, y);
 		drawer.adoptTransform(this.params, transform);
@@ -293,6 +311,9 @@ public abstract class AbstractBlockBox extends AbstractContainerBox {
 
 		final Shape absolutesClip = contextBox ? clip : null;
 		final double fx = x, fy = y;
+		if (textRole != null) {
+			worklist.push(w -> pageBox.popTextRole());
+		}
 		// Push onto the stack in reverse order to preserve the original execution order
 		// (floatings→flows→absolutes→endStruct).
 		worklist.push(w -> pageBox.endStruct(drawer, this.params.element, structCount, fx, fy));

@@ -24,6 +24,7 @@ import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.GlyphAdvances;
 import net.zamasoft.pdfg2d.gc.text.Text;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 /**
  * A graphics context for Paged SVG that bypasses Batik.
@@ -50,10 +51,87 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 	 */
 	private LineReplacement replacement;
 
+	/** Open text roles, innermost first ({@link #beginTextRole}). */
+	private final java.util.ArrayDeque<RoleScope> roles = new java.util.ArrayDeque<>();
+
+	/** One open text role. A {@link TextRole#RUBY} unit collects the page indices of its base and annotations. */
+	private static final class RoleScope {
+		final TextRole role;
+		int baseFirst = -1, baseLast = -1;
+		final java.util.List<Integer> annotations = new java.util.ArrayList<>(2);
+
+		RoleScope(final TextRole role) {
+			this.role = role;
+		}
+	}
+
+	@Override
+	public State beginTextRole(final TextRole role) throws GraphicsException {
+		final RoleScope scope = new RoleScope(role);
+		this.roles.push(scope);
+		return () -> {
+			if (!this.roles.removeFirstOccurrence(scope)) {
+				return;
+			}
+			if (role == TextRole.RUBY && scope.baseFirst >= 0) {
+				// Every annotation of the unit names the same base, even over and under ruby on both sides
+				for (final int annotation : scope.annotations) {
+					final PagedSVGResources.TextRun run = this.page.textRuns.get(annotation);
+					run.baseFrom = scope.baseFirst - annotation;
+					run.baseTo = scope.baseLast - annotation;
+				}
+			}
+		};
+	}
+
+	/**
+	 * The kind of the text drawn now (the page JSON's {@code kind}): the innermost open role that names one; null
+	 * for body text. The base of a ruby keeps the kind around the unit.
+	 */
+	private String kind() {
+		for (final RoleScope scope : this.roles) {
+			switch (scope.role) {
+			case RUBY_TEXT:
+				return "ruby";
+			case EMPHASIS:
+				return "emphasis";
+			case MARGIN:
+				return "margin";
+			case FOOTNOTE:
+				return "footnote";
+			default:
+				break;
+			}
+		}
+		return null;
+	}
+
+	/** Notes a run recorded at {@code index} as the base or an annotation of the innermost ruby unit. */
+	private void noteRubyPart(final int index) {
+		TextRole part = null;
+		for (final RoleScope scope : this.roles) {
+			if (scope.role == TextRole.RUBY) {
+				if (part == TextRole.RUBY_BASE) {
+					if (scope.baseFirst < 0) {
+						scope.baseFirst = index;
+					}
+					scope.baseLast = index;
+				} else if (part == TextRole.RUBY_TEXT) {
+					scope.annotations.add(index);
+				}
+				return;
+			}
+			if (part == null && (scope.role == TextRole.RUBY_BASE || scope.role == TextRole.RUBY_TEXT)) {
+				part = scope.role;
+			}
+		}
+	}
+
 	private static final class LineReplacement {
 		final String logicalText;
 		boolean labelled;
 		String font;
+		String kind;
 		double fontSize;
 		AffineTransform transform;
 		double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
@@ -75,7 +153,7 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			this.replacement = null;
 			if (scope.font != null) {
 				this.page.textRuns.add(new PagedSVGResources.TextRun(scope.logicalText, scope.font, scope.fontSize,
-						scope.transform, scope.minX, scope.minY, scope.maxX, scope.maxY));
+						scope.transform, scope.minX, scope.minY, scope.maxX, scope.maxY, scope.kind));
 			}
 		};
 	}
@@ -88,8 +166,18 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 	private void writeSemanticAttributes(final SVGWriter w, final String sourceText, final boolean defaultLabel)
 			throws IOException {
 		final LineReplacement scope = this.replacement;
+		final String kind = this.kind();
+		if (kind != null) {
+			w.attr("data-copper-kind", kind);
+		}
 		if (scope == null) {
-			if (defaultLabel) {
+			if ("emphasis".equals(kind)) {
+				// An emphasis mark is decoration: not read, but its character stays recoverable
+				w.attr("aria-hidden", "true");
+				if (defaultLabel) {
+					w.attr("data-copper-text", sourceText);
+				}
+			} else if (defaultLabel) {
 				w.attr("role", "img");
 				w.attr("aria-label", sourceText);
 				w.attr("data-copper-text", sourceText);
@@ -111,11 +199,17 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 			final double minY, final double maxX, final double maxY) {
 		final LineReplacement scope = this.replacement;
 		if (scope == null) {
+			final int index = this.page.textRuns.size();
 			this.page.textRuns.add(new PagedSVGResources.TextRun(text, font, size,
-					new AffineTransform(this.currentTransform()), minX, minY, maxX, maxY));
+					new AffineTransform(this.currentTransform()), minX, minY, maxX, maxY, this.kind()));
+			if (!this.roles.isEmpty()) {
+				this.noteRubyPart(index);
+			}
 			return;
 		}
+		// A ruby inside a reordered bidi line goes into the line's one run, as before (no base to tie it to)
 		if (scope.font == null) {
+			scope.kind = this.kind();
 			scope.font = font;
 			scope.fontSize = size;
 			scope.transform = new AffineTransform(this.currentTransform());
@@ -294,8 +388,12 @@ final class DirectPagedSVGGC extends DirectSVGGC {
 		for (final PagedSVGResources.TextRun run : fragment.textRuns()) {
 			final AffineTransform at = new AffineTransform(ctm);
 			at.concatenate(new AffineTransform(run.transform));
-			this.page.textRuns.add(new PagedSVGResources.TextRun(run.text, run.font, run.fontSize, at, run.minX,
-					run.minY, run.maxX, run.maxY));
+			final PagedSVGResources.TextRun moved = new PagedSVGResources.TextRun(run.text, run.font, run.fontSize, at,
+					run.minX, run.minY, run.maxX, run.maxY, run.kind);
+			// Offsets, so they still point at the base: the layer's runs move into the page in one piece
+			moved.baseFrom = run.baseFrom;
+			moved.baseTo = run.baseTo;
+			this.page.textRuns.add(moved);
 		}
 	}
 

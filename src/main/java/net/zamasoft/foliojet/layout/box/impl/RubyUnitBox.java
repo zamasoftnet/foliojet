@@ -29,6 +29,7 @@ import net.zamasoft.pdfg2d.gc.font.FontListMetrics;
 import net.zamasoft.pdfg2d.gc.font.FontStyle;
 import net.zamasoft.pdfg2d.gc.paint.Color;
 import net.zamasoft.pdfg2d.gc.text.TextImpl;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 /**
  * One ruby unit (annotated-text approach, added 2026-07-25;
@@ -474,7 +475,8 @@ public class RubyUnitBox extends InlineBlockBox {
 
 		public void innerDraw(final GC gc, final double x, final double y) throws GraphicsException {
 			final RubyUnitBox box = this.box;
-			try (final var gcState = gc.begin()) {
+			// One ruby unit: the order of base and annotations differs by writing mode, so the GC ties them when it closes
+			try (final var unit = gc.beginTextRole(TextRole.RUBY); final var gcState = gc.begin()) {
 				if (box.params.writingModeVariant != WritingModeVariant.NORMAL) {
 					gc.transform(SidewaysGeometry.runTransform(box.params.writingModeVariant, x, y,
 							box.baseAscent, box.baseDescent, box.getHeight()));
@@ -483,20 +485,20 @@ public class RubyUnitBox extends InlineBlockBox {
 						if (annotation.over) {
 							this.drawRun(gc, annotation.texts, annotation.color,
 									box.contentShift + box.annotationOrigin,
-									-box.baseAscent - over - annotation.descent, false);
+									-box.baseAscent - over - annotation.descent, false, TextRole.RUBY_TEXT);
 							over += annotation.ascent + annotation.descent;
 						} else {
 							this.drawRun(gc, annotation.texts, annotation.color,
 									box.contentShift + box.annotationOrigin,
-									box.baseDescent + under + annotation.ascent, false);
+									box.baseDescent + under + annotation.ascent, false, TextRole.RUBY_TEXT);
 							under += annotation.ascent + annotation.descent;
 						}
 					}
-					this.drawRun(gc, box.baseTexts, box.baseColor, box.contentShift, 0, false);
+					this.drawRun(gc, box.baseTexts, box.baseColor, box.contentShift, 0, false, TextRole.RUBY_BASE);
 				} else if (box.flow.isVertical()) {
 					// Vertical writing: over=right, under=left. Stack multiple levels outward.
 					final double baseX = x + box.baseDescent;
-					this.drawRun(gc, box.baseTexts, box.baseColor, baseX, y + box.contentShift, true);
+					this.drawRun(gc, box.baseTexts, box.baseColor, baseX, y + box.contentShift, true, TextRole.RUBY_BASE);
 					double over = 0, under = 0;
 					for (final RubyAnnotation annotation : box.annotations) {
 						final double rubyX;
@@ -508,7 +510,7 @@ public class RubyUnitBox extends InlineBlockBox {
 							under += annotation.ascent + annotation.descent;
 						}
 						this.drawRun(gc, annotation.texts, annotation.color, rubyX,
-								y + box.contentShift + box.annotationOrigin, true);
+								y + box.contentShift + box.annotationOrigin, true, TextRole.RUBY_TEXT);
 					}
 				} else {
 					// Horizontal writing: over=above, under=below. Place inter-character vertically on the right.
@@ -518,30 +520,30 @@ public class RubyUnitBox extends InlineBlockBox {
 							final double rubyX = x + box.contentShift + box.getWidth() + annotation.descent;
 							final double rubyY = y + Math.max(0,
 									(box.baseAscent + box.baseDescent - annotation.advance) / 2.0);
-							this.drawRun(gc, annotation.texts, annotation.color, rubyX, rubyY, true);
+							this.drawRun(gc, annotation.texts, annotation.color, rubyX, rubyY, true, TextRole.RUBY_TEXT);
 						} else if (annotation.over) {
 							this.drawRun(gc, annotation.texts, annotation.color,
 									x + box.contentShift + box.annotationOrigin,
-									y - over - annotation.descent, false);
+									y - over - annotation.descent, false, TextRole.RUBY_TEXT);
 							over += annotation.ascent + annotation.descent;
 						} else {
 							this.drawRun(gc, annotation.texts, annotation.color,
 									x + box.contentShift + box.annotationOrigin,
-									y + box.baseAscent + box.baseDescent + under + annotation.ascent, false);
+									y + box.baseAscent + box.baseDescent + under + annotation.ascent, false, TextRole.RUBY_TEXT);
 							under += annotation.ascent + annotation.descent;
 						}
 					}
-					this.drawRun(gc, box.baseTexts, box.baseColor, x + box.contentShift, y + box.baseAscent, false);
+					this.drawRun(gc, box.baseTexts, box.baseColor, x + box.contentShift, y + box.baseAscent, false, TextRole.RUBY_BASE);
 				}
 			}
 		}
 
 		private void drawRun(final GC gc, final TextImpl[] texts, final Color color, final double x, final double y,
-				final boolean vertical) throws GraphicsException {
+				final boolean vertical, final TextRole role) throws GraphicsException {
 			if (texts.length == 0) {
 				return;
 			}
-			try (final var gcState = gc.begin()) {
+			try (final var part = gc.beginTextRole(role); final var gcState = gc.begin()) {
 				if (color != null) {
 					gc.setFillPaint(color);
 				}

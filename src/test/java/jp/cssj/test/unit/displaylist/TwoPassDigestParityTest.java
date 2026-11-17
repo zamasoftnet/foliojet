@@ -423,7 +423,7 @@ public final class TwoPassDigestParityTest extends TestCase {
 		private static final String PDF = "net.zamasoft.pdfg2d.";
 		private static final String CSS = "net.zamasoft.foliojet.css.value.";
 		private static final Map<String, String> DRAWABLE_FIELDS = Map.ofEntries(
-				Map.entry(DRAW + "AbstractDrawable", "clip pageBox opacity transform blendMode filter"),
+				Map.entry(DRAW + "AbstractDrawable", "clip pageBox opacity transform blendMode filter textRole"),
 				Map.entry(DRAW + "BackgroundDrawable", "background width height"),
 				Map.entry(DRAW + "BackgroundBorderDrawable", "background border padding width height"),
 				Map.entry(DRAW + "AbsoluteRectFrameDrawable", "frame width height textClip"),
@@ -597,6 +597,9 @@ public final class TwoPassDigestParityTest extends TestCase {
 				}
 				case "off", "len" -> { /* contents is already recorded as the value sequence for the drawing interval */ }
 				case "structRef" -> structure(p, v);
+				// What the text is to reading aids in Paged SVG (run kinds), not what is drawn: left out, so a change of it
+				// leaves every digest as it was. DirectPagedSvgTest checks the kinds.
+				case "textRole" -> { }
 				case "lineScope" -> require(v == null, "D7: 描画中の一時 scope を観測した");
 				case "action" -> { /* retain the closure's processing targets in digestValues */ }
 				case "box" -> rubyOrWarichu(p, (IBox) v);

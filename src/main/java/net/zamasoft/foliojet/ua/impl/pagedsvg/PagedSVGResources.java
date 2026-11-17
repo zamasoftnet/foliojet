@@ -104,14 +104,28 @@ final class PagedSVGResources {
 	}
 
 	static final class TextRun {
+		/** {@link #baseFrom} and {@link #baseTo} of a run that is not a ruby tied to its base. */
+		static final int NO_BASE = Integer.MIN_VALUE;
+
 		final String text;
 		final String font;
 		final double fontSize;
 		final double[] transform;
 		final double minX, minY, maxX, maxY;
+		/**
+		 * The kind of text, {@code ruby}, {@code emphasis}, {@code margin} or {@code footnote}, for reading aids; null
+		 * for body text (the page JSON's {@code kind}).
+		 */
+		final String kind;
+		/**
+		 * For a ruby, its base runs on the same page as offsets from this run's own index (the page JSON's
+		 * {@code base}). Offsets, not indices, so they survive moving a layer's runs into the page in one piece.
+		 */
+		int baseFrom = NO_BASE, baseTo = NO_BASE;
 
 		TextRun(final String text, final String font, final double fontSize, final AffineTransform transform,
-				final double minX, final double minY, final double maxX, final double maxY) {
+				final double minX, final double minY, final double maxX, final double maxY, final String kind) {
+			this.kind = kind;
 			this.text = text;
 			this.font = font;
 			this.fontSize = fontSize;
@@ -173,7 +187,14 @@ final class PagedSVGResources {
 					json.append(JsonText.number(run.transform[j]));
 				}
 				json.append("],\"bounds\":[").append(JsonText.number(run.minX)).append(',').append(JsonText.number(run.minY))
-						.append(',').append(JsonText.number(run.maxX)).append(',').append(JsonText.number(run.maxY)).append("]}");
+						.append(',').append(JsonText.number(run.maxX)).append(',').append(JsonText.number(run.maxY)).append(']');
+				if (run.kind != null) {
+					json.append(",\"kind\":").append(JsonText.quoted(run.kind));
+				}
+				if (run.baseFrom != TextRun.NO_BASE) {
+					json.append(",\"base\":[").append(i + run.baseFrom).append(',').append(i + run.baseTo).append(']');
+				}
+				json.append('}');
 			}
 			json.append("\n  ],\n  \"links\":[");
 			for (int i = 0; i < this.links.size(); ++i) {

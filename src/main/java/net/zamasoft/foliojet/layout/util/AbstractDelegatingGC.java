@@ -13,6 +13,7 @@ import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 import net.zamasoft.pdfg2d.gc.paint.Paint;
 import net.zamasoft.pdfg2d.gc.text.Text;
 import net.zamasoft.pdfg2d.gc.text.TextClip;
+import net.zamasoft.pdfg2d.gc.text.TextRole;
 
 /**
  * Base {@link GC} that forwards every operation to {@link #delegate()}
@@ -56,6 +57,11 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	@Override
 	public State beginTextReplacement(final String logicalText) throws GraphicsException {
 		return this.gc.beginTextReplacement(logicalText);
+	}
+
+	@Override
+	public State beginTextRole(final TextRole role) throws GraphicsException {
+		return this.gc.beginTextRole(role);
 	}
 
 	@Override

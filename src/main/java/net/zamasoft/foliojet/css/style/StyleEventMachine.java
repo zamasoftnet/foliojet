@@ -1440,7 +1440,7 @@ final class StyleEventMachine {
 						eb.set(LineHeight.INFO, EM_1_414);
 					}
 					this.emitter._startStyle(eb);
-					final CSSStyle et = eb.inheritAnonStyle(CSSElement.ANON);
+					final CSSStyle et = eb.inheritAnonStyle(CSSElement.ANON_EMPHASIS_MARK);
 					et.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
 					et.set(CSSPosition.INFO, PositionValue.ABSOLUTE_VALUE);
 					et.set(TextIndent.INFO, AbsoluteLengthValue.ZERO);
