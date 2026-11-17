@@ -2320,7 +2320,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// right of the paper (x=295). Without the 39pt width T0 moves 122pt left onto the paper. 19124 sets it at the
 			// same place.
 			new IndividualExclusion(125_805_228, "fit-v1", 198_299_510,
-					"作者の溢れ: vertical-rlの200x200ptの紙の右端のvertical-lrのdivに、width:39pt(ブロックの長さ)のinline-block。中のvertical-rlのdivに幅161ptのinline-block。ブロックの終わり(右)へ溢れ、T0はその右端に寄って紙の右の外(x=295、39ptを外すと122pt左へ動いて紙に載る、19124も同じ)", "2026-11-17"));
+					"作者の溢れ: vertical-rlの200x200ptの紙の右端のvertical-lrのdivに、width:39pt(ブロックの長さ)のinline-block。中のvertical-rlのdivに幅161ptのinline-block。ブロックの終わり(右)へ溢れ、T0はその右端に寄って紙の右の外(x=295、39ptを外すと122pt左へ動いて紙に載る、19124も同じ)", "2026-11-17"),
+			// Triage §237, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): a horizontal
+			// row-reverse nowrap flex container 131pt wide has a column-count:2 item whose div is 66pt wide, so the item
+			// is at least 146pt and the line runs out at the left; every word lands left of the paper (T0 at x=-15);
+			// 19124 kept it on the paper. The common test does not read how the column count widens an item (as in §225).
+			new IndividualExclusion(126_440_564, "fit-v1", 781_791_424,
+					"逆向きのflexの行の溢れ: 幅131ptの横組みのrow-reverse・nowrapのflexに、幅66ptのdivを持つcolumn-count:2の項目(最小146pt)とfont-size:42ptの項目。行が左へ溢れ字が全部紙の左の外(T0はx=-15、19124は紙の中)", "2026-11-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
