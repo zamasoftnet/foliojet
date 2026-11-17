@@ -2295,7 +2295,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// runs out at the body's block end, the left, and the word lands left of the paper (T0 at x=-10). 19124
 			// sets it at the same place.
 			new IndividualExclusion(120_716_790, "fit-v1", 1_283_776_915,
-					"作者の溢れ: vertical-rlの60pt四方の紙(余白0)の右端のvertical-lrのdivに、margin:7pt・padding:5ptの中の幅58ptのinline-blockで計82pt。bodyのブロックの終わり(左)へ溢れて字が紙の左の外(T0はx=-10、19124も同じ)", "2026-11-17"));
+					"作者の溢れ: vertical-rlの60pt四方の紙(余白0)の右端のvertical-lrのdivに、margin:7pt・padding:5ptの中の幅58ptのinline-blockで計82pt。bodyのブロックの終わり(左)へ溢れて字が紙の左の外(T0はx=-10、19124も同じ)", "2026-11-17"),
+			// Triage §233, the author's overflow: on vertical-rl 300x150pt paper a vertical-lr div sits at the right
+			// edge and holds a div 33pt wide (its block size) with a vertical-rl div 122pt wide in it. That runs out at
+			// the vertical-lr block end, the right, and its lines start at its own right edge, right of the paper (T0
+			// at x=369). 19124 sets them at the same place.
+			new IndividualExclusion(123_444_783, "fit-v1", 1_657_519_410,
+					"作者の溢れ: vertical-rlの300x150ptの紙の右端のvertical-lrのdivに、width:33pt(ブロックの長さ)のdiv。中はwidth:122ptのvertical-rlのdiv。ブロックの終わり(右)へ溢れ、行はその右端から並んで紙の右の外(T0はx=369、19124も同じ)", "2026-11-17"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
