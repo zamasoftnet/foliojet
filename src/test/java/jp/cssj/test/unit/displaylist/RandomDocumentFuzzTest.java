@@ -2326,7 +2326,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// is at least 146pt and the line runs out at the left; every word lands left of the paper (T0 at x=-15);
 			// 19124 kept it on the paper. The common test does not read how the column count widens an item (as in §225).
 			new IndividualExclusion(126_440_564, "fit-v1", 781_791_424,
-					"逆向きのflexの行の溢れ: 幅131ptの横組みのrow-reverse・nowrapのflexに、幅66ptのdivを持つcolumn-count:2の項目(最小146pt)とfont-size:42ptの項目。行が左へ溢れ字が全部紙の左の外(T0はx=-15、19124は紙の中)", "2026-11-18"));
+					"逆向きのflexの行の溢れ: 幅131ptの横組みのrow-reverse・nowrapのflexに、幅66ptのdivを持つcolumn-count:2の項目(最小146pt)とfont-size:42ptの項目。行が左へ溢れ字が全部紙の左の外(T0はx=-15、19124は紙の中)", "2026-11-18"),
+			// Triage §238, the author's overflow: on vertical-rl 300x150pt paper a vertical-lr div sits at the right
+			// edge and holds a float 89pt wide (its block size) with a vertical-rl box in it that holds a table 139pt wide,
+			// then a div at least 80pt wide. That runs out at the vertical-lr block end, the right, and every word lands
+			// right of the paper (T3 at x=336.8). Without the 89pt width everything moves 174pt left onto the paper. 19124
+			// sets every word off the paper too.
+			new IndividualExclusion(126_729_292, "fit-v1", 1_145_321_508,
+					"作者の溢れ: vertical-rlの300x150ptの紙の右端のvertical-lrのdivに、width:89pt(ブロックの長さ)のfloat。中に幅139ptの表を持つvertical-rlの箱と幅80pt以上のdiv。ブロックの終わり(右)へ溢れ、字が全部紙の右の外(T3はx=336.8、89ptを外すと174pt左へ動いて紙に載る、19124も紙の外)", "2026-11-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
