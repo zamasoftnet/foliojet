@@ -121,6 +121,16 @@ final class IntrinsicMeasurer {
 	 */
 	private double lineFrame = 0, pageFrame = 0;
 
+	/**
+	 * The line-axis advance of the floats beside the entered multicols, scaled as {@link #lineFrame}: added to the
+	 * max-content sizes only (2026-11-18). A multicol is a formatting-context root, so the floats before it lie beside it
+	 * once, and the lines in its columns start with no float advance. Left in the advances, they were counted once in
+	 * every column: a 300pt float beside a four-column multicol made a shrink-to-fit box 1286pt wide where Chrome makes it
+	 * 386pt, and a grid's max-content track took the column off the paper (fit seed 130904989, triage §241). Floats do not
+	 * add to the min-content size (one goes above the other), so this is not in {@link #lineFrame}.
+	 */
+	private double floatFrame = 0;
+
 	private LineBreak toLineFeed = null;
 
 	private final List<IBox> inlineStack = new ArrayList<IBox>();
@@ -229,10 +239,19 @@ final class IntrinsicMeasurer {
 			frameAdd += flowBox.getBlockParams().columns.gap * (flowBox.getColumnCount() - 1);
 		}
 		final double lineSize = this.lineFrame + flowBox.getLineExtent(params.flow) * this.columnCount;
+		// The floats before a multicol lie beside it, once, not beside the lines of each column (see floatFrame)
+		final double floatAdd = flowBox.getColumnCount() > 1
+				? (this.maxStartFloatAdvance + this.maxEndFloatAdvance) * this.columnCount
+				: 0;
 		// Save the values before entry and the size this flow itself contributes (used by endFlow).
 		this.flowSizeStack.add(new double[] { this.minLineSize, this.maxLineSize, lineSize, this.maxStartFloatAdvance,
-				this.maxEndFloatAdvance });
+				this.maxEndFloatAdvance, floatAdd });
 		this.lineFrame += frameAdd * this.columnCount;
+		if (floatAdd > 0) {
+			this.floatFrame += floatAdd;
+			this.maxStartFloatAdvance = 0;
+			this.maxEndFloatAdvance = 0;
+		}
 		this.pageFrame += flowBox.getFrame().getFramePageExtent(params.flow);
 		this.stackLine();
 		this.stackedPageStack.add(this.stackedPage);
@@ -338,7 +357,7 @@ final class IntrinsicMeasurer {
 				final double cap = this.lineFrame + (Math.max(0, maxSpec.getLineLength(selfFlow) - bb)
 						+ flowBox.getFrame().getFrameLineExtent(selfFlow)) * this.columnCount;
 				this.minLineSize = Math.max(entered[0], Math.min(this.minLineSize, cap));
-				this.maxLineSize = Math.max(entered[1], Math.min(this.maxLineSize, cap));
+				this.maxLineSize = Math.max(entered[1], Math.min(this.maxLineSize, cap + this.floatFrame));
 			}
 		}
 		{
@@ -359,6 +378,7 @@ final class IntrinsicMeasurer {
 				this.minLineSize = Math.max(this.minLineSize, outer);
 			}
 		}
+		this.floatFrame -= entered[5];
 
 		assert !LayoutUtils.isNone(this.lineFrame);
 
@@ -446,7 +466,7 @@ final class IntrinsicMeasurer {
 			minLineAxis += this.lineFrame;
 
 			maxLineAxis *= this.columnCount;
-			maxLineAxis += this.lineFrame;
+			maxLineAxis += this.lineFrame + this.floatFrame;
 
 			assert !LayoutUtils.isNone(minLineAxis);
 			if (minLineAxis > this.minLineSize) {
@@ -524,7 +544,7 @@ final class IntrinsicMeasurer {
 				maxLineAxis = xmaxLineAxis;
 			}
 			maxLineAxis *= this.columnCount;
-			maxLineAxis += this.lineFrame;
+			maxLineAxis += this.lineFrame + this.floatFrame;
 			if (maxLineAxis > this.maxLineSize) {
 				this.maxLineSize = maxLineAxis;
 			}
@@ -565,7 +585,7 @@ final class IntrinsicMeasurer {
 			// width: min-content flex root with min-width: max-content and max-width: 40px came out 40px, Chrome its
 			// content's 120px); its parent still takes them clamped
 			this.rootContent = new double[] { Math.max(this.minLineSize, min * this.columnCount + this.lineFrame),
-					Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame) };
+					Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame + this.floatFrame) };
 		}
 		final boolean wrapped = box != null && wrapped(this.builder.flowHolding(box));
 		// An element in a neutral wrapper that is this builder's root (shrink-to-fit for its intrinsic keywords) gives
@@ -599,7 +619,7 @@ final class IntrinsicMeasurer {
 			}
 		}
 		this.minLineSize = Math.max(this.minLineSize, min * this.columnCount + this.lineFrame);
-		this.maxLineSize = Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame);
+		this.maxLineSize = Math.max(this.maxLineSize, max * this.columnCount + this.lineFrame + this.floatFrame);
 	}
 
 	/**
@@ -640,7 +660,7 @@ final class IntrinsicMeasurer {
 			this.orthogonalMinLine = Math.max(this.orthogonalMinLine,
 					tableSizes.minContent() * this.columnCount + this.lineFrame);
 			this.orthogonalMaxLine = Math.max(this.orthogonalMaxLine,
-					tableSizes.maxContent() * this.columnCount + this.lineFrame);
+					tableSizes.maxContent() * this.columnCount + this.lineFrame + this.floatFrame);
 			return;
 		}
 		// As before, do not clamp table widths; the table algorithm owns them.
@@ -767,7 +787,7 @@ final class IntrinsicMeasurer {
 		}
 		maxLineAxis = this.maxStartFloatAdvance + this.maxEndFloatAdvance;
 		maxLineAxis *= this.columnCount;
-		maxLineAxis += this.lineFrame;
+		maxLineAxis += this.lineFrame + this.floatFrame;
 		if (maxLineAxis > this.maxLineSize) {
 			this.maxLineSize = maxLineAxis;
 		}
@@ -806,7 +826,8 @@ final class IntrinsicMeasurer {
 			// One-line minimum thickness is not the child's actual height; track it for layout remeasurement (2026-10-05).
 			this.orthogonalContent = true;
 			this.orthogonalMinLine = Math.max(this.orthogonalMinLine, minLine * this.columnCount + this.lineFrame);
-			this.orthogonalMaxLine = Math.max(this.orthogonalMaxLine, maxLine * this.columnCount + this.lineFrame);
+			this.orthogonalMaxLine = Math.max(this.orthogonalMaxLine,
+					maxLine * this.columnCount + this.lineFrame + this.floatFrame);
 			this.minPageSize = Math.max(this.minPageSize, minPage + this.pageFrame);
 			return;
 		}
@@ -814,7 +835,7 @@ final class IntrinsicMeasurer {
 		this.minLineSize = Math.max(this.minLineSize,
 				minLine * this.columnCount + this.lineFrame);
 		this.maxLineSize = Math.max(this.maxLineSize,
-				maxLine * this.columnCount + this.lineFrame);
+				maxLine * this.columnCount + this.lineFrame + this.floatFrame);
 		this.minPageSize = Math.max(this.minPageSize, minPage + this.pageFrame);
 		this.stackLine();
 		this.stackedPage += childSizes.maxContentPage() + framePage;
@@ -1058,7 +1079,7 @@ final class IntrinsicMeasurer {
 			double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis
 					- this.trailingSpace;
 			maxLineSize *= this.columnCount;
-			maxLineSize += this.lineFrame;
+			maxLineSize += this.lineFrame + this.floatFrame;
 			if (maxLineSize > this.maxLineSize) {
 				this.maxLineSize = maxLineSize;
 			}
@@ -1088,7 +1109,7 @@ final class IntrinsicMeasurer {
 		double maxLineSize = this.textIndent + this.maxStartFloatAdvance + this.maxEndFloatAdvance + this.lineAxis
 				- this.trailingSpace;
 		maxLineSize *= this.columnCount;
-		maxLineSize += this.lineFrame;
+		maxLineSize += this.lineFrame + this.floatFrame;
 		if (maxLineSize > this.maxLineSize) {
 			this.maxLineSize = maxLineSize;
 		}

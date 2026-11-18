@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="120pt"?>
+<?jp.cssj.property name="output.page-height" value="400pt"?>
+<html><head><meta charset="utf-8" />
+<title>float beside a multicol in a max-content track</title>
+<style>
+@page{margin:5pt}
+body{margin:0;font:normal 12pt/1.2 serif;writing-mode:vertical-rl}
+p,div{margin:0;padding:0}
+</style></head>
+<body><div style="display:grid;grid-template-columns:max-content;">
+<div>
+<div style="float:right;"><p><ruby>T7 T8 T9 T10 T11 T12 T13 T14 T15 T16 T17 T18 T19 T20<rt>T21 T22 T23 T24 T25 T26 T27 T28 T29 T30 T31 T32 T33 T34 T35 T36</rt></ruby></p></div>
+<div style="column-count:4;column-gap:2pt"><p>T37</p><p>T38</p><p>T39</p></div>
+</div>
+</div>
+</body></html>
