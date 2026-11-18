@@ -2339,7 +2339,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// than the div, so T0 starts 2pt past the div's right edge, right of the paper (x=121). With the div 60pt wide
 			// or without its width T0 lands on the paper. 19124 sets it at the same x.
 			new IndividualExclusion(128_619_153, "fit-v1", 2_013_655_116,
-					"作者の溢れ: vertical-rlの120x400ptの紙の右端のhorizontal-tbのdivに、幅28ptのlist-itemのdiv。中のulの既定の左の余白(40px、30pt)がdivより広く、T0はdivの右端を越えて紙の右の外(x=121、幅を60ptにするか外すと紙に載る、19124も同じx)", "2026-11-18"));
+					"作者の溢れ: vertical-rlの120x400ptの紙の右端のhorizontal-tbのdivに、幅28ptのlist-itemのdiv。中のulの既定の左の余白(40px、30pt)がdivより広く、T0はdivの右端を越えて紙の右の外(x=121、幅を60ptにするか外すと紙に載る、19124も同じx)", "2026-11-18"),
+			// Triage §240, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): in a
+			// three-column multicol a horizontal row-reverse nowrap flex container is width:min-content but max-width:90%
+			// of the 183.7pt column, 165.3pt; its items are at least 181pt and 150pt, so the 331pt line runs out at the
+			// left and every word lands left of the paper (T0 at x=-15.7); 19124 kept it on the paper. The common test
+			// does not read width:min-content or a percentage maximum against a column.
+			new IndividualExclusion(130_123_440, "fit-v1", 31_270_046,
+					"逆向きのflexの行の溢れ: 3段の段組の中の横組みのrow-reverse・nowrapのflex。width:min-contentだがmax-width:90%で段の幅183.7ptの165.3pt。項目は最小181ptと150ptで、331ptの行が左へ溢れ字が全部紙の左の外(T0はx=-15.7、19124は紙の中)", "2026-11-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
