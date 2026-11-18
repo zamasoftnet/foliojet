@@ -2354,7 +2354,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// the wrap-reverse lines out before the box (right, on the paper), which on paper of the same direction
 			// would drop them, so the rule stays.
 			new IndividualExclusion(131_180_778, "fit-v1", 573_363_259,
-					"作者の溢れ(逆進行の箱): vertical-lrの200ptの紙にvertical-rlのwidth:84ptのflex(row・wrap-reverse)。69ptの画像と幅104ptの表を持つ項目の行が箱より広く、ブロックの終わり(左)へ溢れ字が全部紙の左の外(T0はx=-26、19124も同じ。Chromeは箱の前の右へ溢れさせ紙の中)", "2026-11-18"));
+					"作者の溢れ(逆進行の箱): vertical-lrの200ptの紙にvertical-rlのwidth:84ptのflex(row・wrap-reverse)。69ptの画像と幅104ptの表を持つ項目の行が箱より広く、ブロックの終わり(左)へ溢れ字が全部紙の左の外(T0はx=-26、19124も同じ。Chromeは箱の前の右へ溢れさせ紙の中)", "2026-11-18"),
+			// Triage §243, two reversed flex lines that cannot fit (user decision of 2026-11-12, triage §206), as §225: a
+			// row-reverse nowrap flex container that sets no length, the body's only element, has an item whose multicol
+			// is its columns times an inline-block long. On 200x200pt horizontal paper three columns around 146pt make
+			// 464pt and every word lands left of the paper (T0 at x=-264); on vertical-lr 300x150pt paper two columns
+			// around 77pt make 161pt against 130pt and every word lands above it (T0 at y=-31). 19124 kept both on the
+			// paper; Chrome prints nothing of either (T0 at x=-86, y=-103). The common test reads neither the body's
+			// length for a container that sets none outside a multicol nor a multicol's columns.
+			new IndividualExclusion(134_285_126, "fit-v1", 1_072_125_673,
+					"逆向きのflexの行の溢れ: 200pt四方の横組みの紙に長さを指定しないrow-reverse・nowrapのflex。幅146ptのinline-blockを持つ3段の段組の項目が464ptで、行が左へ溢れ字が全部紙の左の外(T0はx=-264、19124は紙の中。Chromeもx=-86で紙の外)", "2026-11-19"),
+			new IndividualExclusion(134_429_050, "fit-v1", 1_709_963_973,
+					"逆向きのflexの行の溢れ: vertical-lrの300x150ptの紙に長さを指定しないrow-reverse・nowrapのflex。高さ77ptのinline-blockを持つ2段の段組の項目が161ptで行の130ptに入らず、上へ溢れ字が全部紙の上の外(T0はy=-31、19124は紙の中。Chromeもy=-103で紙の外)", "2026-11-19"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
