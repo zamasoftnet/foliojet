@@ -2346,7 +2346,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// left and every word lands left of the paper (T0 at x=-15.7); 19124 kept it on the paper. The common test
 			// does not read width:min-content or a percentage maximum against a column.
 			new IndividualExclusion(130_123_440, "fit-v1", 31_270_046,
-					"逆向きのflexの行の溢れ: 3段の段組の中の横組みのrow-reverse・nowrapのflex。width:min-contentだがmax-width:90%で段の幅183.7ptの165.3pt。項目は最小181ptと150ptで、331ptの行が左へ溢れ字が全部紙の左の外(T0はx=-15.7、19124は紙の中)", "2026-11-18"));
+					"逆向きのflexの行の溢れ: 3段の段組の中の横組みのrow-reverse・nowrapのflex。width:min-contentだがmax-width:90%で段の幅183.7ptの165.3pt。項目は最小181ptと150ptで、331ptの行が左へ溢れ字が全部紙の左の外(T0はx=-15.7、19124は紙の中)", "2026-11-18"),
+			// Triage §242, the author's overflow in an opposite-progression box: on vertical-lr paper a vertical-rl
+			// width:84pt flex (row, wrap-reverse) holds a 69pt image and an item whose 104pt table is wider than the box.
+			// Lines that do not fit run on toward the box's block end, as everywhere along the page axis (print keeps
+			// them); here that end is left of the paper (T0 at x=-26, the image at -101), the same in 19124. Chrome lays
+			// the wrap-reverse lines out before the box (right, on the paper), which on paper of the same direction
+			// would drop them, so the rule stays.
+			new IndividualExclusion(131_180_778, "fit-v1", 573_363_259,
+					"作者の溢れ(逆進行の箱): vertical-lrの200ptの紙にvertical-rlのwidth:84ptのflex(row・wrap-reverse)。69ptの画像と幅104ptの表を持つ項目の行が箱より広く、ブロックの終わり(左)へ溢れ字が全部紙の左の外(T0はx=-26、19124も同じ。Chromeは箱の前の右へ溢れさせ紙の中)", "2026-11-18"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
