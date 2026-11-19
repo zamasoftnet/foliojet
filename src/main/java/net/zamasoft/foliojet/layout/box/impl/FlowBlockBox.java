@@ -578,6 +578,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					this.height = this.aspectRatioLineExtent(definite);
 				}
 			}
+			// Auto margins share out the room within an outer extent fixed for the restyle (see the horizontal branch)
+			final double marginLine = LayoutUtils.isNone(this.restyleLineHeight) ? lineSize : this.restyleLineHeight;
 			marginTop = marginBottom = 0;
 			for (int state = 0; state < 2; ++state) {
 				if (!LayoutUtils.isNone(this.height)) {
@@ -588,7 +590,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							: amargin.top;
 					marginBottom = margin.getBottomType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
 							: amargin.bottom;
-					final double autoRemainder = lineSize - this.height - this.frame.getFrameHeight();
+					final double autoRemainder = marginLine - this.height - this.frame.getFrameHeight();
 					if (autoRemainder < 0 && (LayoutUtils.isNone(marginTop) || LayoutUtils.isNone(marginBottom))) {
 						// A box longer than its containing block aligns to the start, as in horizontal writing below
 						// (2026-10-27: the auto margin went negative and put the box's start above the paper; found by the
@@ -597,15 +599,15 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 						marginBottom = LayoutUtils.isNone(marginBottom) ? 0 : marginBottom;
 					} else if (LayoutUtils.isNone(marginTop) && LayoutUtils.isNone(marginBottom)) {
 						// Make the top and bottom margins equal
-						marginTop = marginBottom = (lineSize - this.height - this.frame.getFrameHeight()) / 2.0;
+						marginTop = marginBottom = (marginLine - this.height - this.frame.getFrameHeight()) / 2.0;
 					} else if (LayoutUtils.isNone(marginTop)) {
 						// Top margin is undetermined
-						marginTop = lineSize - this.height - this.frame.getFrameHeight();
+						marginTop = marginLine - this.height - this.frame.getFrameHeight();
 					} else if (LayoutUtils.isNone(marginBottom)) {
 						// Bottom margin is undetermined
 						// (2026-10-27: took the undetermined margin for the height since 2026-05, so a margin-inline-end: auto
 						// block of vertical writing drew its frame -1.7e308pt high; found by the sweep's writing-mode mirror check)
-						marginBottom = lineSize - this.height - this.frame.getFrameHeight();
+						marginBottom = marginLine - this.height - this.frame.getFrameHeight();
 					} else if (!ownedMargins) {
 						// Over-constrained (an item its coordinator placed keeps its margins; see the horizontal branch)
 						switch (this.resolvedAlign) {
@@ -615,11 +617,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							break;
 						case Align.END:
 							// Align to bottom
-							marginTop += lineSize - this.height - this.frame.getFrameHeight();
+							marginTop += marginLine - this.height - this.frame.getFrameHeight();
 							break;
 						case Align.CENTER:
 							// Center
-							double remainder = lineSize - this.height - this.frame.getFrameHeight();
+							double remainder = marginLine - this.height - this.frame.getFrameHeight();
 							remainder /= 2.0;
 							marginTop += remainder;
 							marginBottom += remainder;
@@ -816,6 +818,12 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					this.width = this.aspectRatioLineExtent(definite);
 				}
 			}
+			// Auto margins share out the room the line leaves the box. When a coordinator has fixed the box's outer line
+			// extent for this restyle (prepareRestyleLineExtent), that extent is the room, not the line: an item of a
+			// column flex container moved whole to the next page kept the outer width of 50pt it had beside a float, where
+			// its margin-left: auto was 0. Resolved against the wider line there, the margin took 78pt and the width came
+			// out -28pt, which stopped the conversion (2026-11-19, the sweep's writing-mode mirror check).
+			final double marginLine = LayoutUtils.isNone(this.restyleLineWidth) ? lineSize : this.restyleLineWidth;
 			marginLeft = marginRight = 0;
 			for (int state = 0; state < 2; ++state) {
 				if (!LayoutUtils.isNone(this.width)) {
@@ -826,7 +834,7 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 							: amargin.left;
 					marginRight = margin.getRightType() == LengthType.AUTO && !ownedMargins ? LayoutUtils.NONE
 							: amargin.right;
-					final double autoRemainder = lineSize - this.width - this.frame.getFrameWidth();
+					final double autoRemainder = marginLine - this.width - this.frame.getFrameWidth();
 					if (autoRemainder < 0 && (LayoutUtils.isNone(marginLeft) || LayoutUtils.isNone(marginRight))) {
 						// **Align boxes wider than their containing block to the start** (2026-08-03).
 						// CSS 2.1 §10.3.3: if the width is specified and the total exceeds the containing block,
@@ -843,10 +851,10 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					} else {
 						if (LayoutUtils.isNone(marginLeft) && !LayoutUtils.isNone(marginRight)) {
 							// Left margin is undetermined
-							marginLeft = lineSize - this.width - this.frame.getFrameWidth();
+							marginLeft = marginLine - this.width - this.frame.getFrameWidth();
 						} else if (LayoutUtils.isNone(marginRight)) {
 							// Right margin is undetermined
-							marginRight = lineSize - this.width - this.frame.getFrameWidth();
+							marginRight = marginLine - this.width - this.frame.getFrameWidth();
 						} else if (!ownedMargins) {
 							// Over-constrained. Not for a flex or grid item: its coordinator placed it by its margin box, and a
 							// continuation rebuilt in a row split (RowSplitContainer) restores that box's outer width from the frame.
@@ -859,11 +867,11 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 								break;
 							case Align.END:
 								// Align to right
-								marginLeft += lineSize - this.width - this.frame.getFrameWidth();
+								marginLeft += marginLine - this.width - this.frame.getFrameWidth();
 								break;
 							case Align.CENTER:
 								// Center
-								double remainder = lineSize - this.width - this.frame.getFrameWidth();
+								double remainder = marginLine - this.width - this.frame.getFrameWidth();
 								remainder /= 2.0;
 								marginLeft += remainder;
 								marginRight += remainder;

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<?jp.cssj.property name="output.page-width" value="205pt"?>
+<?jp.cssj.property name="output.page-height" value="281pt"?>
+<html><head><meta charset="utf-8" />
+<title>flex item moved whole keeps its auto margin within its width</title>
+<style>
+@page{margin:5pt}
+body{margin:0;font:normal 11pt/16.5pt serif}
+</style></head>
+<body><div style="height:250pt"></div>
+<div style="display:flex;"><div><div style="float:right;inline-size:82pt;"><p>T48</p></div>
+<div style="display:grid;"><div>T50 T51 T52</div></div>
+<div style="display:flex;flex-direction:column;">
+<div style="padding-block-start:7pt;">T56</div>
+<div style="padding-bottom:8pt;">T57 T58</div>
+<div style="width:50pt;margin-left:auto;"><table style="table-layout:fixed;width:69pt;border-spacing:2pt 3pt;">
+<tr><td></td><td>T61 T62 T63 T64</td></tr>
+<tr><td colspan="2" style="border-style:solid;padding-block-end:10pt;">T65 T66 T67 T68</td></tr>
+<tr><td>T74 T75 T76 T77</td></tr>
+</table></div>
+</div>
+</div></div>
+</body></html>
