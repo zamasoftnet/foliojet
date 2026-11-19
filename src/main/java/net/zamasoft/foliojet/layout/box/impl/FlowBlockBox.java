@@ -409,6 +409,35 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 	 * instead of the remainder (observed on page 2 of files/unittest/0500-grid/row-split-carry.html).
 	 * </p>
 	 */
+	/**
+	 * Takes the page-axis min and max of an item a flex or grid container lays out (2026-11-19). Such an item skips
+	 * {@link #calculateSize}, which takes them for a block, so its content and a stretch grew it past its max-height,
+	 * and a specified height ignored both (height: 60pt; min-height: 88pt stayed 60pt; Chrome applies them). Absolute
+	 * lengths only, as for the item's specified height, in the box-sizing scale; a max below the min rises to it
+	 * (triage §238). Called once the padding is resolved, before the specified size and the content.
+	 */
+	public final void applyItemPageLimits() {
+		final boolean vertical = this.params.flow.isVertical();
+		final Dimension max = this.params.maxSize;
+		final double frame = this.params.boxSizing != BoxSizingMode.BORDER_BOX ? 0
+				: vertical ? this.getFrame().getBorderWidth() : this.getFrame().getBorderHeight();
+		if ((vertical ? this.minSize.getWidthType() : this.minSize.getHeightType()) == LengthType.ABSOLUTE) {
+			this.minPageAxis = Math.max(this.minPageAxis,
+					Math.max(0, (vertical ? this.minSize.getWidth() : this.minSize.getHeight()) - frame));
+		}
+		if ((vertical ? max.getWidthType() : max.getHeightType()) == LengthType.ABSOLUTE
+				&& this.params.getType() != ParamsType.TABLE) {
+			this.maxPageAxis = Math.min(this.maxPageAxis,
+					Math.max(0, (vertical ? max.getWidth() : max.getHeight()) - frame));
+		}
+		this.maxPageAxis = Math.max(this.maxPageAxis, this.minPageAxis);
+		if (vertical) {
+			this.width = Math.max(this.width, this.minPageAxis);
+		} else {
+			this.height = Math.max(this.height, this.minPageAxis);
+		}
+	}
+
 	public final void applySpecifiedPageAxis(final double pageExtent) {
 		this.setPageAxis(pageExtent);
 		this.specifiedPageAxis = true;

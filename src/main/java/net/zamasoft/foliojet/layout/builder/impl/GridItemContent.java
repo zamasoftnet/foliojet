@@ -92,6 +92,7 @@ final class GridItemContent {
 			// the grid item in 3080-MODERN-CSS/aspect-ratio collapses to its content height.
 			this.itemBox.applyAspectRatio(trackWidth);
 		}
+		this.itemBox.applyItemPageLimits();
 		// A takeover item (a root box that inherits authored params) applies its specified height
 		// to itself (G7, 2026-08-29: like FlexItemContent.bind).
 		// In normal flow, the parent's startFlowBlock applies it, but no one applies it to

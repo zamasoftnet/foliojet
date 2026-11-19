@@ -569,13 +569,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 	 * 2026-09-18, the first stop in the restarted sweep (seeds 5,250,000 onward). Slices of boxes that did not fit
 	 * in an unworkable type area (13 pt on 60×60 pt) produced 315 pages and hit the fixed limit of 300.
 	 * With the limit changed to element count × 3, this becomes the "off-paper placement in a document with
-	 * an unworkable type area" exclusion (pinning down finite termination).
+	 * an unworkable type area" exclusion (pinning down finite termination). Since flex and grid items take their own
+	 * min and max (2026-11-19), the items' min-width: 8em (56pt in a 40pt type area) holds: the slices move, four
+	 * pages come out blank (97 pages instead of 100, the same 192 words), and the document is the blank-page kind of
+	 * the same exclusion.
 	 */
 	public void testStrictBrokenLayoutDocumentFinishesWithinContentBound() throws Exception {
 		try {
 			checkOne(5729966, true);
 		} catch (final Throwable t) {
-			assertEquals(String.valueOf(t), "(除外)版面が破綻した文書の紙面外配置", classify(t));
+			assertTrue(String.valueOf(t), classify(t).startsWith("(除外)版面が破綻した文書の"));
 		}
 	}
 

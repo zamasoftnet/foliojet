@@ -82,6 +82,7 @@ final class FlexItemContent {
 		// derive the page-axis size from the ratio here (if content is taller, grow only for
 		// overflow:visible — the same rule as FlowBlockBox.calculateSize).
 		this.itemBox.applyAspectRatio(mainSize);
+		this.itemBox.applyItemPageLimits();
 		// A takeover item (root box inheriting authored params) applies its specified height
 		// itself. In normal flow, the parent startFlowBlock applies it, but
 		// a bind builder root has no such caller (F1d: absolute lengths only;
