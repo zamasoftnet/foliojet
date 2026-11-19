@@ -2360,12 +2360,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// is its columns times an inline-block long. On 200x200pt horizontal paper three columns around 146pt make
 			// 464pt and every word lands left of the paper (T0 at x=-264); on vertical-lr 300x150pt paper two columns
 			// around 77pt make 161pt against 130pt and every word lands above it (T0 at y=-31). 19124 kept both on the
-			// paper; Chrome prints nothing of either (T0 at x=-86, y=-103). The common test reads neither the body's
+			// paper; Chrome prints nothing of either on the page. The common test reads neither the body's
 			// length for a container that sets none outside a multicol nor a multicol's columns.
 			new IndividualExclusion(134_285_126, "fit-v1", 1_072_125_673,
-					"逆向きのflexの行の溢れ: 200pt四方の横組みの紙に長さを指定しないrow-reverse・nowrapのflex。幅146ptのinline-blockを持つ3段の段組の項目が464ptで、行が左へ溢れ字が全部紙の左の外(T0はx=-264、19124は紙の中。Chromeもx=-86で紙の外)", "2026-11-19"),
+					"逆向きのflexの行の溢れ: 200pt四方の横組みの紙に長さを指定しないrow-reverse・nowrapのflex。幅146ptのinline-blockを持つ3段の段組の項目が464ptで、行が左へ溢れ字が全部紙の左の外(T0はx=-264、19124は紙の中。Chromeの印刷も紙に字なし)", "2026-11-19"),
 			new IndividualExclusion(134_429_050, "fit-v1", 1_709_963_973,
-					"逆向きのflexの行の溢れ: vertical-lrの300x150ptの紙に長さを指定しないrow-reverse・nowrapのflex。高さ77ptのinline-blockを持つ2段の段組の項目が161ptで行の130ptに入らず、上へ溢れ字が全部紙の上の外(T0はy=-31、19124は紙の中。Chromeもy=-103で紙の外)", "2026-11-19"));
+					"逆向きのflexの行の溢れ: vertical-lrの300x150ptの紙に長さを指定しないrow-reverse・nowrapのflex。高さ77ptのinline-blockを持つ2段の段組の項目が161ptで行の130ptに入らず、上へ溢れ字が全部紙の上の外(T0はy=-31、19124は紙の中。Chromeの印刷も紙に字なし)", "2026-11-19"),
+			// Triage §244, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206), as §243: on
+			// vertical-lr A4 paper a row-reverse nowrap flex container 118pt wide holds a four-column multicol whose
+			// columns are about 394pt long (an inline vertical-rl wrapper around a two-column multicol around a 191pt
+			// image), 1633pt against 822pt, and every drawing lands above the paper (T0 at y=-398). 19124 kept it on
+			// the paper. Chrome's print shows T0 (y=15.5) only because it puts the line of that wrapper in the second
+			// column and T0 in the third, which lands on the paper; Copper keeps the line in the first column past its
+			// end and T0 in the second, the same since 19124. A plain inline-block, a vertical-rl one, or one around a
+			// multicol goes on to the next column as in Chrome.
+			new IndividualExclusion(136_223_832, "fit-v1", 1_947_113_035,
+					"逆向きのflexの行の溢れ: vertical-lrのA4の紙に幅118ptのrow-reverse・nowrapのflex。4段の段組の項目が段ごと約394pt(191ptの画像を2段の段組で包むvertical-rlのinline)で1633ptになり、行の822ptに入らず上へ溢れ字も画像も全部紙の上の外(T0はy=-398、19124は紙の中)。Chromeの印刷はその行を2段目へ送りT0を3段目に置くので紙に載る(Copperは行を1段目に残しT0は2段目、19124から同じ)", "2026-11-19"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
