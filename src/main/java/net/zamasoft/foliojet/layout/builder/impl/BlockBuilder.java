@@ -779,7 +779,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final AxisSpan containerBand = new AxisSpan(this.lineAxis, this.lineAxis + containerBox.getLineSize());
 		// Line-direction band narrowed by ordinary floats (before insets).
 		AxisSpan floatBand = containerBand;
-		final boolean avoidsFloats = avoidsFloats(flowBox);
+		final boolean avoidsFloats = avoidsFloats(flowBox, cParams);
 		if (avoidsFloats) {
 			// Boxes with independent formatting contexts avoid floating boxes (CSS 2.1 §9.5: the border box must not
 			// overlap a float's margin box. Exclusions are unified through ExclusionSpace queries; 2026-07-23, P0 complete).
@@ -2153,13 +2153,25 @@ public class BlockBuilder implements Builder, LayoutContext {
 	/**
 	 * Whether the box narrows to avoid floats (CSS 2.1 §9.5: the border box of a box establishing an
 	 * independent formatting context does not overlap a float's margin box). Avoids both normal floats
-	 * and page floats (flow-root and non-visible overflow boxes added 2026-10-05).
+	 * and page floats (flow-root and non-visible overflow boxes added 2026-10-05). A box whose block direction runs
+	 * against its parent's too (2026-11-19, triage §246): it seals its floats ({@link #establishesIndependentFloatScope})
+	 * but was laid over the outer ones, so a vertical-lr box after a float in vertical-rl pushed its lines past the
+	 * float the way its own blocks run, off the paper (Chrome narrows it beside the float).
 	 */
-	private static boolean avoidsFloats(final FlowBlockBox flowBox) {
+	private static boolean avoidsFloats(final FlowBlockBox flowBox, final BlockParams parentParams) {
 		final BlockParams params = flowBox.getBlockParams();
 		return flowBox.getColumnCount() > 1 || flowBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexBox
 				|| flowBox instanceof net.zamasoft.foliojet.layout.box.impl.GridBox || params.flowRoot
-				|| params.overflow != OverflowMode.VISIBLE;
+				|| params.overflow != OverflowMode.VISIBLE || reversesBlockDirection(params, parentParams);
+	}
+
+	/**
+	 * Whether a box's block direction runs against its parent's on the same axis (vertical-lr in vertical-rl and the
+	 * other way): CSS Writing Modes 3 §3.2 makes it an independent formatting context. An orthogonal box is laid out
+	 * apart already.
+	 */
+	private static boolean reversesBlockDirection(final BlockParams params, final BlockParams parentParams) {
+		return params.flow.isVertical() == parentParams.flow.isVertical() && params.flow != parentParams.flow;
 	}
 
 	/** Sizes the box in line-direction {@code band}, subtracting insets (the band start is the box's line-direction position). */
@@ -2238,8 +2250,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		final BlockParams params = flowBox.getBlockParams();
 		// display:flow-root creates an independent BFC (2026-08-29). Treat like overflow:hidden.
 		return isContainerItem(flowBox) || params.overflow != OverflowMode.VISIBLE || params.flowRoot
-				|| (params.flow.isVertical() == parentParams.flow.isVertical()
-						&& params.flow != parentParams.flow);
+				|| reversesBlockDirection(params, parentParams);
 	}
 
 	public void addTable(final net.zamasoft.foliojet.layout.builder.RetainedTable tableBuilder) {
