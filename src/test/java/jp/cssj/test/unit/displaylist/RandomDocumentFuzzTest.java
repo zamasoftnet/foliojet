@@ -2394,7 +2394,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// container grows and T31 moves from x=732.6 to 895.8, past the allowance. Chrome's screen runs further
 			// (T31 818pt from the box's start against Copper's 715pt) and its print shows only the ruby text.
 			new IndividualExclusion(140_017_797, "fit-v1", 51_703_205,
-					"作者の溢れ(逆進行の箱): vertical-rlの300x150ptの紙の右端に幅99ptのvertical-lrのdiv。中身(ルビの段落、行の多い表、wrap-reverseの縦のflex)が右へ約700pt溢れ、T13から後は紙の右の外(19124も同じ)。flex・gridの項目のmin-width:8emが効くようになって(ebd44513)flexが広がり、T31がx=732.6から895.8へ動いて許容を越えた。Chromeの画面はさらに先(箱の始まりからT31まで818pt、Copperは715pt)で、印刷の紙に出るのはルビだけ", "2026-11-20"));
+					"作者の溢れ(逆進行の箱): vertical-rlの300x150ptの紙の右端に幅99ptのvertical-lrのdiv。中身(ルビの段落、行の多い表、wrap-reverseの縦のflex)が右へ約700pt溢れ、T13から後は紙の右の外(19124も同じ)。flex・gridの項目のmin-width:8emが効くようになって(ebd44513)flexが広がり、T31がx=732.6から895.8へ動いて許容を越えた。Chromeの画面はさらに先(箱の始まりからT31まで818pt、Copperは715pt)で、印刷の紙に出るのはルビだけ", "2026-11-20"),
+			// Triage §249, the known limit that balancing does not cut floats in columns (CSS-SUPPORT): on 120x400pt
+			// horizontal-tb paper a vertical-rl float holds three columns balanced on their flows alone at 47.5pt. Floats
+			// wider than that (one 95pt, and a flex float with items) go on to the last column and pile up to 331pt there,
+			// so the box is that wide and every word, set from its right edge, lands right of the paper (x=161 to 388,
+			// 19124 too). Chrome cuts the floats over the columns and keeps all on the paper in a 130pt box.
+			new IndividualExclusion(140_424_365, "fit-v1", 1_453_755_350,
+					"既知の制限(段組の中のfloatを段で割らない): 120x400ptの横組みの紙にvertical-rlのfloat。中の3段の段組を流れの中身だけで47.5ptに釣り合わせ、段に入らないfloat(幅95ptのfloatと、項目を持つflexのfloat)が3段目に積み重なって段の終わりが331ptになり、右端から置く字が全部紙の右の外(x=161〜388、19124も同じ)。Chromeはfloatを段ごとに割り、幅130ptの箱で全部紙に載る", "2026-11-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
