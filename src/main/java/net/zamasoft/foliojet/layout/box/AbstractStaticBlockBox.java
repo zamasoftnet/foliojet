@@ -487,6 +487,8 @@ public abstract class AbstractStaticBlockBox extends AbstractBlockBox {
 				maxPage = Math.max(0, maxPage - borderBoxPage);
 			}
 		}
+		// A max below the min rises to it: the min wins (CSS 2.1 §10.7, as Chrome; see FlowBlockBox.calculateSize)
+		maxPage = Math.max(maxPage, minPage);
 		double pageExtent = flow.isVertical() ? this.width : this.height;
 		switch (this.size.getPageType(flow)) {
 		case RELATIVE:

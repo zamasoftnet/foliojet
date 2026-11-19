@@ -733,6 +733,8 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					maxWidth = Math.max(0, maxWidth - this.getFrame().getBorderWidth());
 				}
 			}
+			// A max below the min rises to it: the min wins (see the horizontal branch)
+			maxWidth = Math.max(maxWidth, minWidth);
 			switch (this.size.getWidthType()) {
 			case RELATIVE:
 				if (this.isSpecifiedPageSize()) {
@@ -982,6 +984,9 @@ public class FlowBlockBox extends AbstractStaticBlockBox implements IFlowBox {
 					maxHeight = Math.max(0, maxHeight - this.getFrame().getBorderHeight());
 				}
 			}
+			// A max below the min rises to it, so the min wins wherever the two are applied (CSS 2.1 §10.7, as Chrome;
+			// 2026-11-19, triage §238: height: 116pt; min-height: 88pt; max-height: 80.1pt came out 80.1pt)
+			maxHeight = Math.max(maxHeight, minHeight);
 			switch (this.size.getHeightType()) {
 			case RELATIVE:
 				if (this.isSpecifiedPageSize()) {
