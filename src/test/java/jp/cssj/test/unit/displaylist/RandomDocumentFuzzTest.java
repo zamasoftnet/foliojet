@@ -2378,7 +2378,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// end and T0 in the second, the same since 19124. A plain inline-block, a vertical-rl one, or one around a
 			// multicol goes on to the next column as in Chrome.
 			new IndividualExclusion(136_223_832, "fit-v1", 1_947_113_035,
-					"逆向きのflexの行の溢れ: vertical-lrのA4の紙に幅118ptのrow-reverse・nowrapのflex。4段の段組の項目が段ごと約394pt(191ptの画像を2段の段組で包むvertical-rlのinline)で1633ptになり、行の822ptに入らず上へ溢れ字も画像も全部紙の上の外(T0はy=-398、19124は紙の中)。Chromeの印刷はその行を2段目へ送りT0を3段目に置くので紙に載る(Copperは行を1段目に残しT0は2段目、19124から同じ)", "2026-11-19"));
+					"逆向きのflexの行の溢れ: vertical-lrのA4の紙に幅118ptのrow-reverse・nowrapのflex。4段の段組の項目が段ごと約394pt(191ptの画像を2段の段組で包むvertical-rlのinline)で1633ptになり、行の822ptに入らず上へ溢れ字も画像も全部紙の上の外(T0はy=-398、19124は紙の中)。Chromeの印刷はその行を2段目へ送りT0を3段目に置くので紙に載る(Copperは行を1段目に残しT0は2段目、19124から同じ)", "2026-11-19"),
+			// Triage §247, author overflow in a box running against the paper's block direction, as §242: on vertical-lr
+			// A4 paper a vertical-rl div 57pt wide at the block start holds a horizontal-tb div with a display:table div
+			// 86pt wide around an 11x155pt image. The table is wider than the box, which sets it from its right edge, so
+			// it runs 29pt out to the left and the image lands left of the paper (x=-29 in the page area). 19124 and
+			// 19175 put it there too, as does Chrome (x=-29 on screen; its print shows nothing on the page). The common
+			// test (hasUntypesettableOppositeProgression) reads no width of a table, so it missed this one.
+			new IndividualExclusion(139_874_161, "fit-v1", 868_125_870,
+					"作者の溢れ(逆進行の箱): vertical-lrのA4の紙のブロックの始まりに幅57ptのvertical-rlのdiv。中は横組みのdivに幅86ptのdisplay:tableのdiv(11x155ptの画像)で、箱より広い表が右端から置かれて左へ29pt溢れ、画像が全部紙の左の外(x=-29、19124・19175も同じ。Chromeも画面でx=-29、印刷は紙に何もなし)", "2026-11-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
