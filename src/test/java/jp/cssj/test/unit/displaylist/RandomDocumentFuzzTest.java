@@ -2386,7 +2386,15 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// 19175 put it there too, as does Chrome (x=-29 on screen; its print shows nothing on the page). The common
 			// test (hasUntypesettableOppositeProgression) reads no width of a table, so it missed this one.
 			new IndividualExclusion(139_874_161, "fit-v1", 868_125_870,
-					"作者の溢れ(逆進行の箱): vertical-lrのA4の紙のブロックの始まりに幅57ptのvertical-rlのdiv。中は横組みのdivに幅86ptのdisplay:tableのdiv(11x155ptの画像)で、箱より広い表が右端から置かれて左へ29pt溢れ、画像が全部紙の左の外(x=-29、19124・19175も同じ。Chromeも画面でx=-29、印刷は紙に何もなし)", "2026-11-20"));
+					"作者の溢れ(逆進行の箱): vertical-lrのA4の紙のブロックの始まりに幅57ptのvertical-rlのdiv。中は横組みのdivに幅86ptのdisplay:tableのdiv(11x155ptの画像)で、箱より広い表が右端から置かれて左へ29pt溢れ、画像が全部紙の左の外(x=-29、19124・19175も同じ。Chromeも画面でx=-29、印刷は紙に何もなし)", "2026-11-20"),
+			// Triage §248, author overflow in a box running against the paper's block direction: on vertical-rl 300x150pt
+			// paper a vertical-lr div 99pt wide at the right edge holds a ruby paragraph, a table of many lines and a
+			// wrap-reverse vertical flex container, about 700pt that run out to the right of the paper (T13 onwards are
+			// off it in 19124 too). Since ebd44513 the flex and grid items take their min-width:8em as in Chrome, so the
+			// container grows and T31 moves from x=732.6 to 895.8, past the allowance. Chrome's screen runs further
+			// (T31 818pt from the box's start against Copper's 715pt) and its print shows only the ruby text.
+			new IndividualExclusion(140_017_797, "fit-v1", 51_703_205,
+					"作者の溢れ(逆進行の箱): vertical-rlの300x150ptの紙の右端に幅99ptのvertical-lrのdiv。中身(ルビの段落、行の多い表、wrap-reverseの縦のflex)が右へ約700pt溢れ、T13から後は紙の右の外(19124も同じ)。flex・gridの項目のmin-width:8emが効くようになって(ebd44513)flexが広がり、T31がx=732.6から895.8へ動いて許容を越えた。Chromeの画面はさらに先(箱の始まりからT31まで818pt、Copperは715pt)で、印刷の紙に出るのはルビだけ", "2026-11-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
