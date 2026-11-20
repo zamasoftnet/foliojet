@@ -2401,7 +2401,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// so the box is that wide and every word, set from its right edge, lands right of the paper (x=161 to 388,
 			// 19124 too). Chrome cuts the floats over the columns and keeps all on the paper in a 130pt box.
 			new IndividualExclusion(140_424_365, "fit-v1", 1_453_755_350,
-					"既知の制限(段組の中のfloatを段で割らない): 120x400ptの横組みの紙にvertical-rlのfloat。中の3段の段組を流れの中身だけで47.5ptに釣り合わせ、段に入らないfloat(幅95ptのfloatと、項目を持つflexのfloat)が3段目に積み重なって段の終わりが331ptになり、右端から置く字が全部紙の右の外(x=161〜388、19124も同じ)。Chromeはfloatを段ごとに割り、幅130ptの箱で全部紙に載る", "2026-11-20"));
+					"既知の制限(段組の中のfloatを段で割らない): 120x400ptの横組みの紙にvertical-rlのfloat。中の3段の段組を流れの中身だけで47.5ptに釣り合わせ、段に入らないfloat(幅95ptのfloatと、項目を持つflexのfloat)が3段目に積み重なって段の終わりが331ptになり、右端から置く字が全部紙の右の外(x=161〜388、19124も同じ)。Chromeはfloatを段ごとに割り、幅130ptの箱で全部紙に載る", "2026-11-20"),
+			// Triage §250, author overflow in boxes running against the paper's block direction, as §247 and §248. On
+			// vertical-lr 200pt paper a float holds a vertical-rl box 70pt wide whose table and blocks run out to its left,
+			// every word left of the paper (T4 at x=-140.9, the same since 19124; Chrome's screen -140.7, its print empty).
+			new IndividualExclusion(142_292_265, "fit-v1", 1_494_326_154,
+					"作者の溢れ(逆進行の箱): vertical-lrの200ptの紙のfloatの中に幅70ptのvertical-rlの箱。中の表とブロックが左へ溢れ、字が全部紙の左の外(T4はx=-140.9、19124から同じ。Chromeの画面も-140.7、印刷は紙に何もなし)", "2026-11-20"),
+			// On vertical-rl 200pt paper a vertical-lr column-reverse flex container 99pt wide holds a long table and items
+			// that run out to its right, off the paper from T3 on in 19124 too. Since ebd44513 the grid and flex items take
+			// their min-width:8em, so T19 moves from x=511.6 to 661.2, past the allowance. Chrome's print spreads the
+			// overflow over three shrunk pages; Copper sends nothing against the paper's block direction, since 19124.
+			new IndividualExclusion(142_464_577, "fit-v1", 1_325_171_923,
+					"作者の溢れ(逆進行の箱): vertical-rlの200ptの紙に幅99ptのvertical-lrのcolumn-reverseのflex。中の長い表と項目が右へ溢れ、T3から後は19124でも紙の右の外。grid・flexの項目のmin-width:8emが効くようになって(ebd44513)T19がx=511.6から661.2へ動き許容を越えた。Chromeの印刷は溢れを縮めて3頁に分けるが、Copperは19124から紙の進む向きと逆へは送らない", "2026-11-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
