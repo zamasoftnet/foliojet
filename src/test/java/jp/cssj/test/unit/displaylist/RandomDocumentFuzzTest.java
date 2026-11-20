@@ -2412,7 +2412,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// their min-width:8em, so T19 moves from x=511.6 to 661.2, past the allowance. Chrome's print spreads the
 			// overflow over three shrunk pages; Copper sends nothing against the paper's block direction, since 19124.
 			new IndividualExclusion(142_464_577, "fit-v1", 1_325_171_923,
-					"作者の溢れ(逆進行の箱): vertical-rlの200ptの紙に幅99ptのvertical-lrのcolumn-reverseのflex。中の長い表と項目が右へ溢れ、T3から後は19124でも紙の右の外。grid・flexの項目のmin-width:8emが効くようになって(ebd44513)T19がx=511.6から661.2へ動き許容を越えた。Chromeの印刷は溢れを縮めて3頁に分けるが、Copperは19124から紙の進む向きと逆へは送らない", "2026-11-20"));
+					"作者の溢れ(逆進行の箱): vertical-rlの200ptの紙に幅99ptのvertical-lrのcolumn-reverseのflex。中の長い表と項目が右へ溢れ、T3から後は19124でも紙の右の外。grid・flexの項目のmin-width:8emが効くようになって(ebd44513)T19がx=511.6から661.2へ動き許容を越えた。Chromeの印刷は溢れを縮めて3頁に分けるが、Copperは19124から紙の進む向きと逆へは送らない", "2026-11-20"),
+			// Triage §251, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): on vertical-rl
+			// 300x150pt paper a vertical-lr row-reverse nowrap flex container of max-content width holds items longer than
+			// the line, which run out over the top of the paper (T19 at y=-448.6). Since f75d665b (11-12) the line runs out at
+			// its start, as in Chrome (T19 at y=-351.7 on screen; its print keeps T0 to T5 on the paper, as Copper does).
+			new IndividualExclusion(142_661_822, "fit-v1", 1_888_366_701,
+					"逆向きのflexの行の溢れ: vertical-rlの300x150ptの紙にmax-content幅のvertical-lrのrow-reverse・nowrapのflex。項目が行より長く上へ溢れ、T19はy=-448.6で紙の上の外(f75d665bから、Chromeと同じ側。Chromeの画面もT19はy=-351.7、印刷はCopperと同じくT0〜T5が紙に載る)", "2026-11-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
