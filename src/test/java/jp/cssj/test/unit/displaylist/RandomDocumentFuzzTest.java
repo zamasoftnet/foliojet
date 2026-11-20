@@ -2425,7 +2425,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// x=-470.8; 19124 the same at -415.7); Chrome runs it out on the first page (the multicol 352pt wide) and prints
 			// only T0, T1 and T9.
 			new IndividualExclusion(142_782_801, "fit-v1", 1_199_850_823,
-					"作者の溢れ(逆進行の箱): vertical-lrの120x400ptの紙に幅109ptのvertical-rlのdiv。中の3段の段組(リストと、表を持つ横組みのrow-reverseのflex)が約350ptで左へ溢れ、Copperは残りを2頁目の紙の左の外に置く(T28はx=-470.8、19124も-415.7)。Chromeは1頁目で左へ溢れ(段組は幅352pt)、印刷に出るのはT0・T1・T9だけ", "2026-11-20"));
+					"作者の溢れ(逆進行の箱): vertical-lrの120x400ptの紙に幅109ptのvertical-rlのdiv。中の3段の段組(リストと、表を持つ横組みのrow-reverseのflex)が約350ptで左へ溢れ、Copperは残りを2頁目の紙の左の外に置く(T28はx=-470.8、19124も-415.7)。Chromeは1頁目で左へ溢れ(段組は幅352pt)、印刷に出るのはT0・T1・T9だけ", "2026-11-20"),
+			// Triage §253, author overflow in a box running against the paper's block direction, the shape of §247: on vertical-lr
+			// A4 paper a vertical-rl div 80pt wide (width:8em) holds a horizontal div with a display:table div 135pt wide. The
+			// table is 55pt wider than the box, which lays its content from its right edge, so it runs out to the left and all
+			// its text (T4..T6 at x=-43) is left of the paper; 19124 the same. Chrome puts the table at x=-55 and prints nothing.
+			new IndividualExclusion(146_532_625, "fit-v1", 2_146_036_268,
+					"作者の溢れ(逆進行の箱、§247と同じ形): vertical-lrのA4の紙に幅80pt(8em)のvertical-rlのdiv。中の横組みのdivにdisplay:tableで幅135ptのdivがあり、箱より55pt広いので左へ溢れ、字は全部紙の左の外(T4〜T6はx=-43、19124も同じ)。Chromeも表はx=-55で、印刷は紙に何も無い", "2026-11-21"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
