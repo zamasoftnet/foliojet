@@ -2418,7 +2418,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// the line, which run out over the top of the paper (T19 at y=-448.6). Since f75d665b (11-12) the line runs out at
 			// its start, as in Chrome (T19 at y=-351.7 on screen; its print keeps T0 to T5 on the paper, as Copper does).
 			new IndividualExclusion(142_661_822, "fit-v1", 1_888_366_701,
-					"逆向きのflexの行の溢れ: vertical-rlの300x150ptの紙にmax-content幅のvertical-lrのrow-reverse・nowrapのflex。項目が行より長く上へ溢れ、T19はy=-448.6で紙の上の外(f75d665bから、Chromeと同じ側。Chromeの画面もT19はy=-351.7、印刷はCopperと同じくT0〜T5が紙に載る)", "2026-11-20"));
+					"逆向きのflexの行の溢れ: vertical-rlの300x150ptの紙にmax-content幅のvertical-lrのrow-reverse・nowrapのflex。項目が行より長く上へ溢れ、T19はy=-448.6で紙の上の外(f75d665bから、Chromeと同じ側。Chromeの画面もT19はy=-351.7、印刷はCopperと同じくT0〜T5が紙に載る)", "2026-11-20"),
+			// Triage §252, author overflow in a box running against the paper's block direction: on vertical-lr 120x400pt
+			// paper a vertical-rl div 109pt wide holds three columns of lists and a horizontal row-reverse flex container with
+			// a table, about 350pt, which run out to its left. Copper puts the rest on a second page left of the paper (T28 at
+			// x=-470.8; 19124 the same at -415.7); Chrome runs it out on the first page (the multicol 352pt wide) and prints
+			// only T0, T1 and T9.
+			new IndividualExclusion(142_782_801, "fit-v1", 1_199_850_823,
+					"作者の溢れ(逆進行の箱): vertical-lrの120x400ptの紙に幅109ptのvertical-rlのdiv。中の3段の段組(リストと、表を持つ横組みのrow-reverseのflex)が約350ptで左へ溢れ、Copperは残りを2頁目の紙の左の外に置く(T28はx=-470.8、19124も-415.7)。Chromeは1頁目で左へ溢れ(段組は幅352pt)、印刷に出るのはT0・T1・T9だけ", "2026-11-20"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
