@@ -2478,7 +2478,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// columns). Chrome lays the multicol out as long (2861pt) and prints the float in its second column.
 			// min-height: 0 on the item, or dropping the flex, keeps it on the paper.
 			new IndividualExclusion(151_120_270, "fit-v1", 841_968_307,
-					"既知の制限(§117と同じ): 縦組みのA4のflexの項目に4段と3段の入れ子の段組と22pt幅の箱から溢れる画像。項目の自動の最小で段が701ptになり、後のfloatの画像は4段目の紙の下の外(y=2160)。min-height:0かflexを外すと紙に収まる", "2026-11-22"));
+					"既知の制限(§117と同じ): 縦組みのA4のflexの項目に4段と3段の入れ子の段組と22pt幅の箱から溢れる画像。項目の自動の最小で段が701ptになり、後のfloatの画像は4段目の紙の下の外(y=2160)。min-height:0かflexを外すと紙に収まる", "2026-11-22"),
+			// Triage §260, author overflow: on 60pt vertical-rl paper a floated grid holds a table of ten columns with a
+			// nested table and list in one cell. Its minimum length in the line direction is about 140pt (Chrome: 139pt as
+			// a grid item in a fit-content(48pt) track), so T8 to T12 run past the bottom (T12 at y=128.9; 19124 the same).
+			// Chrome's print shows no text on the paper.
+			new IndividualExclusion(151_622_694, "fit-v1", 1_312_412_602,
+					"作者の溢れ: 60ptの縦組みの紙のfloatのgridに10列の表(セルに入れ子の表とリスト)。行の向きの最小の長さが約140pt(Chromeも139pt)で、T8〜T12は紙の下の外(T12はy=128.9、19124も同じ)。Chromeの印刷は紙に字が無い", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
