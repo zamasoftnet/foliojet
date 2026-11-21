@@ -2484,7 +2484,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// a grid item in a fit-content(48pt) track), so T8 to T12 run past the bottom (T12 at y=128.9; 19124 the same).
 			// Chrome's print shows no text on the paper.
 			new IndividualExclusion(151_622_694, "fit-v1", 1_312_412_602,
-					"作者の溢れ: 60ptの縦組みの紙のfloatのgridに10列の表(セルに入れ子の表とリスト)。行の向きの最小の長さが約140pt(Chromeも139pt)で、T8〜T12は紙の下の外(T12はy=128.9、19124も同じ)。Chromeの印刷は紙に字が無い", "2026-11-22"));
+					"作者の溢れ: 60ptの縦組みの紙のfloatのgridに10列の表(セルに入れ子の表とリスト)。行の向きの最小の長さが約140pt(Chromeも139pt)で、T8〜T12は紙の下の外(T12はy=128.9、19124も同じ)。Chromeの印刷は紙に字が無い", "2026-11-22"),
+			// Triage §261, author overflow inside a region running against the paper's block direction, the shape of §259's
+			// first seed: on 120pt vertical-rl paper a vertical-lr box holds a div 60pt wide whose four-column multicol carries
+			// a vertical-rl table with boxes 108pt and 111pt wide. They run out to the right (T0 at x=174, T1 at x=164.4;
+			// 19124 the same). Chrome puts them at the same places and prints nothing.
+			new IndividualExclusion(152_425_301, "fit-v1", 1_973_120_950,
+					"作者の溢れ(逆進行の領域、§259の1件目と同じ形): 120ptのvertical-rlの紙にvertical-lrの箱、中の幅60ptのdivの段組に幅108ptと111ptの箱があり、右へ溢れてT0はx=174、T1はx=164.4(19124も同じ)。Chromeも同じ位置で、印刷は紙に何も無い", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
