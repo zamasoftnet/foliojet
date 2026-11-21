@@ -2463,7 +2463,22 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// runs out to the left with its only word (T0 at x=-58.6; 19124 the same). Chrome puts the table at x=-57 and
 			// prints nothing.
 			new IndividualExclusion(150_729_573, "fit-v1", 892_203_255,
-					"作者の溢れ(逆進行の箱、§247・§253・§255と同じ形): vertical-lrのA4の紙に幅21ptのvertical-rlの箱。中のvertical-lrのdisplay:tableで幅78ptのdivが左へ溢れ、T0は紙の左の外(x=-58.6、19124も同じ)。Chromeも表はx=-57で、印刷は紙に何も無い", "2026-11-22"));
+					"作者の溢れ(逆進行の箱、§247・§253・§255と同じ形): vertical-lrのA4の紙に幅21ptのvertical-rlの箱。中のvertical-lrのdisplay:tableで幅78ptのdivが左へ溢れ、T0は紙の左の外(x=-58.6、19124も同じ)。Chromeも表はx=-57で、印刷は紙に何も無い", "2026-11-22"),
+			// Triage §259, author overflow inside a region running against the paper's block direction: on 200pt vertical-lr
+			// paper a vertical-rl box holds a list-item 61pt wide (37pt inside its margin and padding) with an 88pt vertical-lr
+			// div, which runs out to the left with its select (x=-37; 19124 the same). Chrome puts the select at x=-32 and
+			// prints nothing. The common judgement leaves widths set inside a reversed region alone on purpose
+			// (hasUntypesettableOppositeProgression).
+			new IndividualExclusion(151_072_162, "fit-v1", 1_611_404_237,
+					"作者の溢れ(逆進行の領域): vertical-lrの200pt四方の紙にvertical-rlの箱、中の幅61pt(内側37pt)のlist-itemに幅88ptのvertical-lrのdivがあり、selectは紙の左の外(x=-37、19124も同じ)。Chromeもx=-32で、印刷は紙に何も無い", "2026-11-22"),
+			// Triage §259, the known limitation of §117: on vertical-rl A4 a wrap-reverse flex item holds a four-column
+			// multicol around a three-column multicol whose 22pt box carries a 97 x 221pt image. The item's automatic minimum
+			// size counts every column, so each outer column is 701pt long, and the float image after the inner multicol lands
+			// in the fourth column at y=2160 (19124: y=720; Copper now cuts the overflowing image into strips over more
+			// columns). Chrome lays the multicol out as long (2861pt) and prints the float in its second column.
+			// min-height: 0 on the item, or dropping the flex, keeps it on the paper.
+			new IndividualExclusion(151_120_270, "fit-v1", 841_968_307,
+					"既知の制限(§117と同じ): 縦組みのA4のflexの項目に4段と3段の入れ子の段組と22pt幅の箱から溢れる画像。項目の自動の最小で段が701ptになり、後のfloatの画像は4段目の紙の下の外(y=2160)。min-height:0かflexを外すと紙に収まる", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
