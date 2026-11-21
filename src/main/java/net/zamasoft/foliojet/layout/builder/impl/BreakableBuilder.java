@@ -525,6 +525,15 @@ public abstract class BreakableBuilder extends BlockBuilder {
 	}
 
 	/**
+	 * Whether a block placed whole ({@link #addBound}, a block of the other axis laid out again) breaks at once when it
+	 * runs past the limit: only in balanced columns ({@link ColumnBuilder#layingOutBalanced}). On a page the next check,
+	 * at the latest when its parent closes, breaks before it.
+	 */
+	protected boolean checksWholeBlocks() {
+		return false;
+	}
+
+	/**
 	 * Places a table fragment of {@code IncrementalTableBuilder}, which breaks its table between rows itself, so the
 	 * host does not break it (2026-10-11: the host told the two apart by asking {@code TableBuildPlanner} again which
 	 * plan the table had, judged against this host rather than the one that started the table).
@@ -610,6 +619,13 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				}
 				break;
 			case BLOCK:
+				if (box.getPos().getType() == PosType.FLOW && this.checksWholeBlocks()
+						&& LayoutUtils.compare(this.pageAxis, this.getPageLimit()) > 0) {
+					if (LOG.isLoggable(Level.FINE)) {
+						LOG.fine("page break [interflow whole block]");
+					}
+					this.autoBreak();
+				}
 				break;
 			case RESCUE:
 				// 2026-07-25 (rescue splitting, increment 7): rescue fragments pass through addBound

@@ -45,6 +45,12 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
  * same-axis opposite-progression children (RL⇄LR, 2026-08-22), to all children with a writing direction
  * different from the columns, traversing inside same-direction children too.
  * </p>
+ *
+ * <p>
+ * 2026-11-21 (sweep seed 147257079): the floor is the child's extent, not where it ends in the single stack (that kept
+ * everything before an orthogonal child in the first column), balancing does not cut inside such a child, and the
+ * column builder breaks before one that runs past the balanced column end.
+ * </p>
  */
 public class MulticolOrthogonalFloorTest extends TestCase {
 	private static final long WATCHDOG_MS = 60_000L;
@@ -118,6 +124,112 @@ public class MulticolOrthogonalFloorTest extends TestCase {
 				+ "<div style=\"writing-mode:vertical-rl;height:88pt\">T2<br>T3</div></div><p>T5</p>");
 		final double y = y(convert("horizontal-c2", html), "T5");
 		assertTrue("T5 が縦書きの子(高さ 88pt)に重なっている: y=" + y, y >= 88);
+	}
+
+	/** Four columns 144.25pt wide (595pt paper, gap 6pt): the second starts at x=150.25. */
+	private static final double SECOND_HORIZONTAL_COLUMN = 150.25;
+
+	/**
+	 * A vertical-writing block last in horizontal columns goes into a later column with the text before it spread over
+	 * the columns (2026-11-21, sweep seed 147257079). The floor was where the block ends in the single stack, all the
+	 * content: everything stayed in the first column. Chrome puts the text in the first two columns and the block in the
+	 * third.
+	 */
+	public void testOrthogonalBlockLastDoesNotKeepEverythingInTheFirstColumn() throws Exception {
+		final StringBuilder text = new StringBuilder();
+		for (int i = 10; i < 60; ++i) {
+			text.append('T').append(i).append(' ');
+		}
+		final String html = document("horizontal-tb", "<div style=\"column-count:4;column-gap:6pt\"><p>" + text
+				+ "</p><div style=\"writing-mode:vertical-rl\"><p>T2 T3</p></div></div>");
+		final String dump = convert("orthogonal-last", html);
+		assertTrue("T59 が 1 段目のまま: x=" + x(dump, "T59"), x(dump, "T59") >= SECOND_HORIZONTAL_COLUMN - 0.01);
+		assertTrue("縦書きの箱が 1 段目のまま: x=" + x(dump, "T2"), x(dump, "T2") >= SECOND_HORIZONTAL_COLUMN - 0.01);
+	}
+
+	/**
+	 * A vertical-writing block after a line as long as the balanced column goes to the next column (2026-11-21). Laid out
+	 * again for balancing it is placed whole, and nothing after it checked it against the column end: it stayed below
+	 * the line in the first column. Chrome puts it at the top of the second.
+	 */
+	public void testOrthogonalBlockAfterAFullColumnGoesToTheNextColumn() throws Exception {
+		final String html = document("horizontal-tb", "<div style=\"column-count:4;column-gap:6pt\"><div><p>"
+				+ "<span style=\"display:inline-block;height:150pt;width:34pt\">T0</span></p></div>"
+				+ "<div style=\"writing-mode:vertical-rl\"><p>T2 T3</p></div></div>");
+		final String dump = convert("orthogonal-after-full", html);
+		assertEquals("T2 の x(2 段目の始まり)", SECOND_HORIZONTAL_COLUMN, x(dump, "T2"), 0.01);
+		assertEquals("T2 の y", 0.0, y(dump, "T2"), 0.01);
+	}
+
+	/** The same in vertical-rl columns with a horizontal-writing block: it goes below, to the second column. */
+	public void testHorizontalBlockAfterAFullVerticalColumnGoesToTheNextColumn() throws Exception {
+		final String html = document("vertical-rl", "<div style=\"column-count:4;column-gap:6pt\"><div><p>"
+				+ "<span style=\"display:inline-block;width:150pt;height:34pt\">T0</span></p></div>"
+				+ "<div style=\"writing-mode:horizontal-tb\"><p>T2 T3</p></div></div>");
+		final String dump = convert("horizontal-after-full", html);
+		// Four columns 206pt long (842pt paper, gap 6pt): the second starts at y=212
+		assertEquals("T2 の y(2 段目の始まり)", 212.0, y(dump, "T2"), 0.01);
+		assertTrue("T2 が紙の右の外: x=" + x(dump, "T2"), x(dump, "T2") < 595);
+	}
+
+	/**
+	 * Balancing does not cut inside a block of the other axis (2026-11-21). Its vertical lines were taken for cut points
+	 * along the column, the columns came out shorter than the paragraph, the block and the paragraph after it, and the
+	 * paragraph after the block ran past the multicol onto the one that follows it.
+	 */
+	public void testBalancingDoesNotCutInsideAnOrthogonalBlock() throws Exception {
+		final String html = document("horizontal-tb", "<div style=\"column-count:2;column-gap:6pt\"><p>T0</p>"
+				+ "<div style=\"writing-mode:vertical-rl;height:100pt\">T2<br>T3<br>T4</div><p>T9</p></div><p>T20</p>");
+		final String dump = convert("orthogonal-not-cut", html);
+		assertTrue("T9(y=" + y(dump, "T9") + ")が段組の後の T20(y=" + y(dump, "T20") + ")に重なっている",
+				y(dump, "T9") + 13.2 <= y(dump, "T20") + 0.01);
+	}
+
+	/**
+	 * Document that stopped the sweep (seed 147257079, all 1,265 bytes). A horizontal-writing block after a grid wider
+	 * than the vertical-rl box stayed in the first column beyond the grid, left of the paper; Chrome puts it in the second
+	 * column at x=76.75.
+	 */
+	public void testSweepSeed147257079() throws Exception {
+		final String html = """
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+				<?jp.cssj.property name="output.page-width" value="595pt"?>
+				<?jp.cssj.property name="output.page-height" value="842pt"?>
+				<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+				<title>fuzz v2 1444370305</title>
+				<meta name="foliojet-fuzz-generator" content="2" />
+				<style>
+				@page{margin:10pt}
+				body{margin:0;font:normal 9pt/1.2 serif;writing-mode:vertical-lr}
+				p,div,td{margin:0;padding:0}
+				table{border-collapse:collapse;table-layout:fixed}
+				td{border:1pt solid black}
+				</style></head><body data-fuzz-generator="2">
+				<div style="writing-mode:vertical-rl">
+				<div style="display:list-item;width:123pt;">
+				<div style="column-count:4;column-gap:6pt">
+				<div style="display:grid;position:static;writing-mode:vertical-lr;grid-template-columns:fit-content(48pt) minmax(12pt,1fr);gap:calc(1pt + .25em);">
+				<p><span style="display:inline-block;width:192pt;height:34pt">T0</span></p>
+				<div data-fuzz-role="layout-item" style="width:max-content;min-width:8em;max-width:90%;">
+				<div style="position:static;float:right;writing-mode:vertical-lr;">
+				<p id="p1">T1</p>
+				</div>
+				</div>
+				</div>
+				<div style="position:static;writing-mode:horizontal-tb;">
+				<p id="p2">T2 T3 T4 T5 </p>
+				</div>
+				</div>
+				</div>
+				</div>
+
+				</body></html>
+				""";
+		final String dump = convert("seed-147257079", html);
+		for (final String token : new String[] { "T2", "T3", "T4", "T5" }) {
+			assertTrue(token + " が紙の左の外: x=" + x(dump, token), x(dump, token) >= 0);
+		}
+		assertEquals("T2 の x(Chrome は 76.75)", 76.25, x(dump, "T2"), 0.01);
 	}
 
 	private static double x(final String dump, final String token) {

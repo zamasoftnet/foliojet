@@ -703,7 +703,11 @@ public class FlowContainer implements Container {
 				final FlowBlockBox block = (FlowBlockBox) f.box;
 				if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer,
 						block.getBlockParams().flow)) {
-					floor = Math.max(floor, offset + f.pageAxis + f.box.getPageExtent(outer));
+					// The column has to hold the child, not all that comes before it (2026-11-21, sweep seed 147257079).
+					// The floor used to be where the child ends in the single stack: with an orthogonal block last, that
+					// was all the content, and every column after the first stayed empty. The capacity search no longer
+					// cuts inside these children (cutPointBelow), so it moves them whole as the actual cut does.
+					floor = Math.max(floor, f.box.getPageExtent(outer));
 				} else if (block.getContainer() instanceof FlowContainer inner) {
 					containers.push(inner);
 					offsets.push(offset + f.pageAxis + block.getFrame().getFramePageStart(outer));
@@ -907,7 +911,11 @@ public class FlowContainer implements Container {
 				// A flow spanning the proposed position: search for an internal boundary.
 				if (f.box.getType() == BoxType.BLOCK) {
 					final FlowBlockBox blockBox = (FlowBlockBox) f.box;
-					if (blockBox.getBlockParams().pageBreakInside != PageBreakMode.AVOID) {
+					// Balancing does not cut inside a block of the other axis or progression, as the actual cut does not
+					// (getCutPoint): its boundaries run along the other axis (2026-11-21, sweep seed 147257079).
+					if (blockBox.getBlockParams().pageBreakInside != PageBreakMode.AVOID && !(keepLines
+							&& net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(flow,
+									blockBox.getBlockParams().flow))) {
 						final double frameStart = blockBox.getFrame().getFramePageStart(flow);
 						final double inner = keepLines && blockBox.getContainer() instanceof FlowContainer innerFlows
 								? innerFlows.cutPointBelow(pageAxis - f.pageAxis - frameStart, true)
@@ -1014,6 +1022,11 @@ public class FlowContainer implements Container {
 			}
 			if (f.box.getType() == BoxType.TEXT_BLOCK) {
 				return ((TextBlockBox) f.box).firstLineEndsAfter(from - f.pageAxis, pageAxis - f.pageAxis);
+			}
+			if (f.box.getType() == BoxType.BLOCK && net.zamasoft.foliojet.layout.fragment.PaginationContract
+					.isChainAtomicBoundary(flow, ((FlowBlockBox) f.box).getBlockParams().flow)) {
+				// A block that balancing does not cut (cutPointBelow) is one unit
+				return LayoutUtils.compare(f.pageAxis + f.box.getPageExtent(flow), pageAxis) > 0;
 			}
 			if (f.box.getType() == BoxType.BLOCK && ((FlowBlockBox) f.box).getContainer() instanceof FlowContainer inner) {
 				final double frameStart = ((FlowBlockBox) f.box).getFrame().getFramePageStart(flow);

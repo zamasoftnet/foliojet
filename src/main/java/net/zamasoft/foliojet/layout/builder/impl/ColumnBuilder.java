@@ -123,6 +123,26 @@ public class ColumnBuilder extends BreakableBuilder {
 				|| this.breakEmptyColumn(this.contextFlow, lastFrame, depth);
 	}
 
+	/** Whether this builder lays a multicol out again for balancing ({@link #layingOutBalanced}). */
+	private boolean balanced = false;
+
+	/**
+	 * Marks this builder as laying the contents out again in the balanced columns. A block of the other axis comes back
+	 * whole there and is the multicol's own child: no parent closes after it in this builder, so nothing checked it, and it
+	 * ran past the balanced column end, in vertical-rl columns off the paper (2026-11-21, sweep seed 147257079; Chrome
+	 * moves it to the next column). Only where the columns come from the capacity search: columns laid out from the page,
+	 * or balanced by the old equal division once the multicol was built across columns, keep the check of a page, and a
+	 * block larger than the page goes on to the next one, where the page cuts it (MulticolPageAxisTest).
+	 */
+	public final void layingOutBalanced() {
+		this.balanced = true;
+	}
+
+	@Override
+	protected final boolean checksWholeBlocks() {
+		return this.balanced;
+	}
+
 	public final void finish() {
 		assert this.flowStack == null || this.flowStack.isEmpty();
 		this.requireNoOpenTextBuilder("(no context)");

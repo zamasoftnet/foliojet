@@ -453,6 +453,10 @@ public abstract class AbstractContainerBox extends AbstractBox
 		this.container.setBox(this);
 
 		final ColumnBuilder columnBuilder = new ColumnBuilder(builder, this);
+		if (acc < 2) {
+			// Columns from the capacity search, which keeps every block of the other axis whole in one column
+			columnBuilder.layingOutBalanced();
+		}
 		if (!Double.isNaN(lineOrigin)) {
 			columnBuilder.placeInPage(lineOrigin, pageOrigin);
 		}
