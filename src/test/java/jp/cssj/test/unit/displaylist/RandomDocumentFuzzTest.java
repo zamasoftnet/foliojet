@@ -2443,7 +2443,21 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// div 106pt wide. The table runs out to the right of the box, which sits at the paper's right edge, and T0 is at
 			// x=216.8; 19124 the same. Chrome puts T0 37pt right of the box too and prints nothing.
 			new IndividualExclusion(147_047_939, "fit-v1", 1_852_799_660,
-					"作者の溢れ(逆進行の箱、§247・§253の左右を返した形): vertical-rlの200x200ptの紙に幅62ptのvertical-lrのdiv。中のvertical-rlのdivにdisplay:tableで幅106ptのdivがあり、紙の右端にある箱より右へ溢れ、T0は紙の右の外(x=216.8、19124も同じ)。Chromeも箱の右端から37pt右で、印刷は紙に何も無い", "2026-11-21"));
+					"作者の溢れ(逆進行の箱、§247・§253の左右を返した形): vertical-rlの200x200ptの紙に幅62ptのvertical-lrのdiv。中のvertical-rlのdivにdisplay:tableで幅106ptのdivがあり、紙の右端にある箱より右へ溢れ、T0は紙の右の外(x=216.8、19124も同じ)。Chromeも箱の右端から37pt右で、印刷は紙に何も無い", "2026-11-21"),
+			// Triage §257, author overflow: on horizontal 200x200pt paper a vertical-rl right float holds two columns whose
+			// content runs about 336pt along its block direction (an inline-block 117pt wide, floats 103pt and 116pt wide), so
+			// every word is right of the paper (T7 at x=225.45). In Chrome's screen layout too every word is at x>=230; its
+			// print fits them only by shrinking and paginating again. 19124 had T4..T7 on the paper, before max-width capped
+			// intrinsic contributions (93d7a472).
+			new IndividualExclusion(147_841_326, "fit-v1", 1_083_842_899,
+					"作者の溢れ: 横組みの200x200ptの紙の右のfloat(vertical-rl)に2段の段組。中身はブロックの向きに幅117ptのinline-block、幅103ptと116ptのfloatで約336ptになり、語は全部紙の右の外(T7はx=225.45)。Chromeの画面の組みも全部x>=230で、印刷は縮めて割り直して紙に載せる。19124でT4〜T7が紙に載っていたのは、max-widthが中身の寄与の上限になる前(93d7a472)の測り方", "2026-11-21"),
+			// Triage §257, known limit: a box establishing an independent formatting context with an auto line size goes
+			// beside a float when the band holds one character (fitsBeside, 2026-10-06); the minimum width of its content is not
+			// known when it starts. On vertical-rl 200x200pt paper a vertical-lr div (its block direction runs against the
+			// page's) holding a table follows a float made taller by its vertical form controls (3f90e52c), gets a band 23pt
+			// long beside it, and the table runs to the right off the paper (T13 at x=672). Chrome moves it past the float.
+			new IndividualExclusion(147_843_763, "fit-v1", 102_336_115,
+					"既知の制限(独立した文脈のautoの箱は字1つ分の帯でもfloatの横に置き、中身の最小の幅を見ない、10-06のfitsBeside): vertical-rlの200x200ptの紙で、縦の部品で長くなったfloat(3f90e52c)の後のvertical-lrのdiv(表)が、floatの横の23ptの帯に入り、表が右へ伸びて紙の外(T13はx=672)。Chromeはfloatの先へ送り紙に載せる", "2026-11-21"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
