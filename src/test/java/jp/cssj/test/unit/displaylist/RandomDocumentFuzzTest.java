@@ -2457,7 +2457,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// page's) holding a table follows a float made taller by its vertical form controls (3f90e52c), gets a band 23pt
 			// long beside it, and the table runs to the right off the paper (T13 at x=672). Chrome moves it past the float.
 			new IndividualExclusion(147_843_763, "fit-v1", 102_336_115,
-					"既知の制限(独立した文脈のautoの箱は字1つ分の帯でもfloatの横に置き、中身の最小の幅を見ない、10-06のfitsBeside): vertical-rlの200x200ptの紙で、縦の部品で長くなったfloat(3f90e52c)の後のvertical-lrのdiv(表)が、floatの横の23ptの帯に入り、表が右へ伸びて紙の外(T13はx=672)。Chromeはfloatの先へ送り紙に載せる", "2026-11-21"));
+					"既知の制限(独立した文脈のautoの箱は字1つ分の帯でもfloatの横に置き、中身の最小の幅を見ない、10-06のfitsBeside): vertical-rlの200x200ptの紙で、縦の部品で長くなったfloat(3f90e52c)の後のvertical-lrのdiv(表)が、floatの横の23ptの帯に入り、表が右へ伸びて紙の外(T13はx=672)。Chromeはfloatの先へ送り紙に載せる", "2026-11-21"),
+			// Triage §258, author overflow in a box running against the paper's block direction, the shape of §247, §253 and
+			// §255: on vertical-lr A4 paper a vertical-rl box 21pt wide holds a vertical-lr display:table div 78pt wide, which
+			// runs out to the left with its only word (T0 at x=-58.6; 19124 the same). Chrome puts the table at x=-57 and
+			// prints nothing.
+			new IndividualExclusion(150_729_573, "fit-v1", 892_203_255,
+					"作者の溢れ(逆進行の箱、§247・§253・§255と同じ形): vertical-lrのA4の紙に幅21ptのvertical-rlの箱。中のvertical-lrのdisplay:tableで幅78ptのdivが左へ溢れ、T0は紙の左の外(x=-58.6、19124も同じ)。Chromeも表はx=-57で、印刷は紙に何も無い", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
