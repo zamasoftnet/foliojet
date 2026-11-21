@@ -2437,7 +2437,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// two sheets. Each row runs past the bottom of the paper (T14 at y=133.22 on page 2; 19124 the same). Chrome lays
 			// the table out 142.5pt long too, and in print T9, T10, T13, T14 and T18 are off the paper.
 			new IndividualExclusion(146_951_209, "fit-v1", 1_769_984_865,
-					"作者の溢れ: vertical-rlの60x60ptの紙(余白0、字は7pt)の左のfloatに、rowspanとcolspanの自動の表。行の長さは約142ptで紙の2枚分より長く、各行が紙の下へ溢れる(2頁目のT14はy=133.22、19124も同じ)。Chromeも表の長さは142.5ptで、印刷ではT9・T10・T13・T14・T18が紙に載らない", "2026-11-21"));
+					"作者の溢れ: vertical-rlの60x60ptの紙(余白0、字は7pt)の左のfloatに、rowspanとcolspanの自動の表。行の長さは約142ptで紙の2枚分より長く、各行が紙の下へ溢れる(2頁目のT14はy=133.22、19124も同じ)。Chromeも表の長さは142.5ptで、印刷ではT9・T10・T13・T14・T18が紙に載らない", "2026-11-21"),
+			// Triage §255, author overflow in a box running against the paper's block direction, the shape of §247 and §253
+			// mirrored: on vertical-rl 200x200pt paper a vertical-lr div 62pt wide holds a vertical-rl div with a display:table
+			// div 106pt wide. The table runs out to the right of the box, which sits at the paper's right edge, and T0 is at
+			// x=216.8; 19124 the same. Chrome puts T0 37pt right of the box too and prints nothing.
+			new IndividualExclusion(147_047_939, "fit-v1", 1_852_799_660,
+					"作者の溢れ(逆進行の箱、§247・§253の左右を返した形): vertical-rlの200x200ptの紙に幅62ptのvertical-lrのdiv。中のvertical-rlのdivにdisplay:tableで幅106ptのdivがあり、紙の右端にある箱より右へ溢れ、T0は紙の右の外(x=216.8、19124も同じ)。Chromeも箱の右端から37pt右で、印刷は紙に何も無い", "2026-11-21"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
