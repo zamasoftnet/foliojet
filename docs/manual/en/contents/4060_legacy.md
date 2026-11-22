@@ -35,8 +35,8 @@ are treated as unknown elements, and their nesting is not interpreted correctly.
 #### Character widths in MS Mincho and related fonts
 
 When MS Mincho or MS Gothic is used at a small font size, typical browsers use
-the closest bitmap font, so the actual character size may differ from the specified size. Copper
-PDF uses outline fonts for all text, so characters have the specified size.
+the closest bitmap font, so the actual character size may differ from the specified size.
+COPPER 4 uses outline fonts for all text, so characters have the specified size.
 As a result, character widths may differ from those in typical browsers, which can change where text wraps.
 
 #### Unsupported CSS properties

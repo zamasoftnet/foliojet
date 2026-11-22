@@ -153,10 +153,13 @@ final class SVGWriter {
 			target.write("<style type=\"text/css\">");
 			final StringBuilder css = new StringBuilder();
 			for (final java.util.Map.Entry<String, String> face : this.shared.fontFaces.entrySet()) {
-				css.append("@font-face{font-family:'").append(face.getKey()).append("';src:url('")
-						.append(this.shared.fontSrc.apply(face.getValue()))
-						.append("') format('woff2');font-display:block;}");
+				css.append("@font-face{font-family:'");
+				escapeCssString(css, face.getKey());
+				css.append("';src:url('");
+				escapeCssString(css, this.shared.fontSrc.apply(face.getValue()));
+				css.append("') format('woff2');font-display:block;}");
 			}
+			// The style sheet is escaped twice: as CSS strings above, and as XML text here
 			escapeText(target, css.toString());
 			target.write("</style>");
 		}
@@ -279,6 +282,26 @@ final class SVGWriter {
 			case '\n' -> out.append("&#10;");
 			case '\r' -> out.append("&#13;");
 			case '\t' -> out.append("&#9;");
+			default -> out.append(ch);
+			}
+		}
+	}
+
+	/**
+	 * Appends the contents of a single-quoted CSS string. The quote, a backslash and a line break end or
+	 * break the string, so they are written as CSS escapes: the base URI of the resources is the user's
+	 * and may contain an apostrophe, which cut every {@code @font-face} source short.
+	 */
+	static void escapeCssString(final StringBuilder out, final String value) {
+		for (int i = 0; i < value.length(); ++i) {
+			final char ch = value.charAt(i);
+			switch (ch) {
+			case '\\' -> out.append("\\\\");
+			case '\'' -> out.append("\\'");
+			// A hexadecimal escape ends at the space that follows it
+			case '\n' -> out.append("\\a ");
+			case '\r' -> out.append("\\d ");
+			case '\f' -> out.append("\\c ");
 			default -> out.append(ch);
 			}
 		}

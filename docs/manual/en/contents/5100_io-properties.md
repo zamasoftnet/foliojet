@@ -233,7 +233,7 @@ The following is a list of properties you can set when accessing this layout eng
 				<td class="nowrap">1.2.0<br />(PDF 1.3)
 				</td>
 				<td>The encryption key length, in bits.<br /> With output.pdf.encryption=v1, it is fixed at 40.
-					With v2 and v4, you can specify 40 to 128 in 8-bit increments. It is ignored with v5 (fixed at 256 bits).
+					With v2, you can specify 40 to 128 in 8-bit increments. v4 is fixed at 128 bits and v5 at 256 bits (another value with v4 gives a warning and 128 bits are used).
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.encryption.user-password">

@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.helger.css.decl.CSSDeclaration;
 import com.helger.css.decl.CSSDeclarationList;
+import com.helger.css.parser.TokenMgrException;
 import com.helger.css.reader.CSSReaderDeclarationList;
 import com.helger.css.reader.CSSReaderSettings;
 import com.helger.css.reader.errorhandler.DoNothingCSSParseErrorHandler;
@@ -44,13 +45,21 @@ final class DeclarationParser {
 	 * </p>
 	 *
 	 * <p>
-	 * {@code /*} inside strings (""/'') or between {@code url(} and {@code )} does not
+	 * {@code /*} inside strings (""/'') or inside an unquoted URL token does not
 	 * start a comment (comments are not recognized inside unquoted URL tokens),
 	 * so track those states to avoid false positives.
 	 * </p>
+	 *
+	 * <p>
+	 * An unquoted URL token is {@code url(}, the URL and {@code )}, with nothing but white space around the URL.
+	 * Without the closing parenthesis there is no such token: the lexer reads {@code url(} as the start of a
+	 * function, and a {@code /*} after it does open a comment ({@code background:url(/*},
+	 * {@code url(x.png /* c}). Everything after {@code url(} used to count as the URL here, so that comment was
+	 * left open and the lexer failed on it.
+	 * </p>
 	 */
 	static String closeUnterminatedComment(final String css) {
-		final int NORMAL = 0, COMMENT = 1, STRING = 2, URL = 3;
+		final int NORMAL = 0, COMMENT = 1, STRING = 2;
 		int state = NORMAL;
 		char quote = 0;
 		for (int i = 0; i < css.length(); ++i) {
@@ -64,8 +73,10 @@ final class DeclarationParser {
 					state = STRING;
 					quote = c;
 				} else if ((c == 'u' || c == 'U') && css.regionMatches(true, i, "url(", 0, 4)) {
-					state = URL;
-					i += 3;
+					// Skip an unquoted URL token whole. Anything else after "url(" is read as usual: a
+					// quoted URL as a string, a comment as a comment.
+					final int end = unquotedUrlEnd(css, i + 4);
+					i = end != -1 ? end : i + 3;
 				}
 				break;
 			case COMMENT:
@@ -82,21 +93,38 @@ final class DeclarationParser {
 					state = NORMAL;
 				}
 				break;
-			case URL:
-				if (c == '\\') {
-					++i;
-				} else if (c == '"' || c == '\'') {
-					// Continue reading a quoted url("...") as STRING (the closing parenthesis is
-					// consumed after returning to NORMAL, but does not affect comment detection).
-					state = STRING;
-					quote = c;
-				} else if (c == ')') {
-					state = NORMAL;
-				}
-				break;
 			}
 		}
 		return state == COMMENT ? css + "*/" : css;
+	}
+
+	/**
+	 * The index of the {@code )} that ends the unquoted URL token whose {@code url(} ends at {@code from}, or -1
+	 * if no such token starts there: the URL is quoted, has white space or a parenthesis inside, or is not
+	 * closed.
+	 */
+	private static int unquotedUrlEnd(final String css, final int from) {
+		final int length = css.length();
+		int i = from;
+		while (i < length && isWhiteSpace(css.charAt(i))) {
+			++i;
+		}
+		for (; i < length; ++i) {
+			final char c = css.charAt(i);
+			if (c == '\\') {
+				++i; // Escape (the next character is part of the URL)
+			} else if (isWhiteSpace(c) || c == '"' || c == '\'' || c == '(' || c == ')') {
+				break;
+			}
+		}
+		while (i < length && isWhiteSpace(css.charAt(i))) {
+			++i;
+		}
+		return i < length && css.charAt(i) == ')' ? i : -1;
+	}
+
+	private static boolean isWhiteSpace(final char c) {
+		return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
 	}
 
 	/**
@@ -107,8 +135,17 @@ final class DeclarationParser {
 	 * because subsequent access is read-only. Stop caching at this level rather than
 	 * caching Declaration, because property interpretation depends on the document URI
 	 * (relative resolution of url()).
+	 *
+	 * <p>
+	 * The cache is shared by all conversions and outlives them, so what it can hold is bounded in characters as
+	 * well as in entries: an attribute longer than {@link #INLINE_CACHE_MAX_LENGTH} is not cached. The repeated
+	 * styles the cache is for are short; a long one is typically unique (a data URL in a background), and 4096 of
+	 * them, of any length, used to stay in memory with their ASTs for the life of the JVM.
+	 * </p>
 	 */
 	private static final int INLINE_CACHE_LIMIT = 4096;
+	/** The longest style attribute that is cached, in characters (with the limit above: 2 M characters of keys). */
+	private static final int INLINE_CACHE_MAX_LENGTH = 512;
 	private static final java.util.Map<String, CSSDeclarationList> INLINE_CACHE = java.util.Collections
 			.synchronizedMap(new java.util.LinkedHashMap<String, CSSDeclarationList>(256, 0.75f, true) {
 				private static final long serialVersionUID = 1L;
@@ -126,13 +163,23 @@ final class DeclarationParser {
 	 */
 	static Declaration parseInline(String css, Declaration into, PropertySet propertySet, UserAgent ua, URI uri)
 			throws CSSException {
-		CSSDeclarationList declarations = INLINE_CACHE.get(css);
+		final boolean cacheable = css.length() <= INLINE_CACHE_MAX_LENGTH;
+		CSSDeclarationList declarations = cacheable ? INLINE_CACHE.get(css) : null;
 		if (declarations == null) {
-			declarations = CSSReaderDeclarationList.readFromString(closeUnterminatedComment(css), settings());
+			try {
+				declarations = CSSReaderDeclarationList.readFromString(closeUnterminatedComment(css), settings());
+			} catch (TokenMgrException e) {
+				// The lexer's error for text it cannot split into tokens. It is unchecked, and the reader of
+				// declaration lists lets it pass (the reader of style sheets answers null for it), so it
+				// ended the conversion from here.
+				throw new CSSException("スタイル宣言を解析できません", e);
+			}
 			if (declarations == null) {
 				throw new CSSException("スタイル宣言を解析できません");
 			}
-			INLINE_CACHE.put(css, declarations);
+			if (cacheable) {
+				INLINE_CACHE.put(css, declarations);
+			}
 		}
 		return convert(declarations.getAllDeclarations(), into, propertySet, ua, uri);
 	}

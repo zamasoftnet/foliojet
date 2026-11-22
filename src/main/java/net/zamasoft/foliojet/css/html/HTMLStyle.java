@@ -777,7 +777,7 @@ public class HTMLStyle {
 			if (wholeImage) {
 				realShape = null;
 			} else {
-				shape = shape.toLowerCase();
+				shape = shape.toLowerCase(java.util.Locale.ROOT);
 				String[] coordsArray = coords.split(",");
 				double[] realCoords = new double[coordsArray.length];
 				for (int i = 0; i < realCoords.length; ++i) {
@@ -973,7 +973,10 @@ public class HTMLStyle {
 						int fontWeight = Integer.parseInt(str);
 						fontWeight = Math.max(100, fontWeight);
 						fontWeight = Math.min(900, fontWeight);
-						style.set(FontWeight.INFO, FontWeightValue.create(fontWeight));
+						// The step of the nine weights for a number between two of them (450), as the
+						// font-weight property takes it; create() accepts only the nine and threw
+						// IllegalArgumentException for any other
+						style.set(FontWeight.INFO, FontWeightValue.nearest(fontWeight));
 					} catch (NumberFormatException e) {
 						ua.message(MessageCodes.WARN_BAD_HTML_ATTRIBUTE, "FONT", "font-weight", str);
 

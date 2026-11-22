@@ -89,7 +89,7 @@ public class TextDecoration extends AbstractPrimitivePropertyInfo {
 					if (ident == null) {
 						throw new PropertyException();
 					}
-					ident = ident.toLowerCase();
+					ident = ident.toLowerCase(java.util.Locale.ROOT);
 				}
 				value = TextDecorationValue.create(flags);
 			}

@@ -41,15 +41,16 @@ public final class BoxValueUtils {
 			return ident.is("auto") ? KeywordValue.AUTO : null;
 		}
 		// Typed attr() (2026-08-03). Attributes belong to the element, so resolve at the computed-value
-		// stage (ValueUtils.emExToAbsoluteLength).
-		Value attr = AttrValueUtils.toTypedAttr(ua, token, TypedAttrValue.Kind.LENGTH);
+		// stage (CSSStyle.get). A margin or an inset takes a length or a percentage, negative ones too.
+		Value attr = AttrValueUtils.toTypedAttr(ua, token, TypedAttrValue.Kind.LENGTH_PERCENTAGE, true);
 		if (attr != null) {
 			return attr;
 		}
 		Value calc = CalcValueUtils.toCalc(ua, token);
 		if (calc != null) {
-			// A <length-percentage> context rejects unitless numeric calc() results (e.g. calc(1 + 2))
-			return calc instanceof RealValue ? null : calc;
+			// A <length-percentage> context rejects calc() results of another type: a unitless number
+			// (calc(1 + 2)) or an angle (calc(1deg))
+			return CalcValueUtils.isLengthPercentage(calc) ? calc : null;
 		}
 		if (token instanceof CssToken.Percent percent) {
 			return ValueUtils.toPercentage(percent);
@@ -235,14 +236,16 @@ public final class BoxValueUtils {
 	 * @return
 	 */
 	public static QuantityValue toPositiveLength(UserAgent ua, CssToken token) {
-		Value attr = AttrValueUtils.toTypedAttr(ua, token, TypedAttrValue.Kind.LENGTH);
+		// The attribute gives a length or a percentage that is not negative, like the other values read here
+		Value attr = AttrValueUtils.toTypedAttr(ua, token, TypedAttrValue.Kind.LENGTH_PERCENTAGE);
 		if (attr != null) {
 			return (QuantityValue) attr;
 		}
 		Value calc = CalcValueUtils.toCalc(ua, token);
 		QuantityValue value;
-		if (calc instanceof RealValue) {
-			// A <length-percentage> context rejects unitless numeric calc() results (e.g. calc(1 + 2))
+		if (calc != null && !CalcValueUtils.isLengthPercentage(calc)) {
+			// A <length-percentage> context rejects calc() results of another type: a unitless number
+			// (calc(1 + 2)) or an angle (calc(1deg))
 			return null;
 		} else if (calc != null) {
 			value = (QuantityValue) calc;
@@ -263,6 +266,10 @@ public final class BoxValueUtils {
 		}
 		final Value lineHeight = CalcValueUtils.toCalc(ua, token);
 		if (lineHeight != null) {
+			// <number> | <length-percentage>: a calc() result of another type (an angle, calc(1deg)) is invalid
+			if (!(lineHeight instanceof RealValue) && !CalcValueUtils.isLengthPercentage(lineHeight)) {
+				return null;
+			}
 			return ((QuantityValue) lineHeight).isNegative() ? null : lineHeight;
 		}
 		final Value plain;

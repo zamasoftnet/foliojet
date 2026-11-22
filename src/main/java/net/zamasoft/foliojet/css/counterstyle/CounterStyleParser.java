@@ -53,7 +53,7 @@ public final class CounterStyleParser {
 		boolean suffixSpecified = false;
 
 		for (final String[] descriptor : descriptors) {
-			final String name = descriptor[0].toLowerCase();
+			final String name = descriptor[0].toLowerCase(java.util.Locale.ROOT);
 			final String value = descriptor[1];
 			switch (name) {
 			case "system": {
@@ -61,7 +61,7 @@ public final class CounterStyleParser {
 				if (parts.isEmpty()) {
 					break;
 				}
-				switch (parts.get(0).toLowerCase()) {
+				switch (parts.get(0).toLowerCase(java.util.Locale.ROOT)) {
 				case "cyclic" -> system = System.CYCLIC;
 				case "numeric" -> system = System.NUMERIC;
 				case "alphabetic" -> system = System.ALPHABETIC;

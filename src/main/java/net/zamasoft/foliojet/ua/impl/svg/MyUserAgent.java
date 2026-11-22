@@ -2,6 +2,8 @@ package net.zamasoft.foliojet.ua.impl.svg;
 
 import java.awt.geom.Dimension2D;
 
+import org.apache.batik.bridge.ExternalResourceSecurity;
+import org.apache.batik.bridge.NoLoadExternalResourceSecurity;
 import org.apache.batik.bridge.NoLoadScriptSecurity;
 import org.apache.batik.bridge.ScriptSecurity;
 import org.apache.batik.util.ParsedURL;
@@ -50,5 +52,24 @@ class MyUserAgent extends SVGUserAgent {
 
 	public ScriptSecurity getScriptSecurity(String scriptType, ParsedURL scriptPURL, ParsedURL docPURL) {
 		return new NoLoadScriptSecurity(scriptType);
+	}
+
+	/**
+	 * Refuses every external resource that Batik would open by itself.
+	 *
+	 * <p>
+	 * The engine's resolver is where access control, the local-access guard and the limits are applied, and
+	 * {@link MyParsedURLDefaultProtocolHandler} sends Batik's fetches there (or refuses them, as for {@code jar:}).
+	 * A URL whose protocol has some other handler in Batik's registry, such as one a library on the class path
+	 * registers as a service, would be opened with {@code java.net.URL} instead, so it is refused here, before
+	 * anything is opened. For the rest Batik's own rule stays in force.
+	 * </p>
+	 */
+	public ExternalResourceSecurity getExternalResourceSecurity(ParsedURL resourceURL, ParsedURL docURL) {
+		if (resourceURL != null && !MyParsedURLDefaultProtocolHandler.opensThroughEngine(resourceURL)) {
+			this.ua.message(MessageCodes.WARN_BLOCKED_RESOURCE, resourceURL.toString());
+			return new NoLoadExternalResourceSecurity();
+		}
+		return super.getExternalResourceSecurity(resourceURL, docURL);
 	}
 }

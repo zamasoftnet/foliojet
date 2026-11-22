@@ -133,7 +133,7 @@ public final class FontValueUtils {
 			return null;
 		}
 		if (!tokens.hasNext()) {
-			switch (first.toLowerCase()) {
+			switch (first.toLowerCase(java.util.Locale.ROOT)) {
 			case "generic":
 			case "cid-keyed":
 				return CSSJFontPolicyValue.CORE_CID_KEYED_VALUE;
@@ -153,7 +153,7 @@ public final class FontValueUtils {
 		codes.add(FontPolicy.CORE);
 		String ident = first;
 		for (;;) {
-			switch (ident.toLowerCase()) {
+			switch (ident.toLowerCase(java.util.Locale.ROOT)) {
 			case "generic":
 			case "cid-keyed":
 				codes.add(FontPolicy.CID_KEYED);
@@ -192,7 +192,7 @@ public final class FontValueUtils {
 	public static CSSJFontPolicyValue toFontPolicy(String str) {
 		String[] types = str.split("[\\s]+");
 		if (types.length == 1) {
-			String ident = types[0].toLowerCase();
+			String ident = types[0].toLowerCase(java.util.Locale.ROOT);
 			if (ident.equals("generic") || ident.equals("cid-keyed")) {
 				return CSSJFontPolicyValue.CORE_CID_KEYED_VALUE;
 			} else if (ident.equals("external") || ident.equals("cid-identity")) {
@@ -208,7 +208,7 @@ public final class FontValueUtils {
 		List<FontPolicy> codes = new ArrayList<FontPolicy>();
 		codes.add(FontPolicy.CORE);
 		for (int i = 0; i < types.length; ++i) {
-			String ident = types[i].toLowerCase();
+			String ident = types[i].toLowerCase(java.util.Locale.ROOT);
 			if (ident.equals("generic") || ident.equals("cid-keyed")) {
 				codes.add(FontPolicy.CID_KEYED);
 			} else if (ident.equals("external") || ident.equals("cid-identity")) {
@@ -232,7 +232,7 @@ public final class FontValueUtils {
 	public static CSSJFontPolicyValue toFontPolicyA1(String str) {
 		String[] types = str.split("[\\s]+");
 		if (types.length == 1) {
-			String ident = types[0].toLowerCase();
+			String ident = types[0].toLowerCase(java.util.Locale.ROOT);
 			if (ident.equals("embed") || ident.equals("embedded")) {
 				return CSSJFontPolicyValue.PDFA1_VALUE;
 			} else if (ident.equals("outlines")) {
@@ -244,7 +244,7 @@ public final class FontValueUtils {
 		List<FontPolicy> codes = new ArrayList<FontPolicy>();
 		codes.add(FontPolicy.CORE);
 		for (int i = 0; i < types.length; ++i) {
-			String ident = types[i].toLowerCase();
+			String ident = types[i].toLowerCase(java.util.Locale.ROOT);
 			if (ident.equals("embed") || ident.equals("embedded")) {
 				codes.add(FontPolicy.EMBEDDED);
 			} else if (ident.equals("outlines")) {

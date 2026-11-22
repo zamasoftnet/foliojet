@@ -51,6 +51,17 @@ public class CSSJHtmlCellPadding extends AbstractPrimitivePropertyInfo {
 	/** Made writable from CSS (2026-08-03). {@code <length>} (attr() also allowed). */
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
+		if (lu instanceof CssToken.Func func && func.is("attr")) {
+			// The cells read this value as a length (their padding), so the attribute gives a length only:
+			// cellpadding="5%" is not a value, and the fallback applies. Read as the paddings themselves are,
+			// a percentage came through and failed the cast in get().
+			final Value attr = net.zamasoft.foliojet.css.util.AttrValueUtils.toTypedAttr(ua, lu,
+					net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.LENGTH);
+			if (attr == null) {
+				throw new PropertyException();
+			}
+			return attr;
+		}
 		final Value value = net.zamasoft.foliojet.css.util.BoxValueUtils.toPositiveLength(ua, lu);
 		if (value == null) {
 			throw new PropertyException();

@@ -30,7 +30,27 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 
 	private int dtdPos = 0;
 
+	/**
+	 * The events of the head, kept until the content starts ({@link #startBody}), so that the processing
+	 * instructions made from the head (style sheets, document information) go out before the root element. Null
+	 * once the content has started.
+	 *
+	 * <p>
+	 * The content starts at the body element, at an element of another namespace, and, for a document without a
+	 * body, at the first element or text that is not part of the head (see {@link #metadataDepth}) or at the end of
+	 * the document. XHTML and XML input need not have a body ({@code <html><head/><div>...</div></html>}, or
+	 * {@code <doc><p>...</p></doc>} with every element taken as XHTML): such a document used to be kept here
+	 * whole and was never passed on, so the result was an empty page.
+	 * </p>
+	 */
 	private List<SAXEventRecorder.SAXEvent> events = new ArrayList<SAXEventRecorder.SAXEvent>();
+
+	/**
+	 * While the head is kept: the number of open elements from a metadata element down, that is, of
+	 * {@code head}, {@code title}, {@code meta}, {@code link}, {@code style}, {@code base}, {@code script} and of
+	 * whatever is inside them. 0 outside them, where an element (other than {@code html}) or text is content.
+	 */
+	private int metadataDepth = 0;
 
 	private List<String[]> pis = new ArrayList<String[]>();
 
@@ -203,7 +223,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					if ((type == null && this.defaultStyleType.equalsIgnoreCase(Constants.CSS_MIME_TYPE))
 							|| Constants.CSS_MIME_TYPE.equalsIgnoreCase(type)) {
 						if (media != null) {
-							media = media.toLowerCase();
+							media = media.toLowerCase(java.util.Locale.ROOT);
 						} else {
 							media = "all";
 						}
@@ -227,7 +247,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					String httpEquiv = atts.getValue(XHTML.URI, "http-equiv");
 					if (httpEquiv != null) {
 						// Character encoding
-						httpEquiv = httpEquiv.trim().toLowerCase();
+						httpEquiv = httpEquiv.trim().toLowerCase(java.util.Locale.ROOT);
 						if (httpEquiv.equals("content-type")) {
 							String contentTypeCharset = MimeTypeHelper.getParameter(content, "charset");
 							if (contentTypeCharset != null) {
@@ -242,7 +262,7 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 
 					String name = atts.getValue(XHTML.URI, "name");
 					if (name != null) {
-						name = name.trim().toLowerCase();
+						name = name.trim().toLowerCase(java.util.Locale.ROOT);
 						if (name.equals("viewport") && UAProps.INPUT_VIEWPORT.getBoolean(this.ua)) {
 							AttributesImpl attsi = new AttributesImpl();
 							try {
@@ -337,6 +357,14 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 				super.startElement(uri, lName, qName, atts);
 				return;
 			}
+			if (this.events != null) {
+				if (this.metadataDepth > 0 || isMetadata(lName)) {
+					++this.metadataDepth;
+				} else if (!lName.equals(XHTML.HTML_ELEM.lName)) {
+					// Content of a document without a body element
+					this.startBody();
+				}
+			}
 			if (pi != null) {
 				if (this.pis == null) {
 					super.processingInstruction(pi[0], pi[1]);
@@ -355,6 +383,30 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 			}
 			super.startElement(uri, lName, qName, atts);
 		}
+	}
+
+	/** Whether the element belongs to the head of a document, inside a head element or not. */
+	private static boolean isMetadata(final String lName) {
+		switch (lName) {
+		case "head":
+		case "title":
+		case "meta":
+		case "link":
+		case "style":
+		case "base":
+		case "script":
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** A document without a body element and without content: the head is all there is to pass on. */
+	public void endDocument() throws SAXException {
+		if (this.events != null) {
+			this.startBody();
+		}
+		super.endDocument();
 	}
 
 	private void startBody() throws SAXException {
@@ -377,6 +429,17 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 	}
 
 	public void characters(char[] ch, int off, int len) throws SAXException {
+		if (this.events != null && this.metadataDepth == 0) {
+			for (int i = 0; i < len; ++i) {
+				final char c = ch[off + i];
+				if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+					// Text of a document without a body element (white space between the elements of the
+					// head is not content)
+					this.startBody();
+					break;
+				}
+			}
+		}
 		if (this.events == null) {
 			super.characters(ch, off, len);
 		} else {
@@ -421,10 +484,16 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					this.contentBuff = null;
 				}
 			} else if (lName.equals(XHTML.TITLE_ELEM.lName)) {
-				if (this.useMetaInfo && this.contentBuff != null) {
-					String data = "name='title' value='"
-							+ XMLUtils.escapePseudeAttr(stripAndCollapse(this.contentBuff.toString())) + "'";
-					pi = new String[] { CSSJML.PI_DOCUMENT_INFO, data };
+				if (this.contentBuff != null) {
+					if (this.useMetaInfo) {
+						String data = "name='title' value='"
+								+ XMLUtils.escapePseudeAttr(stripAndCollapse(this.contentBuff.toString())) + "'";
+						pi = new String[] { CSSJML.PI_DOCUMENT_INFO, data };
+					}
+					// Release the buffer whether or not the title is used. Left in place when the document
+					// information is off, it collected every later character of the document, and a later
+					// style element that is to be skipped (another medium) was passed on as a style sheet
+					// made of all that text.
 					this.contentBuff = null;
 				}
 			}
@@ -440,6 +509,10 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 			super.endElement(uri, lName, qName);
 		} else {
 			this.events.add(SAXEventRecorder.endElement(uri, lName, qName));
+			if (this.metadataDepth > 0) {
+				// Every element that ends while the head is kept was counted at its start, except html
+				--this.metadataDepth;
+			}
 		}
 	}
 }

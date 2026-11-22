@@ -512,12 +512,14 @@ final class PDFParamsResolver {
 					throw new IllegalStateException();
 				}
 				int length = UAProps.OUTPUT_PDF_ENCRYPTION_LENGTH.getInteger(ua);
-				try {
-					v4Params.setLength(length);
-				} catch (IllegalArgumentException e) {
+				if (length != 128) {
+					// v4 is 128 bits with either cipher; the key length is v2's setting. AESV2 has no other key
+					// length (a shorter one failed in the cipher while the document was being written), and readers
+					// do not agree on shorter Arcfour keys under a V 4 crypt filter. Keep 128 bits
 					ua.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
 							UAProps.OUTPUT_PDF_ENCRYPTION_LENGTH.name, String.valueOf(length), "V4 Encryption");
 				}
+				v4Params.setLength(128);
 				R3Permissions r3p = v4Params.getPermissions();
 				applyR2Permissions(ua, r3p);
 				applyR3Permissions(ua, r3p);

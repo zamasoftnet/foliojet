@@ -46,6 +46,12 @@ public class BackgroundColor extends AbstractPrimitivePropertyInfo {
 		// Typed attr() (2026-08-03). Colors can also come from attributes (needed to move
 		// bgcolor/text/link, etc.). Uses the same resolution entry point as lengths.
 		value = ValueUtils.emExToAbsoluteLength(value, style);
+		if (value == KeywordValue.NONE) {
+			// An attr() that could not be resolved (bgcolor="" or not a color, and no fallback): the
+			// declaration is invalid at computed-value time and background-color behaves as unset, its
+			// initial value. Passed through, NONE failed the cast to a paint in get().
+			return KeywordValue.TRANSPARENT;
+		}
 		// CSS Color 4: resolve background-color currentcolor to the computed value of
 		// this element's color. Do not leak unresolved keywords to consumers such as
 		// MaskImage; pass the same concrete color to normal background rendering.

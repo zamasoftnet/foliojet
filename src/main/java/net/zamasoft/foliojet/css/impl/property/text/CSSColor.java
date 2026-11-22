@@ -42,7 +42,31 @@ public class CSSColor extends AbstractPrimitivePropertyInfo {
 	public Value getComputedValue(Value value, CSSStyle style) {
 		// Typed attr() (2026-08-03). Colors can also come from attributes (needed to move
 		// bgcolor/text/link, etc.). Uses the same resolution entry point as lengths.
-		return ValueUtils.emExToAbsoluteLength(value, style);
+		value = ValueUtils.emExToAbsoluteLength(value, style);
+		if (value == KeywordValue.NONE) {
+			// An attr() that could not be resolved (no such attribute or not a color, and no fallback):
+			// the declaration is invalid at computed-value time and color behaves as unset, that is,
+			// it inherits. Passed through, NONE failed the cast to a color in get().
+			return this.inheritedColor(style);
+		}
+		return value;
+	}
+
+	/**
+	 * The parent's computed color, or the default at the root. The ancestors are asked from the root down, so that
+	 * a chain of elements that all come here and whose color nothing has read yet (boxless ones) costs one level
+	 * of recursion, not one per ancestor.
+	 */
+	private Value inheritedColor(CSSStyle style) {
+		final java.util.ArrayList<CSSStyle> ancestors = new java.util.ArrayList<>();
+		for (CSSStyle s = style.getParentStyle(); s != null; s = s.getParentStyle()) {
+			ancestors.add(s);
+		}
+		Value color = this.getDefault(style);
+		for (int i = ancestors.size() - 1; i >= 0; --i) {
+			color = ancestors.get(i).get(INFO);
+		}
+		return color;
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

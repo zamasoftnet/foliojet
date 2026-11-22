@@ -167,7 +167,7 @@ whereas <span class="ioprop">output.expand-with-content</span>
 
 When <span class="ioprop">output.media_types</span> includes `projection`, the document is typeset as **slides**.
 `projection` is the CSS2 media type "intended for projected presentations".
-Media Queries 4 deprecated it, but Copper PDF supports it.
+Media Queries 4 deprecated it, but COPPER 4 supports it.
 
 Slides differ from print as follows.
 
@@ -207,7 +207,7 @@ besides `@media projection`, the `overflow-block` media feature is available.
 | <span class="ioprop">output.no-page-break</span> is true | `none` |
 
 `optional-paged` is a value from the Media Queries 4 drafts (its example was slideshows).
-It was dropped from the specification because no user agent behaved that way, but Copper PDF's slides follow that definition, so the value matches.
+It was dropped from the specification because no user agent behaved that way, but COPPER 4's slides follow that definition, so the value matches.
 `(overflow-block)` alone matches unless the value is `none`.
 
 ### <a id="style-imposition">Imposition<span class="since">4.0.0</span></a>

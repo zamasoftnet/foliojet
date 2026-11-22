@@ -204,6 +204,17 @@ final class BoxStyleMapper {
 	 */
 	private static final int MAX_ROWSPAN = 65534;
 
+	/**
+	 * Upper bound for the {@code span} of {@code <col>} and {@code <colgroup>}, as defined by the HTML Standard.
+	 *
+	 * <p>
+	 * The table builders allocate one column entry per spanned column, so without a bound
+	 * {@code <col span="2147483647">} asks for an array of that length and the conversion ends with
+	 * {@code OutOfMemoryError}.
+	 * </p>
+	 */
+	private static final int MAX_COLUMN_SPAN = 1000;
+
 	private final UserAgent ua;
 	private final StyleContext styleContext;
 
@@ -1018,6 +1029,8 @@ final class BoxStyleMapper {
 			pos.span = Integer.parseInt(span);
 			if (pos.span <= 0) {
 				pos.span = 1;
+			} else if (pos.span > MAX_COLUMN_SPAN) {
+				pos.span = MAX_COLUMN_SPAN;
 			}
 		} catch (NumberFormatException e) {
 			pos.span = 1;

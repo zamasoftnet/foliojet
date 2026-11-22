@@ -686,6 +686,8 @@ class MyHttpSourceResolver implements SourceResolver {
 		 * refetching could change the page content, so use the first body read.
 		 */
 		private final boolean main;
+		/** Whether the response was reached through at least one redirect (never stored in the shared cache). */
+		private boolean redirected = false;
 		private CompletableFuture<HttpResponse<InputStream>> responseFuture;
 		private HttpResponse<InputStream> response;
 		private InputStream in;
@@ -894,6 +896,12 @@ class MyHttpSourceResolver implements SourceResolver {
 			if (this.response.statusCode() != 200) {
 				return false;
 			}
+			if (this.redirected) {
+				// The shared cache is keyed by the URI that was asked for, and a hit is returned before any redirect
+				// handling: a body that one user reached through a redirect must not be handed to another user,
+				// whose own redirect check might refuse that target.
+				return false;
+			}
 			if (this.response.headers().firstValue("Set-Cookie").isPresent()) {
 				return false;
 			}
@@ -1009,7 +1017,11 @@ class MyHttpSourceResolver implements SourceResolver {
 					throw new IOException("refusing to follow a redirect from https to " + next.getScheme());
 				}
 				if (guard != null && !guard.test(next)) {
-					throw new SecurityException("Access to the redirect target is not permitted: " + next);
+					// An I/O failure of this one resource, like the other refusals in this loop. The redirect
+					// is only seen when the source is first read, long after resolve() returned: an unchecked
+					// exception from there passed every caller that handles a resource it cannot read
+					// (a style sheet, the main document) and aborted the whole conversion.
+					throw new IOException("Access to the redirect target is not permitted: " + next);
 				}
 				// Close the unused body.
 				try {
@@ -1018,6 +1030,7 @@ class MyHttpSourceResolver implements SourceResolver {
 					// ignore
 				}
 				current = next;
+				this.redirected = true;
 				this.responseFuture = this.httpClient.sendAsync(
 						MyHttpSourceResolver.this.createHttpRequest(next,
 								sameOrigin(this.request.uri(), next)),

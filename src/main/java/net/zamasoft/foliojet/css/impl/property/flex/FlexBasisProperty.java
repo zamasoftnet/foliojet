@@ -44,7 +44,12 @@ public class FlexBasisProperty extends AbstractPrimitivePropertyInfo {
 		if (basis.getSize() == null) {
 			return basis;
 		}
-		return FlexBasisValue.size((QuantityValue) ValueUtils.emExToAbsoluteLength(basis.getSize(), style));
+		// An attr() as the size that resolves to no size (no value and no fallback, or the fallback auto): the
+		// declaration is invalid at computed-value time and flex-basis is its initial value. The keyword that
+		// stands for "not resolved" failed the cast to a size.
+		return ValueUtils.emExToAbsoluteLength(basis.getSize(), style) instanceof QuantityValue quantity
+				? FlexBasisValue.size(quantity)
+				: FlexBasisValue.AUTO_VALUE;
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {

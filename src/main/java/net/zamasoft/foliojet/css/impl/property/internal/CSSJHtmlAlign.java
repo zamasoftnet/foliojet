@@ -47,7 +47,7 @@ public class CSSJHtmlAlign extends AbstractPrimitivePropertyInfo {
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
 		final CssToken lu = tokens.next();
 		if (lu instanceof CssToken.Ident ident) {
-			final String name = ident.name().toLowerCase();
+			final String name = ident.name().toLowerCase(java.util.Locale.ROOT);
 			switch (name) {
 			case "start":
 				return net.zamasoft.foliojet.css.value.internal.CSSJHtmlAlignValue.START_VALUE;

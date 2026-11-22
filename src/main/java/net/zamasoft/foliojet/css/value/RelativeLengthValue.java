@@ -124,6 +124,6 @@ public final class RelativeLengthValue implements LengthValue {
 	}
 
 	public String toString() {
-		return this.value + this.unit.name().toLowerCase();
+		return this.value + this.unit.name().toLowerCase(java.util.Locale.ROOT);
 	}
 }

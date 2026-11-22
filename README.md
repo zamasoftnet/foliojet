@@ -3,7 +3,7 @@
 **A streaming HTML/CSS-to-PDF layout engine for print, with CSS Paged Media and
 JLREQ Japanese typesetting.** Apache-2.0, Java 21, no browser required.
 
-FolioJet is the layout engine behind Copper PDF, a server-side document
+FolioJet is the layout engine behind COPPER 4, a server-side document
 converter that Japanese companies and publishers have used in production to
 print invoices, statements, tickets, catalogs and books. This fourth-generation
 engine was rewritten and open-sourced in 2026.

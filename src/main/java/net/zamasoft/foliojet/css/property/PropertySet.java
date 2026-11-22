@@ -62,7 +62,7 @@ public abstract class PropertySet {
 			// (do not lowercase the name, since names are case-sensitive).
 			return new CustomProperty(name, value, uri, important);
 		}
-		PropertyInfo ph = this.getPropertyParser(name.toLowerCase());
+		PropertyInfo ph = this.getPropertyParser(name.toLowerCase(java.util.Locale.ROOT));
 		if (ph != null) {
 			if (VarSubstitution.containsEnvReference(value)) {
 				// env() does not depend on the element, so substitute it at parse time (2026-08-29).
@@ -206,7 +206,7 @@ public abstract class PropertySet {
 			// starting with -- accept arbitrary token sequences).
 			return true;
 		}
-		PropertyInfo ph = this.getPropertyParser(name.toLowerCase());
+		PropertyInfo ph = this.getPropertyParser(name.toLowerCase(java.util.Locale.ROOT));
 		if (ph == null) {
 			return false;
 		}

@@ -50,7 +50,8 @@ import java.util.Map;
  *
  * <p>
  * An LRU with a 4 MB per-entry limit and a 64 MB total limit. Bodies exceeding the limit
- * pass through without storage (the caller decides).
+ * pass through without storage (the caller decides). An entry is charged its body, its key and a fixed
+ * overhead, so that entries with small or empty bodies are bounded as well.
  * </p>
  */
 final class HttpResponseCache {
@@ -64,6 +65,12 @@ final class HttpResponseCache {
 
 	/** The total limit for all entries (evicts the oldest entries when exceeded). */
 	static final long MAX_TOTAL_BYTES = 64L * 1024 * 1024;
+
+	/**
+	 * Bytes charged for an entry besides its body and its key: the map entry, the record and its strings. Charged the
+	 * body alone, entries with empty bodies cost nothing and were never evicted.
+	 */
+	static final int ENTRY_OVERHEAD_BYTES = 256;
 
 	/** A cached response (body contains decompressed bytes). */
 	record Entry(byte[] body, String mimeType, String encoding, long lastModified, long storedAtMillis,
@@ -82,6 +89,11 @@ final class HttpResponseCache {
 	private static final Map<String, Entry> ENTRIES = new LinkedHashMap<>(64, 0.75f, true);
 	private static long totalBytes = 0;
 
+	/** The bytes an entry is charged against {@link #MAX_TOTAL_BYTES}. */
+	private static long cost(final String key, final Entry entry) {
+		return ENTRY_OVERHEAD_BYTES + 2L * key.length() + entry.body().length;
+	}
+
 	/**
 	 * Returns a fresh entry. Discards expired entries here and returns {@code null}.
 	 *
@@ -95,7 +107,7 @@ final class HttpResponseCache {
 		}
 		if (!entry.isFresh(ttlSeconds, System.currentTimeMillis())) {
 			ENTRIES.remove(key);
-			totalBytes -= entry.body().length;
+			totalBytes -= cost(key, entry);
 			return null;
 		}
 		return entry;
@@ -108,14 +120,14 @@ final class HttpResponseCache {
 		}
 		final Entry old = ENTRIES.remove(key);
 		if (old != null) {
-			totalBytes -= old.body().length;
+			totalBytes -= cost(key, old);
 		}
 		ENTRIES.put(key, entry);
-		totalBytes += entry.body().length;
+		totalBytes += cost(key, entry);
 		final java.util.Iterator<Map.Entry<String, Entry>> it = ENTRIES.entrySet().iterator();
 		while (totalBytes > MAX_TOTAL_BYTES && it.hasNext()) {
 			final Map.Entry<String, Entry> eldest = it.next();
-			totalBytes -= eldest.getValue().body().length;
+			totalBytes -= cost(eldest.getKey(), eldest.getValue());
 			it.remove();
 		}
 	}

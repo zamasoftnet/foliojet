@@ -35,8 +35,14 @@ public final class GapValueUtils {
 	public static Value toGap(UserAgent ua, CssToken token) {
 		final Value calc = CalcValueUtils.toCalc(ua, token);
 		if (calc != null) {
-			// A <length> context rejects unitless numeric calc() results (e.g. calc(1 + 2))
-			if (calc instanceof net.zamasoft.foliojet.css.value.RealValue) {
+			// A <length> context: only a calc() result that computes to an absolute length is a gap.
+			// A unitless number (calc(1 + 2)), an angle (calc(1deg)) and a result with a percentage
+			// part (calc(10% + 5px); a plain percentage is not accepted either) are invalid: once
+			// stored, they failed the cast to a length where the gap was read.
+			final boolean length = calc instanceof net.zamasoft.foliojet.css.value.AbsoluteLengthValue
+					|| calc instanceof net.zamasoft.foliojet.css.value.CalcFontRelativeValue fontRelative
+							&& fontRelative.getRatio() == 0;
+			if (!length) {
 				return null;
 			}
 			if (calc instanceof net.zamasoft.foliojet.css.value.QuantityValue quantity && quantity.isNegative()) {

@@ -143,6 +143,9 @@ public class DirectSession extends AbstractCTISession
 
 	private boolean continuous = false;
 
+	/** Whether the client set {@code input.http.proxy.host} through {@link #property} (not the server's profile). */
+	private boolean proxyFromClient = false;
+
 	private boolean aborted = false;
 
 	/**
@@ -587,6 +590,11 @@ public class DirectSession extends AbstractCTISession
 			// profileProperty().
 			this.message(MessageCodes.WARN_CANNOT_OVERRIDE_PROPERTY, new String[] { name });
 			return;
+		}
+		if (UAProps.INPUT_HTTP_PROXY_HOST.name.equals(name)) {
+			// The resolver keeps a user without local access away from a proxy on the server's own network only
+			// when the client named the proxy; the profile's proxy is the operator's.
+			this.proxyFromClient = true;
 		}
 		if (this.operatorLimits.loosens(name, value)) {
 			// Accept the value as is and apply the limit when reading it (OperatorLimits).
@@ -1045,6 +1053,7 @@ public class DirectSession extends AbstractCTISession
 			}
 		}
 
+		this.resolver.setProxyFromClient(this.proxyFromClient);
 		this.resolver.setup(uri, this.operatorLimits.clampAll(this.props), this);
 		this.aborted = false;
 		this.abortMode = 0;
@@ -1151,10 +1160,14 @@ public class DirectSession extends AbstractCTISession
 			this.ua = null;
 			this.middlePath = false;
 			this.props.clear();
+			this.proxyFromClient = false;
 			// The instruction discards session state, so discard retained state too.
 			this.pagedSvgFontCarry = new net.zamasoft.foliojet.ua.impl.pagedsvg.PagedSvgFontCarry();
-			this.prepareDefaultProperties();
+			// Clear the resolver before the profile is read again: the profile's input.include/input.exclude go
+			// into the resolver, and the first match wins, so they must stay ahead of the patterns the client
+			// sends next. In the other order they were wiped here and added again only behind the client's.
 			this.resolver.reset();
+			this.prepareDefaultProperties();
 		}
 	}
 

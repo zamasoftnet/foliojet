@@ -1371,15 +1371,42 @@ public abstract class AbstractTextBox extends AbstractBox {
 			this.descent = descent;
 		}
 
-		/** Grid cell interval [kmin, kmax] (number of copies is kmax-kmin+1). */
+		/**
+		 * The most copies of the pattern one leader draws. A dot leader of a 6pt font across a line five metres
+		 * long is under this; a pattern so narrow that more copies fit (a font size of 0.0001px) is not visible,
+		 * and the copies past the limit are left out.
+		 */
+		private static final int MAX_COPIES = 10000;
+
+		/** The cell interval of a leader that draws nothing. */
+		private static final long[] NO_CELLS = { 0, -1 };
+
+		/**
+		 * Grid cell interval [kmin, kmax] (number of copies is kmax-kmin+1, at most {@link #MAX_COPIES}; empty if
+		 * kmax &lt; kmin).
+		 *
+		 * <p>
+		 * The period divides the line: a pattern without an advance (a font size of 0, where every glyph is 0 wide)
+		 * has no period and draws nothing. It used to give an interval up to {@code Long.MAX_VALUE}, and drawing
+		 * never ended.
+		 * </p>
+		 */
 		private long[] cellRange() {
 			final double p = this.leader.minAdvance;
+			if (!(p > 0) || Double.isInfinite(p)) {
+				return NO_CELLS;
+			}
 			final double end = this.leader.advance;
 			final double gridOrigin = end + this.leader.endOffset;
 			// Cell k: [gridOrigin-(k+1)p, gridOrigin-kp). Only cells entirely within [0,end].
-			final long kmin = (long) Math.ceil((gridOrigin - end) / p - 0.0001);
-			final long kmax = (long) Math.floor((gridOrigin) / p - 1 + 0.0001);
-			return new long[] { kmin, kmax };
+			final double first = Math.ceil((gridOrigin - end) / p - 0.0001);
+			double last = Math.floor((gridOrigin) / p - 1 + 0.0001);
+			// Indexes are compared as doubles and kept where a long holds them exactly; this is false for NaN too
+			if (!(first <= last) || !(Math.abs(first) < 1e15)) {
+				return NO_CELLS;
+			}
+			last = Math.min(last, first + (MAX_COPIES - 1));
+			return new long[] { (long) first, (long) last };
 		}
 
 		public String describe() {
@@ -1424,7 +1451,10 @@ public abstract class AbstractTextBox extends AbstractBox {
 					gc.transform(SidewaysGeometry.runTransform(this.params.writingModeVariant, x, y,
 							this.ascent, this.descent, this.leader.advance));
 				}
-				for (long k = range[0]; k <= range[1]; ++k) {
+				// The number of copies is bounded by cellRange
+				final int copies = (int) (range[1] - range[0] + 1);
+				for (int i = 0; i < copies; ++i) {
+					final long k = range[0] + i;
 					double cell = gridOrigin - (k + 1) * p;
 					for (final Text run : this.leader.runs) {
 						if (sideways) {

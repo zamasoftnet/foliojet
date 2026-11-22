@@ -456,8 +456,8 @@ or if the viewing environment uses a different encoding.
 
 #### <a id="style-pdf-meta">Setting creation and modification times and the file ID</a>
 
-By default, the PDF creation and modification times (CreationDate, ModDate) use the current time from the clock in the environment where Copper
-PDF runs. The file ID uses a random number.
+By default, the PDF creation and modification times (CreationDate, ModDate) use the current time from the clock in the environment where
+COPPER 4 runs. The file ID uses a random number.
 
 You can also set the creation and modification times and file ID explicitly<span class="since">2.0.9</span>.
 

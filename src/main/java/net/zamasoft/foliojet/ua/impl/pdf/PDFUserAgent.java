@@ -366,41 +366,49 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				// Background
 				OutputPdfWatermarkMode mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.get(this);
 				if (mode == OutputPdfWatermarkMode.BACK) {
-					final String dims = w + "x" + h;
-					PDFGroupImage watermarkGroup = this.watermarkGroups.get(dims);
-					if (watermarkGroup == null) {
-						PDFPageOutput out = (PDFPageOutput) gc.getPDFGraphicsOutput();
-						watermarkGroup = out.getPdfWriter().createGroupImage(w, h);
-						int flags = 0;
-						if (!UAProps.OUTPUT_PDF_WATERMARK_VIEW.getBoolean(this)) {
-							if (this.pdfWriter.getParams().version().v >= PDFParams.Version.V_1_5.v) {
-								flags |= PDFGroupImage.VIEW_OFF;
-							} else {
-								this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
-										UAProps.OUTPUT_PDF_WATERMARK_VIEW.name, "false", "1.4");
-							}
-						}
-						if (!UAProps.OUTPUT_PDF_WATERMARK_PRINT.getBoolean(this)) {
-							if (this.pdfWriter.getParams().version().v >= PDFParams.Version.V_1_5.v) {
-								flags |= PDFGroupImage.PRINT_OFF;
-							} else {
-								this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
-										UAProps.OUTPUT_PDF_WATERMARK_PRINT.name, "false", "1.4");
-							}
-						}
-						if (flags != 0) {
-							watermarkGroup.setOCG(flags);
-						}
-						this.paintWatermark(watermarkGroup, null, w, h);
-						this.watermarkGroups.put(dims, watermarkGroup);
-					}
-					gc.drawImage(watermarkGroup);
+					gc.drawImage(this.watermarkGroup(w, h));
 				}
 			}
 			return gc;
 		} catch (IOException e) {
 			throw new GraphicsException(e);
 		}
+	}
+
+	/**
+	 * The watermark as page content: a group image covering a page of the given size, shared by the pages of
+	 * that size. Drawn before the page's content it is the background watermark; PDF/X, which allows no
+	 * annotation over the page, also gets its foreground watermark this way, drawn after the content.
+	 */
+	private PDFGroupImage watermarkGroup(final double w, final double h) throws IOException {
+		final String dims = w + "x" + h;
+		PDFGroupImage watermarkGroup = this.watermarkGroups.get(dims);
+		if (watermarkGroup == null) {
+			watermarkGroup = this.pdfWriter.createGroupImage(w, h);
+			int flags = 0;
+			if (!UAProps.OUTPUT_PDF_WATERMARK_VIEW.getBoolean(this)) {
+				if (this.pdfWriter.getParams().version().v >= PDFParams.Version.V_1_5.v) {
+					flags |= PDFGroupImage.VIEW_OFF;
+				} else {
+					this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
+							UAProps.OUTPUT_PDF_WATERMARK_VIEW.name, "false", "1.4");
+				}
+			}
+			if (!UAProps.OUTPUT_PDF_WATERMARK_PRINT.getBoolean(this)) {
+				if (this.pdfWriter.getParams().version().v >= PDFParams.Version.V_1_5.v) {
+					flags |= PDFGroupImage.PRINT_OFF;
+				} else {
+					this.message(MessageCodes.WARN_UNSUPPORTED_PDF_CAPABILITY,
+							UAProps.OUTPUT_PDF_WATERMARK_PRINT.name, "false", "1.4");
+				}
+			}
+			if (flags != 0) {
+				watermarkGroup.setOCG(flags);
+			}
+			this.paintWatermark(watermarkGroup, null, w, h);
+			this.watermarkGroups.put(dims, watermarkGroup);
+		}
+		return watermarkGroup;
 	}
 
 	/**
@@ -456,7 +464,12 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 		try (final PDFPageOutput out = (PDFPageOutput) pdfGc.getPDFGraphicsOutput()) {
 			if (this.watermark != null) {
 				OutputPdfWatermarkMode mode = UAProps.OUTPUT_PDF_WATERMARK_MODE.get(this);
-				if (mode == OutputPdfWatermarkMode.FRONT) {
+				if (mode == OutputPdfWatermarkMode.FRONT && this.pdfWriter.getParams().version().isPdfX()) {
+					// Foreground in PDF/X, which allows annotations only outside the bleed area (the writer
+					// rejects the page otherwise): paint the watermark as the last of the page's content.
+					// The impositions have restored the page's own coordinate system by now
+					pdfGc.drawImage(this.watermarkGroup(out.getWidth(), out.getHeight()));
+				} else if (mode == OutputPdfWatermarkMode.FRONT) {
 					// Foreground
 					Rectangle2D rect = new Rectangle2D.Double(0, 0, this.pageWidth, this.pageHeight);
 					final AffineTransform at = gc.getTransform();
@@ -573,12 +586,14 @@ public class PDFUserAgent extends AbstractUserAgent implements RandomResultUserA
 				String description = this.getProperty(prefix + "description");
 				String mimeType = this.getProperty(prefix + "mime-type");
 				if (name == null) {
-					uriStr = uri.getPath();
-					int slash = uriStr.lastIndexOf('/');
-					if (slash == -1) {
-						name = uriStr;
-					} else {
-						name = uriStr.substring(slash + 1);
+					// The last segment of the path. An opaque URI (data:) has no path and a path may end with a
+					// slash: such an attachment is named by its number
+					final String path = uri.getPath();
+					if (path != null) {
+						name = path.substring(path.lastIndexOf('/') + 1);
+					}
+					if (name == null || name.isEmpty()) {
+						name = "attachment-" + (i + 1);
 					}
 				}
 				Source attachmetSource = null;

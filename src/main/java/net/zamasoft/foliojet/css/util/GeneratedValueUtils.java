@@ -36,7 +36,7 @@ public final class GeneratedValueUtils {
 	 * @return
 	 */
 	public static ListStylePositionValue toListStylePosition(String ident) {
-		ident = ident.toLowerCase();
+		ident = ident.toLowerCase(java.util.Locale.ROOT);
 		if (ident.equals("inside")) {
 			return ListStylePositionValue.INSIDE_VALUE;
 		} else if (ident.equals("outside")) {
@@ -133,7 +133,7 @@ public final class GeneratedValueUtils {
 		}
 
 		case ListStyleTypeValue.LOWER_ROMAN: {
-			return toRoman(number).toLowerCase();
+			return toRoman(number).toLowerCase(java.util.Locale.ROOT);
 		}
 
 		case ListStyleTypeValue.UPPER_ROMAN: {
@@ -228,11 +228,22 @@ public final class GeneratedValueUtils {
 
 	private static final String KATAKANA_IROHA = "　イロハニホヘトチリヌルヲワカヨタレソツネナラムウヰノオクヤマケフコエテアサキユメミシヱヒモセスン";
 
+	/**
+	 * An alphabetic counter (the {@code alphabetic} system of CSS Counter Styles 3, a bijective numeration):
+	 * a, b, ..., z, aa, ab, ... for the letters after the first character of {@code chars}. A number past the last
+	 * letter used to print that first character, a blank, so the 27th and later items of an {@code upper-alpha}
+	 * list had no label. Zero and negative numbers, which the system does not represent, still print the blank.
+	 */
 	private static String formatByChars(int number, String chars) {
-		if (number >= 0 && number < chars.length()) {
-			return String.valueOf(chars.charAt(number));
+		if (number < 1) {
+			return String.valueOf(chars.charAt(0));
 		}
-		return String.valueOf(chars.charAt(0));
+		final int base = chars.length() - 1;
+		final StringBuilder buff = new StringBuilder();
+		for (int n = number; n > 0; n = (n - 1) / base) {
+			buff.append(chars.charAt(1 + (n - 1) % base));
+		}
+		return buff.reverse().toString();
 	}
 
 	private static final String[][] ROMAN_TABLE = { { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" },

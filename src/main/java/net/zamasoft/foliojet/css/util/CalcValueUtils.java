@@ -13,6 +13,7 @@ import net.zamasoft.foliojet.css.value.AngleValue;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue;
 import net.zamasoft.foliojet.css.value.CalcFontRelativeValue.Term;
 import net.zamasoft.foliojet.css.value.CalcLengthValue;
+import net.zamasoft.foliojet.css.value.PercentageValue;
 import net.zamasoft.foliojet.css.value.RealValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
@@ -60,6 +61,10 @@ public final class CalcValueUtils {
 	 * Value (RealValue/AngleValue/AbsoluteLengthValue/PercentageValue/CalcLengthValue).
 	 * Returns null for other tokens or evaluation failures (the caller can continue normal
 	 * fallback processing for an uninterpretable token).
+	 *
+	 * @param ua the user agent that resolves lengths (px, viewport units), or null where only a
+	 *           {@code <number>} or an {@code <angle>} is expected: a length operand then fails the
+	 *           evaluation, as no expression with one evaluates to a number or an angle
 	 */
 	public static Value toCalc(UserAgent ua, CssToken token) {
 		if (!(token instanceof CssToken.Func func)) {
@@ -67,6 +72,17 @@ public final class CalcValueUtils {
 		}
 		Quantity result = evaluateFunc(ua, func, 0);
 		return result != null ? result.toValue(ua) : null;
+	}
+
+	/**
+	 * Whether a {@link #toCalc} result is a {@code <length-percentage>}: an absolute length, a percentage, a mix
+	 * of both, or one of these with font-relative parts. A number ({@code calc(1 + 2)}) and an angle
+	 * ({@code calc(1deg)}) are not: a property that takes a length must reject them when it parses its value,
+	 * because the value is read as a length later, in the computed value and in layout.
+	 */
+	public static boolean isLengthPercentage(Value calc) {
+		return calc instanceof AbsoluteLengthValue || calc instanceof PercentageValue
+				|| calc instanceof CalcLengthValue || calc instanceof CalcFontRelativeValue;
 	}
 
 	/**
@@ -487,6 +503,11 @@ public final class CalcValueUtils {
 			Quantity angle = toAngle(dim);
 			if (angle != null) {
 				return angle;
+			}
+			if (ua == null) {
+				// A number or angle context (see toCalc): a length is a type error there, and cannot
+				// be resolved without the user agent (scale(calc(1px)) threw NullPointerException).
+				return null;
 			}
 			AbsoluteLengthValue length = ValueUtils.toAbsoluteLength(ua, token);
 			if (length == null) {

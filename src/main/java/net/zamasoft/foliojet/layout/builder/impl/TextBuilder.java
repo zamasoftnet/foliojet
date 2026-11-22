@@ -2082,6 +2082,12 @@ public class TextBuilder {
 	}
 
 	public void endTextRun() {
+		if (this.text == null) {
+			// Nothing is open: the run-size cap in glyph() closed the text with what was the run's last glyph (an
+			// unbroken token of exactly 10001 glyphs, or a multiple of it), so no glyph opened another text before
+			// the shaper ended the run.
+			return;
+		}
 		assert this.text.getGlyphCount() > 0;
 		this.text.pack();
 		this.text = null;

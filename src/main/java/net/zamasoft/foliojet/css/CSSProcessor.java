@@ -274,12 +274,12 @@ public class CSSProcessor implements XMLHandler {
 	private static final Set<String> DTDs = new HashSet<String>();
 
 	static {
-		DTDs.add("-//W3C//DTD HTML 4.01//EN".toLowerCase());
-		DTDs.add("-//W3C//DTD HTML 4.01 Transitional//EN".toLowerCase());
-		DTDs.add("-//W3C//DTD XHTML 1.0 Transitional//EN".toLowerCase());
-		DTDs.add("-//W3C//DTD XHTML 1.0 Strict//EN".toLowerCase());
-		DTDs.add("-//W3C//DTD HTML 4.01//EN".toLowerCase());
-		DTDs.add("-//W3C//DTD XHTML 1.1//EN".toLowerCase());
+		DTDs.add("-//W3C//DTD HTML 4.01//EN".toLowerCase(java.util.Locale.ROOT));
+		DTDs.add("-//W3C//DTD HTML 4.01 Transitional//EN".toLowerCase(java.util.Locale.ROOT));
+		DTDs.add("-//W3C//DTD XHTML 1.0 Transitional//EN".toLowerCase(java.util.Locale.ROOT));
+		DTDs.add("-//W3C//DTD XHTML 1.0 Strict//EN".toLowerCase(java.util.Locale.ROOT));
+		DTDs.add("-//W3C//DTD HTML 4.01//EN".toLowerCase(java.util.Locale.ROOT));
+		DTDs.add("-//W3C//DTD XHTML 1.1//EN".toLowerCase(java.util.Locale.ROOT));
 	}
 
 	public void startDTD(String name, String publicId, String systemId) throws SAXException {
@@ -287,7 +287,7 @@ public class CSSProcessor implements XMLHandler {
 			return;
 		}
 		if (publicId != null) {
-			if (DTDs.contains(publicId.toLowerCase())) {
+			if (DTDs.contains(publicId.toLowerCase(java.util.Locale.ROOT))) {
 				this.ua.getDocumentContext().setCompatibleMode(CompatibleMode.STRICT);
 			}
 		} else if (systemId == null && "html".equalsIgnoreCase(name)) {
@@ -509,7 +509,7 @@ public class CSSProcessor implements XMLHandler {
 		// Language
 		String lang = XHTML.getAttr(atts, XHTML.LANG_ATTR.lName);
 		if (lang != null) {
-			lang = lang.trim().toLowerCase();
+			lang = lang.trim().toLowerCase(java.util.Locale.ROOT);
 		}
 
 		// Element

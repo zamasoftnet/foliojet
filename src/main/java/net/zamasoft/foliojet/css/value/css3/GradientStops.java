@@ -115,16 +115,25 @@ public final class GradientStops {
 		final List<Color> colorList = new ArrayList<Color>();
 		final double period = pos[n - 1] - pos[0];
 		boolean capped = false;
-		if (repeating && period > 1e-6) {
+		// The index of the period that starts at or below zero. Indexes stay in double: with the first stop
+		// far from zero in periods (red -100000000%, blue -99999999.99%) or a cover of very many periods
+		// (a circle of 0.0001px) they are beyond the int range, where a cast saturates, the difference
+		// overflowed past the cap, and the expansion ran until the heap was full.
+		final double first = Math.floor(-pos[0] / period);
+		if (repeating && period > 1e-6 && Double.isFinite(period) && Double.isFinite(first)) {
 			// Repeat periods starting at or below zero until they extend past cover.
-			int first = (int) Math.floor(-pos[0] / period);
-			int last = (int) Math.ceil((span - pos[0]) / period);
-			if (last - first > MAX_REPEATS) {
-				last = first + MAX_REPEATS;
+			final double count = Math.ceil((span - pos[0]) / period) - first;
+			final int repeats;
+			if (count <= MAX_REPEATS) {
+				repeats = (int) Math.max(0, count);
+			} else {
+				// Also when the count is not a number
+				repeats = MAX_REPEATS;
 				capped = true;
 			}
-			for (int k = first; k <= last; ++k) {
-				final double offset = k * period;
+			// At most MAX_REPEATS + 1 periods, whatever the stops are
+			for (int k = 0; k <= repeats; ++k) {
+				final double offset = (first + k) * period;
 				// At period boundaries, the first color shares the position of the previous period's last color
 				// (wraps as a hard stop). normalize inserts the minimum gap.
 				for (int i = 0; i < n; ++i) {

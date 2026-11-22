@@ -190,7 +190,9 @@ public class SinglePageImposition extends AbstractImposition {
 				|| !(pdfgc.getPDFGraphicsOutput() instanceof PDFPageOutput out)) {
 			return;
 		}
-		final double trimWidth = this.getTrimWidth(), trimHeight = this.getTrimHeight();
+		// The finished page as it lies on the paper, where the crop marks are drawn: output.fit-to-paper scales it,
+		// so the page's own size would put the TrimBox outside a smaller paper (and inside a larger one)
+		final double trimWidth = placement.actualPageWidth(), trimHeight = placement.actualPageHeight();
 		if (!(trimWidth > 0 && trimHeight > 0)) {
 			return;
 		}

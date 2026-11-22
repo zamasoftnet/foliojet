@@ -590,7 +590,7 @@ public class StyleContext {
 			String name = elementSelector.getLocalName();
 			if (name != null) {
 				if (ce.uri != null && ce.uri.equals(XHTML.URI)) {
-					name = name.toLowerCase();
+					name = name.toLowerCase(java.util.Locale.ROOT);
 				}
 				if (!name.equals(ce.lName)) {
 					return false;
@@ -731,8 +731,8 @@ public class StyleContext {
 			if (lang == null) {
 				return false;
 			}
-			lang = lang.toLowerCase();
-			value = value.toLowerCase();
+			lang = lang.toLowerCase(java.util.Locale.ROOT);
+			value = value.toLowerCase(java.util.Locale.ROOT);
 			if (lang.startsWith(value)) {
 				return (lang.length() <= value.length() || lang.charAt(value.length()) == '-');
 			}

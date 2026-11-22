@@ -167,7 +167,7 @@ output.fit-to-paper = preserve-aspect-ratio
 
 <span class="ioprop">output.media_types</span>に`projection`を入れると、文書を**スライド**として組みます。
 `projection`はCSS2の「プロジェクターで見せる発表用」のメディアタイプです。
-Media Queries 4では廃止されましたが、Copper PDFでは使えます。
+Media Queries 4では廃止されましたが、COPPER 4では使えます。
 
 スライドの組み方は、印刷と次の点が違います。
 
@@ -207,7 +207,7 @@ session.property("output.media_types", "all projection paged visual bitmap stati
 | <span class="ioprop">output.no-page-break</span>がtrue | `none` |
 
 `optional-paged`は、Media Queries 4の草案にあった値です(例はスライドショーでした)。
-同じ動きをするUAが無いという理由で規格から外されましたが、Copper PDFのスライドはこの定義どおりに動くので、当たるようにしています。
+同じ動きをするUAが無いという理由で規格から外されましたが、COPPER 4のスライドはこの定義どおりに動くので、当たるようにしています。
 `(overflow-block)`だけを書くと、`none`のとき以外に当たります。
 
 ### <a id="style-imposition">面付け<span class="since">4.0.0</span></a>

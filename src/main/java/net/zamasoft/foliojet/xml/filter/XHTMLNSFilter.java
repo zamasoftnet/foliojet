@@ -57,14 +57,14 @@ public class XHTMLNSFilter extends DefaultXMLHandlerFilter {
 			isHTML = false;
 		} else if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
 			uri = XHTML.URI;
-			lName = qName = qName.toLowerCase();
+			lName = qName = qName.toLowerCase(java.util.Locale.ROOT);
 			isHTML = true;
 		} else if (uri.equals(XHTML.URI)) {
 			isHTML = true;
-			lName = lName.toLowerCase();
+			lName = lName.toLowerCase(java.util.Locale.ROOT);
 			int colon = qName.indexOf(':');
 			if (colon == -1) {
-				qName = qName.toLowerCase();
+				qName = qName.toLowerCase(java.util.Locale.ROOT);
 			} else {
 				qName = qName.substring(0, colon + 1) + lName;
 			}
@@ -79,12 +79,12 @@ public class XHTMLNSFilter extends DefaultXMLHandlerFilter {
 				String attQName = atts.getQName(i);
 				if (attUri == null || attUri.length() == 0 || attLName.equalsIgnoreCase(attQName)) {
 					attUri = XHTML.URI;
-					attLName = attQName = attLName.toLowerCase();
+					attLName = attQName = attLName.toLowerCase(java.util.Locale.ROOT);
 				} else if (attUri.equals(XHTML.URI)) {
-					attLName = attLName.toLowerCase();
+					attLName = attLName.toLowerCase(java.util.Locale.ROOT);
 					int colon = attQName.indexOf(':');
 					if (colon == -1) {
-						attQName = attQName.toLowerCase();
+						attQName = attQName.toLowerCase(java.util.Locale.ROOT);
 					} else {
 						attQName = attQName.substring(0, colon + 1) + attLName;
 					}
@@ -101,12 +101,12 @@ public class XHTMLNSFilter extends DefaultXMLHandlerFilter {
 			// Pass foreign content through unchanged (paired with startElement).
 		} else if (uri == null || uri.length() == 0 || (this.stack == 0 && lName.equalsIgnoreCase(qName))) {
 			uri = XHTML.URI;
-			lName = qName = lName.toLowerCase();
+			lName = qName = lName.toLowerCase(java.util.Locale.ROOT);
 		} else if (uri.equals(XHTML.URI)) {
-			lName = lName.toLowerCase();
+			lName = lName.toLowerCase(java.util.Locale.ROOT);
 			int colon = qName.indexOf(':');
 			if (colon == -1) {
-				qName = qName.toLowerCase();
+				qName = qName.toLowerCase(java.util.Locale.ROOT);
 			} else {
 				qName = qName.substring(0, colon + 1) + lName;
 			}

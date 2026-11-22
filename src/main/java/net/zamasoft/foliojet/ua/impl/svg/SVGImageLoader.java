@@ -40,6 +40,8 @@ public class SVGImageLoader implements ImageLoader {
 
 	static {
 		ParsedURL.registerHandler(MyParsedURLDefaultProtocolHandler.INSTANCE);
+		// Batik's own handler for jar: opens the URL by itself; ours replaces it and refuses.
+		ParsedURL.registerHandler(MyParsedURLDefaultProtocolHandler.JAR);
 	}
 
 	public boolean match(Source key) {

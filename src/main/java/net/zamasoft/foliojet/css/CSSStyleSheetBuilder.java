@@ -82,10 +82,25 @@ public class CSSStyleSheetBuilder {
 
 	private static final int MAX_DEPTH = 10;
 
+	/**
+	 * The most style sheets one document imports with {@code @import}, all levels together.
+	 *
+	 * <p>
+	 * The depth limit and the loop check look at the ancestors of an import only. A sheet that is imported several
+	 * times is read and added every time, as the cascade asks (its rules come again, later), so sheets that import
+	 * the next one three times each over the ten levels allowed asked for 3<sup>10</sup> readings of the last
+	 * one. Real style sheets import a few dozen sheets at most.
+	 * </p>
+	 */
+	private static final int MAX_IMPORTS = 1000;
+
 	private final UserAgent ua;
 
 	/** Stack of stylesheet URIs (import depth and cycle detection). */
 	private final List<URI> uriStack = new ArrayList<URI>();
+
+	/** The number of style sheets imported so far ({@link #MAX_IMPORTS}). */
+	private int imports = 0;
 
 	private CSSStyleSheet cssStyleSheet;
 
@@ -737,15 +752,21 @@ public class CSSStyleSheetBuilder {
 			final List<String> parentSelectorTexts,
 			final net.zamasoft.foliojet.css.container.ContainerQuery containerQuery) {
 		// Combined selector strings (always computed for nested recursion)
-		final List<String> selfTexts = new ArrayList<>();
-		for (final CSSSelector selector : styleRule.getAllSelectors()) {
-			final String text = selector.getAsCSSString();
-			if (parentSelectorTexts == null) {
-				selfTexts.add(text);
-			} else {
-				for (final String parent : parentSelectorTexts) {
-					selfTexts.add(combineNestedSelector(parent, text));
-				}
+		final List<String> selfTexts;
+		if (parentSelectorTexts == null) {
+			selfTexts = new ArrayList<>();
+			for (final CSSSelector selector : styleRule.getAllSelectors()) {
+				selfTexts.add(selector.getAsCSSString());
+			}
+		} else {
+			selfTexts = combineNestedSelectors(parentSelectorTexts, styleRule.getAllSelectors());
+			if (selfTexts == null) {
+				// Over the expansion budget: drop this nested rule (and the rules nested in it, which
+				// expand from its selectors); its parent and siblings stay.
+				this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, uri.toString(),
+						"nested rule ignored: its selectors expand to more than " + MAX_NESTED_SELECTOR_CHARS
+								+ " characters");
+				return;
 			}
 		}
 		final List<Selector> selectors;
@@ -878,6 +899,52 @@ public class CSSStyleSheetBuilder {
 	private static final java.util.regex.Pattern BATIK_SAFE_SELECTOR = java.util.regex.Pattern
 			.compile("[-_a-zA-Z0-9.#*>\\s]+");
 
+	/**
+	 * Budget for the selectors of one nested rule after expansion: the total length of the combined selector
+	 * texts, in characters.
+	 *
+	 * <p>
+	 * A nested selector list multiplies its parent's list ({@code .a, .b { .c, .d {} }} has four), and every
+	 * {@code &} copies the parent's text, so a few bytes per nesting level double the number or the length of the
+	 * selectors: thirty levels of {@code &, & {}} or of {@code & & {}} asked for 2<sup>30</sup> of them and ended the
+	 * conversion with {@code OutOfMemoryError}. Hand-written nesting stays far below this (a list of ten selectors
+	 * nested three deep in lists of five is about 1,250 selectors of some 30 characters).
+	 * </p>
+	 */
+	private static final int MAX_NESTED_SELECTOR_CHARS = 1 << 16;
+
+	/**
+	 * The selectors of a nested rule joined to each of its parent's selectors, in the order of the rule's own
+	 * list. Identical results are kept once (a selector list matches the same elements with or without a
+	 * repeated member).
+	 *
+	 * @return the combined selector texts, or null if they exceed {@link #MAX_NESTED_SELECTOR_CHARS}
+	 */
+	private static List<String> combineNestedSelectors(final List<String> parents,
+			final Iterable<CSSSelector> children) {
+		final java.util.Set<String> combined = new java.util.LinkedHashSet<>();
+		long budget = MAX_NESTED_SELECTOR_CHARS;
+		for (final CSSSelector selector : children) {
+			final String child = selector.getAsCSSString().trim();
+			long references = 0;
+			for (int i = child.indexOf('&'); i >= 0; i = child.indexOf('&', i + 1)) {
+				++references;
+			}
+			for (final String parent : parents) {
+				// The length of the combined text, known before it is built. Every pair is charged, also
+				// one that repeats an earlier result, so the budget bounds the work as well as the output.
+				final long length = references > 0 ? child.length() + references * (parent.length() - 1L)
+						: parent.length() + 1L + child.length();
+				budget -= Math.max(1L, length);
+				if (budget < 0) {
+					return null;
+				}
+				combined.add(combineNestedSelector(parent, child));
+			}
+		}
+		return new ArrayList<>(combined);
+	}
+
 	/** Combines nested selectors ({@code &}=parent substitution; otherwise a descendant combinator). */
 	private static String combineNestedSelector(final String parent, final String child) {
 		final String trimmed = child.trim();
@@ -943,7 +1010,7 @@ public class CSSStyleSheetBuilder {
 		if (medium == null) {
 			medium = "all";
 		}
-		boolean result = this.ua.is(medium.toLowerCase());
+		boolean result = this.ua.is(medium.toLowerCase(java.util.Locale.ROOT));
 		if (result) {
 			for (CSSMediaExpression expression : query.getAllMediaExpressions()) {
 				if (!this.evaluateMediaExpression(expression)) {
@@ -1403,6 +1470,16 @@ public class CSSStyleSheetBuilder {
 				return;
 			}
 		}
+		if (this.imports >= MAX_IMPORTS) {
+			// Reported once: every import after this one is skipped too
+			if (this.imports == MAX_IMPORTS) {
+				++this.imports;
+				this.ua.message(MessageCodes.WARN_BAD_CSS_SYNTAX, baseURI.toString(),
+						"@import ignored from here on: more than " + MAX_IMPORTS + " style sheets imported");
+			}
+			return;
+		}
+		++this.imports;
 		try {
 			Source source = this.ua.resolve(uri);
 			try {

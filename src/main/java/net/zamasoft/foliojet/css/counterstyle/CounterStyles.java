@@ -64,7 +64,7 @@ public final class CounterStyles {
 	 * if undefined, formatting falls back to {@code decimal}, as specified).
 	 */
 	public synchronized short code(final String name) {
-		final String key = name.toLowerCase();
+		final String key = name.toLowerCase(java.util.Locale.ROOT);
 		final Short existing = this.nameToCode.get(key);
 		if (existing != null) {
 			return existing;

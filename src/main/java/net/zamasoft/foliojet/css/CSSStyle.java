@@ -25,6 +25,7 @@ import net.zamasoft.pdfg2d.gc.font.FontStyle.Direction;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Style;
 import net.zamasoft.pdfg2d.gc.font.FontStyle.Weight;
 import net.zamasoft.foliojet.css.value.KeywordValue;
+import net.zamasoft.foliojet.css.value.TypedAttrValue;
 
 /**
  * A CSS style.
@@ -309,6 +310,17 @@ public class CSSStyle {
 					style.consumedDeclared = new java.util.BitSet(ElementPropertySet.getCodeSize());
 				}
 				style.consumedDeclared.set(code);
+			}
+			while (raw instanceof TypedAttrValue attr) {
+				// A typed attr() as the value of the property is substituted here, on the element that declares
+				// it: the one place that knows both the element and the property. It resolves to a value the
+				// property takes (the attribute's or the fallback) or to nothing; then the declaration is
+				// invalid at computed-value time and the property behaves as unset (CSS Values 5), whichever
+				// property it is. A stand-in keyword passed on to the property instead failed the cast of
+				// every property that did not expect it (<hr noshade size>, <body text="">).
+				// A fallback can be another attr(): hence the loop.
+				final Value substituted = attr.resolve(style);
+				raw = substituted != null ? substituted : KeywordValue.UNSET;
 			}
 			if (raw == KeywordValue.UNSET) {
 				// unset: equivalent to inherit for inherited properties and initial for non-inherited properties

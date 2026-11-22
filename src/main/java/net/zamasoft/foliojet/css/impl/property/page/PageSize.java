@@ -51,7 +51,7 @@ public class PageSize extends AbstractPrimitivePropertyInfo {
 
 	/** Dimensions for a standard name (pt, portrait). Null if unknown. */
 	private static double[] namedSize(final String name) {
-		switch (name.toLowerCase()) {
+		switch (name.toLowerCase(java.util.Locale.ROOT)) {
 		case "a3":
 			return new double[] { 297 * MM, 420 * MM };
 		case "a4":

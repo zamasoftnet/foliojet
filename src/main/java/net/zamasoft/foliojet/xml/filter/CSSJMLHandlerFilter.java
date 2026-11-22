@@ -20,6 +20,15 @@ import net.zamasoft.foliojet.xml.vocab.CSSJML;
  * @version $Id: CSSJMLHandlerFilter.java 1552 2018-04-26 01:43:24Z miyabe $
  */
 public class CSSJMLHandlerFilter extends DefaultXMLHandlerFilter {
+	/**
+	 * The system property that turns on {@code <cssj:fail type="...">}, the element that makes a conversion fail
+	 * on purpose (an error, an exception or an abort, by its type) for the tests of error handling. It is off
+	 * unless the JVM runs with this property set to {@code true}: left on, any document sent to a server could end
+	 * its conversion with an unexpected error, and one without the type attribute did so with a
+	 * NullPointerException. Off, the element is an unknown element like any other.
+	 */
+	public static final String FAIL_ELEMENT_PROPERTY = "net.zamasoft.foliojet.test.fail";
+
 	protected final UserAgent ua;
 
 	public CSSJMLHandlerFilter(UserAgent ua) {
@@ -50,20 +59,20 @@ public class CSSJMLHandlerFilter extends DefaultXMLHandlerFilter {
 					}
 				}
 				return;
-			} else if (lName.equals(CSSJML.FAIL_ELEM.lName)) {
+			} else if (lName.equals(CSSJML.FAIL_ELEM.lName) && Boolean.getBoolean(FAIL_ELEMENT_PROPERTY)) {
 				String type = atts.getValue("type");
-				if (type.equals("error")) {
+				if ("error".equals(type)) {
 					throw new AssertionError("FAIL");
-				} else if (type.equals("graphics")) {
+				} else if ("graphics".equals(type)) {
 					throw new GraphicsException("FAIL");
-				} else if (type.equals("runtime")) {
+				} else if ("runtime".equals(type)) {
 					throw new NullPointerException("FAIL");
-				} else if (type.equals("sax")) {
+				} else if ("sax".equals(type)) {
 					throw new SAXException("FAIL");
-				} else if (type.equals("abort-soft")) {
+				} else if ("abort-soft".equals(type)) {
 					this.ua.message(CTIMessageCodes.INFO_ABORT);
 					throw new AbortException(AbortException.ABORT_NORMAL);
-				} else if (type.equals("abort-hard")) {
+				} else if ("abort-hard".equals(type)) {
 					this.ua.message(CTIMessageCodes.INFO_ABORT);
 					throw new AbortException(AbortException.ABORT_FORCE);
 				}

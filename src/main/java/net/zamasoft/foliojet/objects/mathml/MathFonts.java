@@ -3,10 +3,10 @@ package net.zamasoft.foliojet.objects.mathml;
 import java.awt.Font;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,16 +36,35 @@ import net.zamasoft.pdfg2d.gc.font.FontStyleImpl;
  * </p>
  *
  * <p>
- * Registration uses JEuclid's JVM-wide repository, so each file is registered only once.
+ * Registration uses JEuclid's JVM-wide repository, so a file is registered once and remembered.
  * AWT {@code Font.createFont} cannot select the second or later font in a TTC;
  * these are not registered, and only their names are passed.
+ * </p>
+ *
+ * <p>
+ * The files remembered are bounded ({@link #MAX_REGISTERED}). A font of the document itself
+ * ({@code @font-face}) is read from a temporary file of the conversion, under a path that is never
+ * seen again, so remembering every file grew with every such conversion.
  * </p>
  */
 final class MathFonts {
 	private static final Logger LOG = Logger.getLogger(MathFonts.class.getName());
 
-	/** File → AWT font name (empty string if registration failed). */
-	private static final Map<String, String> REGISTERED = new ConcurrentHashMap<String, String>();
+	/** The most files remembered in {@link #REGISTERED}. */
+	static final int MAX_REGISTERED = 512;
+
+	/**
+	 * File → AWT font name (empty string if registration failed). The least recently used file is forgotten
+	 * first; it is registered again when it is next used. Guarded by its own monitor.
+	 */
+	private static final Map<String, String> REGISTERED = new LinkedHashMap<String, String>(16, 0.75f, true) {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		protected boolean removeEldestEntry(final Map.Entry<String, String> eldest) {
+			return this.size() > MAX_REGISTERED;
+		}
+	};
 
 	/** Font policy for file lookup. Prioritizes fonts backed by files. */
 	private static final FontPolicyList FILE_POLICY = new FontPolicyList(new FontPolicyList.FontPolicy[] {
@@ -144,20 +163,30 @@ final class MathFonts {
 			return null;
 		}
 		final String key = file.getAbsolutePath().toLowerCase(Locale.ROOT);
-		return REGISTERED.computeIfAbsent(key, k -> {
-			try {
-				// Registering while the repository is empty prevents JEuclid from loading AWT fonts
-				// on its first lookup (it loads only when empty). Trigger that load first
-				FontFactory.getInstance().getFont(Font.SERIF, Font.PLAIN, 12f);
-				final Font font = FontFactory.getInstance().registerFont(Font.TRUETYPE_FONT, file);
-				// For a math font (with a MATH table), use it for subscript positioning and italic correction (⑮⑯)
-				net.sourceforge.jeuclid.font.MathTable.register(font.getFamily(),
-						net.sourceforge.jeuclid.font.MathTable.read(file));
-				return font.getFamily();
-			} catch (final Exception e) {
-				LOG.log(Level.FINE, "MathML: " + file, e);
-				return "";
+		synchronized (REGISTERED) {
+			String awtName = REGISTERED.get(key);
+			if (awtName == null) {
+				awtName = registerWithJEuclid(file);
+				REGISTERED.put(key, awtName);
 			}
-		});
+			return awtName;
+		}
+	}
+
+	/** Registers a font file in JEuclid's repository. Returns the AWT font name, or an empty string on failure. */
+	private static String registerWithJEuclid(final File file) {
+		try {
+			// Registering while the repository is empty prevents JEuclid from loading AWT fonts
+			// on its first lookup (it loads only when empty). Trigger that load first
+			FontFactory.getInstance().getFont(Font.SERIF, Font.PLAIN, 12f);
+			final Font font = FontFactory.getInstance().registerFont(Font.TRUETYPE_FONT, file);
+			// For a math font (with a MATH table), use it for subscript positioning and italic correction (⑮⑯)
+			net.sourceforge.jeuclid.font.MathTable.register(font.getFamily(),
+					net.sourceforge.jeuclid.font.MathTable.read(file));
+			return font.getFamily();
+		} catch (final Exception e) {
+			LOG.log(Level.FINE, "MathML: " + file, e);
+			return "";
+		}
 	}
 }

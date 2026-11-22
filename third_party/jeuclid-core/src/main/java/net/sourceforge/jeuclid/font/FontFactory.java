@@ -81,7 +81,14 @@ public abstract class FontFactory {
 	 */
 	public static final String SANSSERIF = "sansserif";
 
-	private static FontFactory instance;
+	/**
+	 * Holds the shared factory. The class is initialized, once, by the first thread that needs the factory: created
+	 * on demand without this, two threads could each make a factory, and the fonts registered in the one that was
+	 * then dropped were lost.
+	 */
+	private static final class Shared {
+		static final FontFactory INSTANCE = new DefaultFontFactory();
+	}
 
 	/**
 	 * Return an instance of the currently configured concrete FontFactory.
@@ -94,10 +101,7 @@ public abstract class FontFactory {
 		if (threadFactory != null)
 			return threadFactory;
 
-		if (FontFactory.instance == null)
-			FontFactory.instance = new DefaultFontFactory();
-
-		return FontFactory.instance;
+		return Shared.INSTANCE;
 	}
 
 	/**

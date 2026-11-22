@@ -83,6 +83,13 @@ public final class XMLUtils {
 		return encoding;
 	}
 
+	/**
+	 * Reads the encoding pseudo-attribute of an XML declaration at the start of the stream, without consuming the
+	 * stream.
+	 *
+	 * @return the declared encoding; "UTF-8" if there is an XML declaration without one; null if there is no XML
+	 *         declaration or it names no charset this JVM has (the caller's own detection then stands)
+	 */
 	public static String checkXMLDeclEncoding(InputStream in) throws IOException {
 		in.mark(100);
 		for (int i = 0; i < 10; ++i) {
@@ -107,8 +114,14 @@ public final class XMLUtils {
 			StringBuilder buff = new StringBuilder();
 			for (; i < 80; ++i) {
 				int c = in.read();
+				if (c == -1) {
+					break;
+				}
 				if (c != '>') {
-					buff.append(c);
+					// A byte of the declaration, which is ASCII. Appended as the int it was read as, it went in
+					// as its decimal digits ("118101114..."): no pseudo-attribute was ever found, and a
+					// document with an XML declaration was read as UTF-8 whatever encoding it declared.
+					buff.append((char) c);
 					continue;
 				}
 				in.reset();
@@ -116,7 +129,15 @@ public final class XMLUtils {
 				try {
 					parsePseudoAttributes(buff.toString(), attsi);
 					String encoding = attsi.getValue("encoding");
-					return encoding == null ? "UTF-8" : encoding;
+					if (encoding == null) {
+						return "UTF-8";
+					}
+					try {
+						return java.nio.charset.Charset.isSupported(encoding) ? encoding : null;
+					} catch (IllegalArgumentException e) {
+						// Not a legal charset name
+						return null;
+					}
 				} catch (ParseException e) {
 					return null;
 				}

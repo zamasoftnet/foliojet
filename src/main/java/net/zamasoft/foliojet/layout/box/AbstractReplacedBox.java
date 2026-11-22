@@ -265,7 +265,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 			} else if (height < minHeight) {
 				// #10
 				width = maxWidth;
-				height = minWidth;
+				height = minHeight;
 			} else {
 				// #1
 				height = Math.max(maxWidth * height / width, minHeight);

@@ -65,6 +65,7 @@ import net.zamasoft.foliojet.epub.ResolvedArchiveFile;
 import net.zamasoft.foliojet.epub.Toc;
 import net.zamasoft.foliojet.epub.ZipArchiveFile;
 import net.zamasoft.zstream.resolver.Source;
+import net.zamasoft.zstream.resolver.SourceResolver;
 import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.resolver.util.SourceWrapper;
 import net.zamasoft.zstream.resolver.util.URIHelper;
@@ -233,13 +234,27 @@ public class EPubFormatter implements MultiDocumentFormatter {
 				}
 				try (final ZipFile zip = archive) {
 					// Set the ZIP file as the data source
+					final SourceResolver outer = ua.getSourceResolver();
+					// The members are resources of the document like any other: they count against the limits
+					// that the user agent's resolver applies (input.resource-size-limit and
+					// input.resource-count-limit). Served directly, a member could decompress to any size.
+					SourceResolver members = new ZIPFileSourceResolver(zip);
+					if (outer instanceof MemberSourceLimiter limiter) {
+						members = limiter.limitMembers(members);
+					}
 					final CompositeSourceResolver resolver = new CompositeSourceResolver();
-					resolver.addSourceResolver("zip", new ZIPFileSourceResolver(zip));
-					resolver.setDefaultSourceResolver(ua.getSourceResolver());
+					resolver.addSourceResolver("zip", members);
+					resolver.setDefaultSourceResolver(outer);
 					resolver.setDefaultScheme("zip");
 					ua.setSourceResolver(resolver);
-					this.open(new ZipArchiveFile(epubFile, zip),
-							(path, mediaType) -> new ZIPFileSource(zip, path, mediaType), body);
+					try {
+						this.open(new ZipArchiveFile(epubFile, zip),
+								(path, mediaType) -> new ZIPFileSource(zip, path, mediaType), body);
+					} finally {
+						// The archive is closed here. The next pass, which opens it again, must find the
+						// user agent's own resolver, not this one with the closed archive in front of it.
+						ua.setSourceResolver(outer);
+					}
 				}
 			} finally {
 				if (!source.isFile()) {

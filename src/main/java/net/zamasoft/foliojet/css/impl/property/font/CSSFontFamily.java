@@ -10,7 +10,6 @@ import net.zamasoft.foliojet.css.value.FontFamilyValue;
 import net.zamasoft.foliojet.css.value.Value;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.pdfg2d.gc.font.FontFamilyList;
-import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
 
 /**
@@ -40,16 +39,9 @@ public class CSSFontFamily extends AbstractPrimitivePropertyInfo {
 	}
 
 	public Value parseValue(TokenStream tokens, UserAgent ua, URI uri) throws PropertyException {
-		// Typed attr() (2026-08-03). Needed to move <font face="...">.
-		// Interpret the attribute contents as a font-family value itself (a comma-separated list),
-		// so resolve at the computed-value stage.
-		final CssToken first = tokens.peek();
-		if (first instanceof CssToken.Func func && func.is("attr")) {
-			tokens.next();
-			return net.zamasoft.foliojet.css.value.TypedAttrValue.create(
-					func.args().isEmpty() || !(func.args().get(0) instanceof CssToken.Ident name) ? "" : name.name(),
-					net.zamasoft.foliojet.css.value.TypedAttrValue.Kind.FONT_FAMILY, null, null);
-		}
+		// attr() is not a font family: the declaration is invalid. It was once stored unresolved here
+		// (2026-08-03, for <font face>, which stayed in HTMLStyle), but nothing resolved it, and both
+		// get() and the @font-face rule read the value as a family list.
 		final FontFamilyValue fontFamily = FontValueUtils.toFontFamily(ua, tokens);
 		if (fontFamily == null) {
 			throw new PropertyException();

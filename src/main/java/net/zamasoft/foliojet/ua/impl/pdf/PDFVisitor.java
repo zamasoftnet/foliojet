@@ -44,6 +44,13 @@ public class PDFVisitor extends AbstractVisitor {
 	private final java.util.Map<String, RadioBuilder> pendingRadios = new java.util.LinkedHashMap<>();
 
 	/**
+	 * Radio buttons seen so far in the document, by field name. The buttons of one name on different pages are
+	 * one field in the PDF (the writer joins the pages' groups), so the on-value given to a button without a
+	 * {@code value} has to be distinct across pages.
+	 */
+	private final java.util.Map<String, Integer> radioCounts = new java.util.HashMap<>();
+
+	/**
 	 * Destination names already written to this output (2026-10-08). An element split across pages registers each
 	 * fragment under its id, and the PDF's name tree kept the last one: a link to a chapter landed on the chapter's last
 	 * page, while target-counter() gave its first. The first registration is the element's start.
@@ -70,8 +77,9 @@ public class PDFVisitor extends AbstractVisitor {
 			created[0] = true;
 			return new RadioBuilder(tooltip, disabled);
 		});
-		// Each button needs a distinct on-value; fall back to its index.
-		final String onValue = (value != null && !value.isEmpty()) ? value : String.valueOf(group.buttons.size());
+		// Each button needs a distinct on-value; fall back to its index among the document's buttons of this name.
+		final int index = this.radioCounts.merge(name, 1, Integer::sum) - 1;
+		final String onValue = (value != null && !value.isEmpty()) ? value : String.valueOf(index);
 		group.buttons.add(new net.zamasoft.pdfg2d.pdf.form.RadioGroup.Button(rect, onValue));
 		if (checked) {
 			group.selectedValue = onValue;
@@ -92,6 +100,17 @@ public class PDFVisitor extends AbstractVisitor {
 		}
 	}
 
+	/**
+	 * An {@code <option>}: the text shown to the reader and the value the form sends, which is the
+	 * {@code value} attribute or, without one, the text.
+	 *
+	 * @param key   the element key, for the document order
+	 * @param value the value sent
+	 * @param label the text shown
+	 */
+	private record Option(long key, String value, String label) {
+	}
+
 	/** Accumulates a {@code <select>} and its {@code <option>} children. */
 	private static final class SelectBuilder {
 		final String name;
@@ -99,11 +118,12 @@ public class PDFVisitor extends AbstractVisitor {
 		final String tooltip;
 		final boolean disabled;
 		final boolean combo;
-		/** {element key, option}: sorted into document order at emission (2026-10-09: the UA style sheet places the
+		/** The options, sorted into document order at emission (2026-10-09: the UA style sheet places the
 		 * selected option of a drop-down out of the flow, so it is visited after the others) */
-		final java.util.List<java.util.Map.Entry<Long, String>> options = new java.util.ArrayList<>();
+		final java.util.List<Option> options = new java.util.ArrayList<>();
 		/** Element key of the selected option, -1 if none (the last one in document order wins) */
 		long selectedKey = -1;
+		/** The value of the selected option */
 		String selected;
 
 		SelectBuilder(String name, Rectangle2D.Double rect, String tooltip, boolean disabled, boolean combo) {
@@ -162,13 +182,25 @@ public class PDFVisitor extends AbstractVisitor {
 		this.visitStructContent("Link", out -> out.addAnnotation(link), link);
 	}
 
+	/**
+	 * A control's rectangle on the paper. The imposition may scale and move the page's content
+	 * (output.fit-to-paper, crop marks, n-up): the widget has to follow it, as the links do.
+	 */
+	private Rectangle2D.Double widgetRect(Shape rectShape) {
+		final AffineTransform at = this.gc.getTransform();
+		if (at != null) {
+			rectShape = at.createTransformedShape(rectShape);
+		}
+		final Rectangle2D b = rectShape.getBounds2D();
+		return new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight());
+	}
+
 	@Override
 	protected void addFormField(Shape rectShape, IBox box, StructureElement ce) {
 		if (!this.formsSupported) {
 			return;
 		}
-		final Rectangle2D b = rectShape.getBounds2D();
-		final Rectangle2D.Double rect = new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight());
+		final Rectangle2D.Double rect = this.widgetRect(rectShape);
 
 		final Attributes atts = ce.atts();
 		final String lName = ce.lName().toLowerCase(Locale.ROOT);
@@ -232,8 +264,7 @@ public class PDFVisitor extends AbstractVisitor {
 			return;
 		}
 		final Attributes atts = ce.atts();
-		final Rectangle2D b = rectShape.getBounds2D();
-		final Rectangle2D.Double rect = new Rectangle2D.Double(b.getX(), b.getY(), b.getWidth(), b.getHeight());
+		final Rectangle2D.Double rect = this.widgetRect(rectShape);
 		String name = atts.getValue("name");
 		if (name == null || name.isEmpty()) {
 			name = "field" + (++this.fieldSeq);
@@ -255,17 +286,21 @@ public class PDFVisitor extends AbstractVisitor {
 		this.pendingSelects.add(select);
 		// Emit at paint time; the option list is complete by then.
 		this.visitStructContent("Form", out -> {
-			select.options.sort(java.util.Map.Entry.comparingByKey());
-			final java.util.List<String> options = new java.util.ArrayList<>();
-			for (final java.util.Map.Entry<Long, String> option : select.options) {
-				options.add(option.getValue());
+			select.options.sort(java.util.Comparator.comparingLong(Option::key));
+			// The reader chooses among the labels and the form holds the value (the value attribute): a field
+			// made of the values alone showed "gb" for <option value="gb">United Kingdom</option>
+			final java.util.List<String> labels = new java.util.ArrayList<>();
+			final java.util.List<String> values = new java.util.ArrayList<>();
+			for (final Option option : select.options) {
+				labels.add(option.label());
+				values.add(option.value());
 			}
 			String selected = select.selected;
-			if (selected == null && select.combo && !options.isEmpty()) {
-				selected = options.get(0);
+			if (selected == null && select.combo && !values.isEmpty()) {
+				selected = values.get(0);
 			}
-			final ChoiceField field = new ChoiceField(select.name, select.rect, options, selected, select.combo,
-					select.tooltip, 0, select.disabled, false);
+			final ChoiceField field = new ChoiceField(select.name, select.rect, labels, selected, select.combo,
+					select.tooltip, 0, select.disabled, false, values);
 			try {
 				out.addFormField(field);
 			} catch (UnsupportedOperationException e) {
@@ -287,7 +322,7 @@ public class PDFVisitor extends AbstractVisitor {
 		final String value = optionCe.atts().getValue("value");
 		final String option = (value != null) ? value : label;
 		final long key = optionCe.elementKey();
-		select.options.add(java.util.Map.entry(key, option));
+		select.options.add(new Option(key, option, label));
 		if (optionCe.atts().getValue("selected") != null && key >= select.selectedKey) {
 			select.selectedKey = key;
 			select.selected = option;

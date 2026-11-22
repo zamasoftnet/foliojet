@@ -11,6 +11,7 @@ import org.apache.batik.util.AbstractParsedURLProtocolHandler;
 import org.apache.batik.util.ParsedURL;
 import org.apache.batik.util.ParsedURLData;
 
+import net.zamasoft.foliojet.message.MessageCodes;
 import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.zstream.resolver.Source;
 import net.zamasoft.zstream.resolver.util.URIHelper;
@@ -27,13 +28,21 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
  * </p>
  *
  * <p>
- * <b>All Batik fetches pass through here.</b> {@code ParsedURL.getHandler()} returns
- * the default handler when no protocol-specific handler exists, and none of Batik 1.19's
- * jars define a {@code ParsedURLProtocolHandler} service. This class is registered
- * with {@code super(null)}, making it <b>that default handler</b>.
+ * <b>Every Batik fetch passes through here, or is refused here.</b> {@code ParsedURL.getHandler()}
+ * returns the default handler when no protocol-specific handler exists, and none of Batik 1.19's
+ * jars define a {@code ParsedURLProtocolHandler} service. {@link #INSTANCE} is registered
+ * with a null protocol, making it <b>that default handler</b>.
  * Thus there is no need to replace paths individually: <b>this one location suffices</b>,
  * including paths not yet enumerated. This is analogous to {@code XSLTProcessorFilter}
  * installing a {@code URIResolver} on the XSLT side.
+ * </p>
+ *
+ * <p>
+ * Batik itself registers two protocol-specific handlers, which the default handler does not see:
+ * {@code data} is decoded in memory and opens nothing, but {@code jar} opened the inner URL with
+ * {@code java.net.URL}, past the resolver (access control, local-access guard, redirect guard, size and
+ * time limits). {@link #JAR} takes that protocol over and refuses it: nothing in an SVG needs an archive.
+ * {@code MyUserAgent} refuses what any other handler would open by itself.
  * </p>
  *
  * <p>
@@ -46,7 +55,62 @@ import net.zamasoft.zstream.resolver.util.URIHelper;
  * </p>
  */
 class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler {
-	public static final MyParsedURLDefaultProtocolHandler INSTANCE = new MyParsedURLDefaultProtocolHandler();
+	public static final MyParsedURLDefaultProtocolHandler INSTANCE = new MyParsedURLDefaultProtocolHandler(null);
+
+	/** Replaces Batik's own handler for {@code jar:} URLs; whatever it parses is refused when opened. */
+	public static final MyParsedURLDefaultProtocolHandler JAR = new MyParsedURLDefaultProtocolHandler("jar");
+
+	/**
+	 * Whether opening this URL stays inside the engine: one of the handlers of this class has its protocol (the
+	 * resolver serves it, or it is refused when opened), or it is {@code data:}, which Batik decodes in memory.
+	 * Anything else would be opened by a handler that does not ask the resolver.
+	 */
+	static boolean opensThroughEngine(final ParsedURL url) {
+		final String protocol = url.getProtocol();
+		if (protocol == null) {
+			return true;
+		}
+		final String scheme = protocol.toLowerCase(java.util.Locale.ROOT);
+		return "data".equals(scheme) || ParsedURL.getHandler(scheme) instanceof MyParsedURLDefaultProtocolHandler;
+	}
+
+	/**
+	 * The resource of the program's own class path that this {@code jar:} URL names exactly, or {@code null}.
+	 * A document may name such a URL too; it reads nothing that is not already part of the program, and nothing
+	 * outside the class path can match.
+	 */
+	static java.net.URL classPathResource(final String url) {
+		final int entryStart = url.indexOf("!/");
+		if (entryStart < 0) {
+			return null;
+		}
+		final int fragment = url.indexOf('#', entryStart);
+		final String plain = fragment < 0 ? url : url.substring(0, fragment);
+		// Compared without percent-escapes: the two sides may escape an install directory differently
+		final String wanted = unescaped(plain);
+		final String entry = wanted.substring(wanted.indexOf("!/") + 2);
+		try {
+			final java.util.Enumeration<java.net.URL> resources = ParsedURL.class.getClassLoader().getResources(entry);
+			while (resources.hasMoreElements()) {
+				final java.net.URL resource = resources.nextElement();
+				if (unescaped(resource.toExternalForm()).equals(wanted)) {
+					return resource;
+				}
+			}
+		} catch (final IOException e) {
+			// not a resource of the class path
+		}
+		return null;
+	}
+
+	private static String unescaped(final String url) {
+		try {
+			final URI uri = new URI(url);
+			return uri.getScheme() + ":" + uri.getSchemeSpecificPart();
+		} catch (final URISyntaxException e) {
+			return url;
+		}
+	}
 
 	/** UserAgent for the SVG currently being built. */
 	private static final ThreadLocal<UserAgent> CURRENT = new ThreadLocal<UserAgent>();
@@ -71,8 +135,12 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 		}
 	}
 
-	private MyParsedURLDefaultProtocolHandler() {
-		super(null);
+	/**
+	 * @param protocol null for the default handler, which fetches through the resolver; a protocol name for a
+	 *                 handler that takes that protocol away from Batik and refuses it
+	 */
+	private MyParsedURLDefaultProtocolHandler(final String protocol) {
+		super(protocol);
 	}
 
 	public ParsedURLData parseURL(String url) {
@@ -131,6 +199,15 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 		pURL.port = uri.getPort();
 		pURL.path = uri.getPath();
 		pURL.ref = uri.getFragment();
+		if (this.protocol != null) {
+			// A protocol this handler refuses. Nothing is fetched; the parts only have to name the URL in
+			// messages, so keep everything after the scheme in the path, as Batik's own jar handler does.
+			pURL.refused = true;
+			pURL.protocol = this.protocol;
+			if (uri.isOpaque()) {
+				pURL.path = uri.getRawSchemeSpecificPart();
+			}
+		}
 		return pURL;
 	}
 
@@ -150,12 +227,32 @@ class MyParsedURLDefaultProtocolHandler extends AbstractParsedURLProtocolHandler
 		/** The original parsed URI. Retained to avoid converting to a string and parsing again. */
 		URI uri = null;
 
+		/** Parsed by a handler that refuses its protocol ({@link MyParsedURLDefaultProtocolHandler#JAR}). */
+		boolean refused = false;
+
 		public boolean complete() {
 			return true;
 		}
 
 		protected InputStream openStreamInternal(final String userAgent, final Iterator mimeTypes,
 				final Iterator encodingTypes) throws IOException {
+			if (this.refused) {
+				final String url = this.uri == null ? this.toString() : this.uri.toString();
+				final java.net.URL own = classPathResource(url);
+				if (own != null) {
+					// Batik's own files: it reads its user-agent style sheet and its broken-link image from its
+					// archives through jar: URLs. Refusing them drew no SVG at all.
+					this.hasBeenOpened = true;
+					return own.openStream();
+				}
+				// Reported like a resource the access control denies, then failed like one: the reference is
+				// ignored and the rest of the SVG is drawn.
+				final UserAgent refusing = CURRENT.get();
+				if (refusing != null) {
+					refusing.message(MessageCodes.WARN_BLOCKED_RESOURCE, url);
+				}
+				throw new IOException("This kind of URL is not permitted in SVG: " + url);
+			}
 			if (this.stream != null) {
 				return this.stream;
 			}

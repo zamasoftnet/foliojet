@@ -81,6 +81,6 @@ public abstract class AbsoluteLengthValue implements LengthValue, Comparable<Abs
 	}
 
 	public String toString() {
-		return this.getLength(this.getUnit()) + this.getUnit().name().toLowerCase();
+		return this.getLength(this.getUnit()) + this.getUnit().name().toLowerCase(java.util.Locale.ROOT);
 	}
 }

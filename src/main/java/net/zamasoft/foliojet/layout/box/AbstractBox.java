@@ -160,10 +160,9 @@ public abstract class AbstractBox implements IBox {
 		default:
 			throw new IllegalStateException();
 		}
-		// Note: the switch below tests offset.getXType(), but its body calculates the Y component
-		// (an existing code inconsistency outside the scope of adding MIXED;
-		// retain the existing condition without changing behavior).
-		switch (offset.getXType()) {
+		// Each axis has its own unit type: "50% 50pt" is a percentage across and a length down. Resolving y with
+		// the x type took 50pt as 5000% of the height and threw the box off the page.
+		switch (offset.getYType()) {
 		case ABSOLUTE:
 			ay += offset.getY();
 			break;

@@ -7,6 +7,7 @@ import java.net.URI;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import net.zamasoft.foliojet.formatter.impl.epub.MemberSourceLimiter;
 import net.zamasoft.foliojet.message.MessageHandler;
 import net.zamasoft.foliojet.ua.props.UAProps;
 import net.zamasoft.zstream.resolver.SourceMetadata;
@@ -17,7 +18,7 @@ import net.zamasoft.zstream.resolver.composite.CompositeSourceResolver;
 import net.zamasoft.zstream.resolver.restricted.RestrictedSourceResolver;
 
 // Split from MyHttpSourceResolver.java on 2026-09-02 (body only moved; design review: 10 classes, 1,560 lines).
-class MySourceResolver implements SourceResolver {
+class MySourceResolver implements SourceResolver, MemberSourceLimiter {
 	protected CachedSourceResolver cachedResolver = new CachedSourceResolver();
 	protected SourceResolver userResolver = null;
 	protected RestrictedSourceResolver restrictedResolver = new RestrictedSourceResolver();
@@ -96,6 +97,38 @@ class MySourceResolver implements SourceResolver {
 			// Do not allow http(s) forms from which the host cannot be extracted.
 			return true;
 		}
+		return isLocalNetworkHost(host);
+	}
+
+	/**
+	 * The proxy that the client named with {@code input.http.proxy.host}, or {@code null}.
+	 *
+	 * <p>
+	 * With a proxy, every HTTP connection of the session goes to the proxy, whatever host the request URI names.
+	 * A user without permission to access local resources is therefore kept away from a proxy on the server's
+	 * own network just as from a destination there ({@link #proxyResolvesToLocalNetwork()}).
+	 * </p>
+	 */
+	private String proxyHost = null;
+
+	/**
+	 * Whether the client named the proxy itself. A proxy that comes from the server's profile is the operator's
+	 * choice (an outbound proxy on the server's own network is the usual set-up) and is not checked.
+	 */
+	private boolean proxyFromClient = false;
+
+	/** Tells whether {@code input.http.proxy.host} was set by the client; call before {@link #setup}. */
+	void setProxyFromClient(final boolean proxyFromClient) {
+		this.proxyFromClient = proxyFromClient;
+	}
+
+	/** Whether the client's proxy would take the HTTP requests of this session to the server's own network. */
+	private boolean proxyResolvesToLocalNetwork() {
+		return this.proxyFromClient && this.proxyHost != null && isLocalNetworkHost(this.proxyHost);
+	}
+
+	/** Whether this host name or literal address leads to the server itself or its adjacent network. */
+	private static boolean isLocalNetworkHost(final String host) {
 		final java.net.InetAddress[] addresses;
 		try {
 			addresses = java.net.InetAddress.getAllByName(host);
@@ -108,22 +141,76 @@ class MySourceResolver implements SourceResolver {
 			return true;
 		}
 		for (final java.net.InetAddress address : addresses) {
-			if (address.isLoopbackAddress() || address.isAnyLocalAddress() || address.isLinkLocalAddress()
-					|| address.isSiteLocalAddress() || address.isMulticastAddress()) {
-				return true;
-			}
-			// Also check private addresses wrapped in IPv4-mapped or translated addresses.
-			final byte[] raw = address.getAddress();
-			if (raw.length == 16 && isUniqueLocalIPv6(raw)) {
+			if (isLocalNetworkAddress(address)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
+	/**
+	 * Whether the address belongs to the server itself or its adjacent network: loopback, link-local, private and
+	 * multicast addresses, the special-purpose IPv4 ranges that {@link java.net.InetAddress} does not classify, and
+	 * the IPv6 forms that stand for such an IPv4 address.
+	 */
+	static boolean isLocalNetworkAddress(final java.net.InetAddress address) {
+		if (address.isLoopbackAddress() || address.isAnyLocalAddress() || address.isLinkLocalAddress()
+				|| address.isSiteLocalAddress() || address.isMulticastAddress()) {
+			return true;
+		}
+		final byte[] raw = address.getAddress();
+		if (raw.length == 4) {
+			return isSpecialPurposeIPv4(raw);
+		}
+		if (isUniqueLocalIPv6(raw)) {
+			return true;
+		}
+		if (carriesIPv4(raw)) {
+			// The connection ends at the IPv4 host in the last four bytes: judge that address.
+			try {
+				return isLocalNetworkAddress(
+						java.net.InetAddress.getByAddress(java.util.Arrays.copyOfRange(raw, 12, 16)));
+			} catch (final java.net.UnknownHostException e) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether the IPv4 address is in a special-purpose range that is not a public destination: 0.0.0.0/8 (this
+	 * network), 100.64.0.0/10 (shared address space: carrier-grade NAT, overlay networks, some cloud metadata
+	 * services), 192.0.0.0/24 (protocol assignments), 198.18.0.0/15 (benchmarking) and 240.0.0.0/4 (reserved,
+	 * with the broadcast address).
+	 */
+	private static boolean isSpecialPurposeIPv4(final byte[] raw) {
+		final int a = raw[0] & 0xFF;
+		final int b = raw[1] & 0xFF;
+		final int c = raw[2] & 0xFF;
+		return a == 0 || (a == 100 && (b & 0xC0) == 64) || (a == 192 && b == 0 && c == 0)
+				|| (a == 198 && (b & 0xFE) == 18) || a >= 240;
+	}
+
 	/** Whether the address is IPv6 unique-local (fc00::/7). */
 	private static boolean isUniqueLocalIPv6(final byte[] raw) {
 		return (raw[0] & 0xFE) == 0xFC;
+	}
+
+	/**
+	 * Whether the IPv6 address stands for the IPv4 address in its last four bytes: IPv4-mapped
+	 * ({@code ::ffff:0:0/96}), IPv4-compatible ({@code ::/96}) or the NAT64 well-known prefix
+	 * ({@code 64:ff9b::/96}).
+	 */
+	private static boolean carriesIPv4(final byte[] raw) {
+		for (int i = 4; i < 10; ++i) {
+			if (raw[i] != 0) {
+				return false;
+			}
+		}
+		final int head = ((raw[0] & 0xFF) << 24) | ((raw[1] & 0xFF) << 16) | ((raw[2] & 0xFF) << 8)
+				| (raw[3] & 0xFF);
+		final int tail = ((raw[10] & 0xFF) << 8) | (raw[11] & 0xFF);
+		return (head == 0 && (tail == 0 || tail == 0xFFFF)) || (head == 0x0064FF9B && tail == 0);
 	}
 
 	/**
@@ -135,6 +222,15 @@ class MySourceResolver implements SourceResolver {
 	 * has no opportunity to supply the resource. A permissive check that allows access merely
 	 * because an injected resolver exists would allow everything (measured on 2026-09-08).
 	 * </p>
+	 *
+	 * <p>
+	 * <b>The access-control list is consulted only when the session has set one.</b> An empty list denies
+	 * everything except {@code data:}, so asking it in a session that never set {@code input.include} or
+	 * {@code input.exclude} refused every redirect. The only request that reaches the network in such a session
+	 * is the main document, which the caller named and which needs no entry in the list: for a user without
+	 * permission to access local resources its redirects are kept away from the server's own network, and
+	 * nothing more.
+	 * </p>
 	 */
 	boolean permitsNetworkTarget(final URI uri) {
 		if (uri == null) {
@@ -143,7 +239,7 @@ class MySourceResolver implements SourceResolver {
 		if (!this.localAccessAllowed && (!isRemoteScheme(uri) || this.resolvesToLocalNetwork(uri))) {
 			return false;
 		}
-		return this.restrictedResolver.permits(uri);
+		return !this.restricted || this.restrictedResolver.permits(uri);
 	}
 
 	/**
@@ -195,6 +291,8 @@ class MySourceResolver implements SourceResolver {
 
 		// Proxy.
 		String proxyHost = UAProps.INPUT_HTTP_PROXY_HOST.getString(props);
+		// Remembered for the check of where connections really go (resolve() and prefetch()).
+		this.proxyHost = proxyHost;
 		if (proxyHost != null) {
 			int proxyPort = UAProps.INPUT_HTTP_PROXY_PORT.getInteger(props, mh);
 			httpResolver.setProxy(proxyHost, proxyPort);
@@ -293,6 +391,7 @@ class MySourceResolver implements SourceResolver {
 		this.cachedResolver.reset();
 		this.userResolver = null;
 		this.restricted = false;
+		this.proxyHost = null;
 		this.resourceBudget = null;
 		this.resourceCountLimit = -1;
 		this.resourceUris.clear();
@@ -345,7 +444,7 @@ class MySourceResolver implements SourceResolver {
 			PREFETCH_LOG.fine(() -> "prefetch ACL deny: " + uri);
 			return;
 		}
-		if (!this.localAccessAllowed && this.resolvesToLocalNetwork(uri)) {
+		if (!this.localAccessAllowed && (this.resolvesToLocalNetwork(uri) || this.proxyResolvesToLocalNetwork())) {
 			PREFETCH_LOG.fine(() -> "prefetch local target deny: " + uri);
 			return;
 		}
@@ -411,6 +510,13 @@ class MySourceResolver implements SourceResolver {
 				throw new SecurityException(
 						"Access to the server's own network is not permitted for this user: " + uri);
 			}
+			// **The same for the proxy.** The client sets it (input.http.proxy.host), and with a proxy the
+			// connection goes there whatever host the URI names: a public URI sent to a proxy address inside
+			// the server's network is a request to that inside address.
+			if (!this.localAccessAllowed && http && this.proxyResolvesToLocalNetwork()) {
+				throw new SecurityException("Access through a proxy on the server's own network ("
+						+ this.proxyHost + ") is not permitted for this user: " + uri);
+			}
 			if (!this.localAccessAllowed && !isRemoteScheme(uri)) {
 				if (this.userResolver != null) {
 					try {
@@ -458,6 +564,36 @@ class MySourceResolver implements SourceResolver {
 			}
 		}
 		return new MySource(source, owner, mainDocument ? null : this.resourceBudget);
+	}
+
+	/**
+	 * Puts the members of an archive (an EPUB) under the limits on the resources of this conversion.
+	 *
+	 * <p>
+	 * The formatter serves the members with a resolver of its own, placed in front of this one, so they never
+	 * came through {@link #resolve(URI)}: {@code input.resource-size-limit} and {@code input.resource-count-limit}
+	 * did not apply inside the archive, and one member could decompress to any size. The members are part of the
+	 * document the caller sent, so the access checks of {@link #resolve(URI, boolean)} do not concern them; they
+	 * are only counted, like every other resource.
+	 * </p>
+	 */
+	@Override
+	public SourceResolver limitMembers(final SourceResolver members) {
+		return new SourceResolver() {
+			@Override
+			public Source resolve(final URI uri) throws IOException {
+				return MySourceResolver.this.wrap(members.resolve(uri), members, false);
+			}
+
+			@Override
+			public void release(final Source source) {
+				if (source instanceof MySource limited) {
+					limited.release();
+				} else {
+					members.release(source);
+				}
+			}
+		};
 	}
 
 	public void release(Source source) {

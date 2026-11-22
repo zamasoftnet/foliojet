@@ -51,7 +51,28 @@ public class DefaultFontFactory extends FontFactory {
 	private static final Log LOGGER = LogFactory
 			.getLog(DefaultFontFactory.class);
 
+	/** The most names kept in {@link #requestedFonts}. */
+	private static final int MAX_REQUESTED_FONTS = 256;
+
+	/**
+	 * The fonts found at start-up and the registered fonts, by family name and font name. Each array is complete
+	 * when it is put in the map; its style slots are read and written under the array's monitor.
+	 */
 	private final Map<String, Font[]> fontCache = new ConcurrentHashMap<String, Font[]>();
+
+	/**
+	 * Fonts made on demand for names that are neither installed nor registered. A document can ask for any name,
+	 * and an unknown one still yields a (fallback) font, so these are kept apart from the permanent entries and
+	 * bounded: the least recently used name goes first. Guarded by its own monitor.
+	 */
+	private final Map<String, Font[]> requestedFonts = new LinkedHashMap<String, Font[]>(16, 0.75f, true) {
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		protected boolean removeEldestEntry(final Map.Entry<String, Font[]> eldest) {
+			return this.size() > DefaultFontFactory.MAX_REQUESTED_FONTS;
+		}
+	};
 
 	public DefaultFontFactory() {
 	}
@@ -105,7 +126,6 @@ public class DefaultFontFactory extends FontFactory {
 	 */
 	@Override
 	public Font getFont(final String name, final int style, final float size) {
-		Font font;
 		synchronized (fontLoadLock) {
 			if (this.fontCache.size() == 0) {
 				/*
@@ -116,23 +136,36 @@ public class DefaultFontFactory extends FontFactory {
 				this.autoloadFontsFromClasspath();
 			}
 		}
-		final Font[] fonts = this.fontCache.get(name
-				.toLowerCase(Locale.ENGLISH));
+		final String key = name.toLowerCase(Locale.ENGLISH);
+		Font[] fonts = this.fontCache.get(key);
 		if (fonts == null) {
-			font = this.cacheFont(
-					new Font(name, Font.PLAIN,
-							DefaultFontFactory.CACHE_FONT_SIZE))
-					.deriveFont(style, size);
-		} else {
-			font = fonts[style];
-			if (font == null) {
-				font = fonts[0].deriveFont(style, size);
-				fonts[style] = font;
-			} else {
-				font = font.deriveFont(size);
-			}
+			fonts = this.requestedFont(key, name);
 		}
-		return font;
+		final Font font;
+		synchronized (fonts) {
+			if (fonts[style] == null) {
+				fonts[style] = fonts[0].deriveFont(style, size);
+				return fonts[style];
+			}
+			font = fonts[style];
+		}
+		return font.deriveFont(size);
+	}
+
+	/**
+	 * Returns the fonts of a name that is neither installed nor registered, making the plain one on first use.
+	 */
+	private Font[] requestedFont(final String key, final String name) {
+		synchronized (this.requestedFonts) {
+			Font[] fonts = this.requestedFonts.get(key);
+			if (fonts == null) {
+				fonts = new Font[DefaultFontFactory.NUM_STYLES];
+				fonts[0] = new Font(name, Font.PLAIN,
+						DefaultFontFactory.CACHE_FONT_SIZE);
+				this.requestedFonts.put(key, fonts);
+			}
+			return fonts;
+		}
 	}
 
 	/**
@@ -233,13 +266,20 @@ public class DefaultFontFactory extends FontFactory {
 
 	private void cacheFontWithStyle(final Font font, final String cacheName,
 									final int style) {
-		Font[] fonts = this.fontCache.get(cacheName);
-		if (fonts == null) {
-			fonts = new Font[DefaultFontFactory.NUM_STYLES];
-			this.fontCache.put(cacheName, fonts);
-			fonts[0] = font;
-		}
-		fonts[style] = font;
+		this.fontCache.compute(cacheName, (key, fonts) -> {
+			if (fonts == null) {
+				// Complete before the map shows it: another thread reads the fallback element as soon as it finds
+				// the array
+				final Font[] created = new Font[DefaultFontFactory.NUM_STYLES];
+				created[0] = font;
+				created[style] = font;
+				return created;
+			}
+			synchronized (fonts) {
+				fonts[style] = font;
+			}
+			return fonts;
+		});
 	}
 
 	/**

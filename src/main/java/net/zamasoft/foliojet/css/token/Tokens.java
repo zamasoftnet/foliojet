@@ -318,15 +318,38 @@ public final class Tokens {
 		if (!digit) {
 			return null;
 		}
+		// Scientific notation (CSS Syntax 3, "consume a number"): e or E, an optional sign, and digits. CSS
+		// minifiers write numbers this way (1e3px for 1000px); read as the unit "e3px", the declaration was
+		// dropped. Without a digit behind it, the e starts a unit (1em, 1ex).
+		boolean exponent = false;
+		if (unitStart < value.length() && (value.charAt(unitStart) == 'e' || value.charAt(unitStart) == 'E')) {
+			int i = unitStart + 1;
+			if (i < value.length() && (value.charAt(i) == '+' || value.charAt(i) == '-')) {
+				++i;
+			}
+			final int digits = i;
+			while (i < value.length() && value.charAt(i) >= '0' && value.charAt(i) <= '9') {
+				++i;
+			}
+			if (i > digits) {
+				exponent = true;
+				unitStart = i;
+			}
+		}
 		final double number;
 		try {
 			number = Double.parseDouble(value.substring(0, unitStart));
 		} catch (NumberFormatException e) {
 			return null;
 		}
+		if (!Double.isFinite(number)) {
+			// Too large for a double (1e999, or some 310 digits): not a number any property can use
+			return null;
+		}
 		String unitText = value.substring(unitStart);
 		if (unitText.isEmpty()) {
-			return new CssToken.Num(number, !dot);
+			// A number written with an exponent is not an <integer>
+			return new CssToken.Num(number, !dot && !exponent);
 		}
 		if (unitText.equals("%")) {
 			return new CssToken.Percent(number);

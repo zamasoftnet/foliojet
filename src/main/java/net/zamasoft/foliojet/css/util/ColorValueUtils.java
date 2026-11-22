@@ -1035,7 +1035,7 @@ public final class ColorValueUtils {
 		/* a */}
 
 	public static ColorValue toColorValue(String colorName) {
-		return (ColorValue) COLORNAME_TO_CSS_COLOR.get(colorName.toLowerCase());
+		return (ColorValue) COLORNAME_TO_CSS_COLOR.get(colorName.toLowerCase(java.util.Locale.ROOT));
 	}
 
 	private static ColorValue fromRGBOctets(int red, int green, int blue) {
@@ -1258,7 +1258,7 @@ public final class ColorValueUtils {
 	}
 
 	private static boolean isGradientSide(String ident) {
-		switch (ident.toLowerCase()) {
+		switch (ident.toLowerCase(java.util.Locale.ROOT)) {
 		case "top":
 		case "bottom":
 		case "left":
@@ -1274,7 +1274,7 @@ public final class ColorValueUtils {
 	 */
 	private static double gradientAngle(String a, String b) {
 		final int deg;
-		switch (a.toLowerCase()) {
+		switch (a.toLowerCase(java.util.Locale.ROOT)) {
 		case "top":
 			deg = b == null ? 0 : (b.equalsIgnoreCase("left") ? 315 : b.equalsIgnoreCase("right") ? 45 : 0);
 			break;
@@ -1775,7 +1775,7 @@ public final class ColorValueUtils {
 			}
 			final double[] c1;
 			final double[] c2;
-			switch (space.toLowerCase()) {
+			switch (space.toLowerCase(java.util.Locale.ROOT)) {
 			case "srgb":
 				c1 = new double[] { color1.getRed(), color1.getGreen(), color1.getBlue() };
 				c2 = new double[] { color2.getRed(), color2.getGreen(), color2.getBlue() };
@@ -1957,7 +1957,7 @@ public final class ColorValueUtils {
 		if (!(token instanceof CssToken.Func func)) {
 			return null;
 		}
-		String name = func.name().toLowerCase();
+		String name = func.name().toLowerCase(java.util.Locale.ROOT);
 		boolean legacy = false;
 		for (final String prefix : new String[] { "-webkit-", "-moz-", "-o-", "-ms-" }) {
 			if (name.startsWith(prefix)) {

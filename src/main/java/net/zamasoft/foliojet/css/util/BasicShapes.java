@@ -102,7 +102,7 @@ public final class BasicShapes {
 	 */
 	public static ShapeSpec parseFunction(final CssToken.Func func, final UserAgent ua) throws PropertyException {
 		final TokenStream args = func.argStream();
-		return switch (func.name().toLowerCase()) {
+		return switch (func.name().toLowerCase(java.util.Locale.ROOT)) {
 		case "inset" -> parseInset(args, ua);
 		case "rect" -> parseRect(args, ua);
 		case "xywh" -> parseXywh(args, ua);

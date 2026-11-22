@@ -1429,7 +1429,12 @@ final class StyleEventMachine {
 				if (color == KeywordValue.DEFAULT) {
 					color = this.context.getCurrentStyle().get(CSSColor.INFO);
 				}
-				for (int i = 0; i < len; ++i) {
+				// One box and one mark per code point, not per UTF-16 unit: a character outside the BMP is two
+				// units, and split in two it lost its glyph and got two marks. The mark is the first code point
+				// of the string.
+				final int markLength = Character.charCount(Character.codePointAt(emc, 0));
+				for (int i = 0; i < len;) {
+					final int count = Character.charCount(Character.codePointAt(ch, i + off, off + len));
 					final CSSStyle eb = this.context.getCurrentStyle().inheritAnonStyle(CSSElement.ANON);
 					eb.set(Display.INFO, DisplayValue.INLINE_BLOCK_VALUE);
 					eb.set(CSSPosition.INFO, PositionValue.RELATIVE_VALUE);
@@ -1464,10 +1469,11 @@ final class StyleEventMachine {
 					et.set(net.zamasoft.foliojet.css.impl.property.text.TextAlignLast.INFO,
 							TextAlignValue.X_CENTER_OVERHANG_VALUE);
 					this.emitter._startStyle(et);
-					this.sink.characters(-1, emc, 0, 1, false);
+					this.sink.characters(-1, emc, 0, markLength, false);
 					this.emitter._endStyle();
-					this.sink.characters(charOffset, ch, i + off, 1, false);
+					this.sink.characters(charOffset, ch, i + off, count, false);
 					this.emitter._endStyle();
+					i += count;
 				}
 			}
 			if (inContents) {

@@ -1,8 +1,8 @@
 ## Document layout
 
 Because it uses HTML, CSS, and other standard methods for creating web content,
-you can create PDFs in much the same way if you know how to create web content. This document explains Copper
-PDF-specific features and points to keep in mind.
+you can create PDFs in much the same way if you know how to create web content. This document explains
+COPPER 4-specific features and points to keep in mind.
 
 ### How to lay out a document
 

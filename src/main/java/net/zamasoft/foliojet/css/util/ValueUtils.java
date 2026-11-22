@@ -127,7 +127,7 @@ public final class ValueUtils {
 		if (s == null) {
 			return null;
 		}
-		s = s.toLowerCase().trim();
+		s = s.toLowerCase(java.util.Locale.ROOT).trim();
 		try {
 			if (s.endsWith("q")) {
 				double len = NumberUtils.parseDouble(s.substring(0, s.length() - 1));
@@ -182,9 +182,11 @@ public final class ValueUtils {
 		if (value instanceof CalcFontRelativeValue calc) {
 			return calc.resolve(style);
 		}
-		// Typed attr() (2026-08-03). Reads an attribute to produce a value. If resolution
-		// fails with no fallback, return null; the caller (DeferredProperty) treats it as
-		// invalid at computed-value time, falling back to the equivalent of unset.
+		// Typed attr() (2026-08-03). Reads an attribute to produce a value. An attr() that is the whole
+		// value of a property never comes here: CSSStyle.get substitutes it first, and makes the property
+		// behave as unset when it does not resolve. This serves an attr() inside another value (a
+		// fit-content() argument, a flex-basis, the internal table border), whose owner decides what
+		// NONE, "did not resolve and has no fallback", means for it.
 		if (value instanceof TypedAttrValue attr) {
 			final Value resolved = attr.resolve(style);
 			return resolved == null ? KeywordValue.NONE : emExToAbsoluteLength(resolved, style);

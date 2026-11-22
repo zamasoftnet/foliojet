@@ -233,7 +233,7 @@
 				<td class="nowrap">1.2.0<br />(PDF 1.3)
 				</td>
 				<td>暗号化キーの長さ(ビット)です。<br /> output.pdf.encryption=v1では40で固定です。
-					v2・v4では40から128の間で、8ビット刻みで指定可能です。v5では無視されます(256ビット固定です)。
+					v2では40から128の間で、8ビット刻みで指定可能です。v4は128ビット、v5は256ビットに固定です(v4でほかの値を指定すると警告して128ビットにします)。
 				</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.encryption.user-password">
