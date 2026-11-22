@@ -2504,7 +2504,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// and reaches x=-376.8 on page 1. With the float's width left auto, or without the table, it splits over 6 pages.
 			// Chrome's print keeps it on one page too, leaving T10, T11 and T14 off the paper.
 			new IndividualExclusion(154_123_532, "fit-v1", 1_516_198_948,
-					"作者のあふれ(判定の穴): 表のセルのwidth:61ptに固定したfloatの中身(各8em以上の項目のcolumn-reverseのflex)が約450ptで、1頁目のx=-376.8まで紙の外(19124も同じ)。Chromeの印刷もT10・T11・T14が紙の外。floatの幅をautoにするか表を外すと6頁に分かれる", "2026-11-22"));
+					"作者のあふれ(判定の穴): 表のセルのwidth:61ptに固定したfloatの中身(各8em以上の項目のcolumn-reverseのflex)が約450ptで、1頁目のx=-376.8まで紙の外(19124も同じ)。Chromeの印刷もT10・T11・T14が紙の外。floatの幅をautoにするか表を外すと6頁に分かれる", "2026-11-22"),
+			// Triage §264, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): a horizontal
+			// row-reverse nowrap flex container 72pt wide (width:8em) has an item with an inline-block 153pt wide, so the line
+			// runs out at the left and every word lands left of the paper (T0 at x=-81, the same as Chrome, which prints
+			// nothing); 19124 kept it on the paper. The common test misses it only because a writing-mode:horizontal-tb div,
+			// the body's own mode, wraps the container (as in §228, where one wraps the item's <p>).
+			new IndividualExclusion(155_348_407, "fit-v1", 2_106_514_535,
+					"逆向きのflexの行の溢れ: 幅72pt(8em)の横組みのrow-reverse・nowrapのflex(writing-mode:horizontal-tbのdivで包む)に、幅153ptのinline-blockを持つ項目。行が左へ溢れ字が全部紙の左の外(T0はx=-81でChromeと同じ、Chromeの印刷は紙に字なし、19124は紙の中)", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
