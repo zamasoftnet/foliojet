@@ -2490,7 +2490,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// a vertical-rl table with boxes 108pt and 111pt wide. They run out to the right (T0 at x=174, T1 at x=164.4;
 			// 19124 the same). Chrome puts them at the same places and prints nothing.
 			new IndividualExclusion(152_425_301, "fit-v1", 1_973_120_950,
-					"作者の溢れ(逆進行の領域、§259の1件目と同じ形): 120ptのvertical-rlの紙にvertical-lrの箱、中の幅60ptのdivの段組に幅108ptと111ptの箱があり、右へ溢れてT0はx=174、T1はx=164.4(19124も同じ)。Chromeも同じ位置で、印刷は紙に何も無い", "2026-11-22"));
+					"作者の溢れ(逆進行の領域、§259の1件目と同じ形): 120ptのvertical-rlの紙にvertical-lrの箱、中の幅60ptのdivの段組に幅108ptと111ptの箱があり、右へ溢れてT0はx=174、T1はx=164.4(19124も同じ)。Chromeも同じ位置で、印刷は紙に何も無い", "2026-11-22"),
+			// Triage §262, a known limitation since 19124: a table inside a region running against the paper's block
+			// direction is not split over pages. On 120 x 400pt vertical-lr paper a vertical-rl div holds a table whose cell
+			// carries a column-reverse flex of four items at least 88pt each, about 400pt across; it stays on page 2 and runs
+			// out to x=490.9. Without the table, or with the region in the paper's direction, it splits over 6 to 7 pages.
+			// Chrome splits it in the paper's direction, putting the first rows on the last page and dropping T8 and T12.
+			new IndividualExclusion(152_952_291, "fit-v1", 1_502_227_326,
+					"既知の制限: 逆進行の領域の中の表は頁で分けない。vertical-lrの紙のvertical-rlの箱の表(セルに幅88pt以上の項目4つのcolumn-reverseのflex)が約400ptで、2頁目に置いたままx=490.9まで紙の外(19124も同じ)。表を外すと6頁に分かれる", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
