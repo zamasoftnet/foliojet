@@ -2517,7 +2517,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// the box, so T0 to T2 start 7pt past its right edge, right of the paper (x=207). 19124 sets them at the same x
 			// and Chrome prints nothing; with a 60pt box, without its width or without the padding both print the same x.
 			new IndividualExclusion(155_693_858, "fit-v1", 1_559_730_965,
-					"作者の溢れ: vertical-rlの200x200ptの紙の右端のhorizontal-tbのdivに、幅23ptの箱。中のolの既定の左の余白(40px、30pt)が箱より広く、T0〜T2は箱の右端を越えて紙の右の外(x=207、19124も同じx、Chromeの印刷も白紙。幅を60ptにするか幅か余白を外すとどちらも紙に載る)", "2026-11-22"));
+					"作者の溢れ: vertical-rlの200x200ptの紙の右端のhorizontal-tbのdivに、幅23ptの箱。中のolの既定の左の余白(40px、30pt)が箱より広く、T0〜T2は箱の右端を越えて紙の右の外(x=207、19124も同じx、Chromeの印刷も白紙。幅を60ptにするか幅か余白を外すとどちらも紙に載る)", "2026-11-22"),
+			// Triage §266, the author's overflow (as a vertical-rl box of a fixed width on vertical-lr paper before): on
+			// vertical-lr 120x400pt paper a vertical-rl grid is fixed at 66pt in its block direction while its two rows need
+			// 264pt, so the second row runs out at the left (T53 at x=-263; Chrome puts it at -261 and prints only what
+			// lands on the paper). 19124 kept the rows shorter and put it at x=-166, off the paper too. Without the width, or
+			// in the paper's own direction, the grid divides over four pages and all of it is on the paper.
+			new IndividualExclusion(157_103_324, "fit-v1", 2_118_572_139,
+					"作者の溢れ: vertical-lrの120x400ptの紙の上の、幅(ブロックの長さ)を66ptに固定したvertical-rlのgridに、2行で264ptの中身。箱の左(ブロックの終わり)へ溢れ、2行目が紙の左の外(T53はx=-263、Chromeは-261で印刷も紙に載る分だけ、19124もx=-166で紙の外。幅を外すか紙と同じ向きにすると4頁に分かれて全部載る)", "2026-11-23"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
