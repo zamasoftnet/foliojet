@@ -2497,7 +2497,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// out to x=490.9. Without the table, or with the region in the paper's direction, it splits over 6 to 7 pages.
 			// Chrome splits it in the paper's direction, putting the first rows on the last page and dropping T8 and T12.
 			new IndividualExclusion(152_952_291, "fit-v1", 1_502_227_326,
-					"既知の制限: 逆進行の領域の中の表は頁で分けない。vertical-lrの紙のvertical-rlの箱の表(セルに幅88pt以上の項目4つのcolumn-reverseのflex)が約400ptで、2頁目に置いたままx=490.9まで紙の外(19124も同じ)。表を外すと6頁に分かれる", "2026-11-22"));
+					"既知の制限: 逆進行の領域の中の表は頁で分けない。vertical-lrの紙のvertical-rlの箱の表(セルに幅88pt以上の項目4つのcolumn-reverseのflex)が約400ptで、2頁目に置いたままx=490.9まで紙の外(19124も同じ)。表を外すと6頁に分かれる", "2026-11-22"),
+			// Triage §263, the author's overflow (the predicate's hole; Chrome loses text too, 19124 the same): on 120 x 400pt
+			// vertical-rl paper a table cell holds a float:right fixed at width:61pt whose column-reverse flex of items at
+			// least 8em each runs about 450pt across. The float's content overflows its fixed size, is not split over pages
+			// and reaches x=-376.8 on page 1. With the float's width left auto, or without the table, it splits over 6 pages.
+			// Chrome's print keeps it on one page too, leaving T10, T11 and T14 off the paper.
+			new IndividualExclusion(154_123_532, "fit-v1", 1_516_198_948,
+					"作者のあふれ(判定の穴): 表のセルのwidth:61ptに固定したfloatの中身(各8em以上の項目のcolumn-reverseのflex)が約450ptで、1頁目のx=-376.8まで紙の外(19124も同じ)。Chromeの印刷もT10・T11・T14が紙の外。floatの幅をautoにするか表を外すと6頁に分かれる", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
