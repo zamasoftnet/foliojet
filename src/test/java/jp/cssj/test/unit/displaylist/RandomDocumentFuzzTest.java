@@ -2511,7 +2511,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// nothing); 19124 kept it on the paper. The common test misses it only because a writing-mode:horizontal-tb div,
 			// the body's own mode, wraps the container (as in §228, where one wraps the item's <p>).
 			new IndividualExclusion(155_348_407, "fit-v1", 2_106_514_535,
-					"逆向きのflexの行の溢れ: 幅72pt(8em)の横組みのrow-reverse・nowrapのflex(writing-mode:horizontal-tbのdivで包む)に、幅153ptのinline-blockを持つ項目。行が左へ溢れ字が全部紙の左の外(T0はx=-81でChromeと同じ、Chromeの印刷は紙に字なし、19124は紙の中)", "2026-11-22"));
+					"逆向きのflexの行の溢れ: 幅72pt(8em)の横組みのrow-reverse・nowrapのflex(writing-mode:horizontal-tbのdivで包む)に、幅153ptのinline-blockを持つ項目。行が左へ溢れ字が全部紙の左の外(T0はx=-81でChromeと同じ、Chromeの印刷は紙に字なし、19124は紙の中)", "2026-11-22"),
+			// Triage §265, the author's overflow (§199, §218 and §239 alike): on vertical-rl 200x200pt paper a horizontal-tb
+			// div sits at the right edge and holds a 23pt box with an ol whose default left padding (40px, 30pt) is wider than
+			// the box, so T0 to T2 start 7pt past its right edge, right of the paper (x=207). 19124 sets them at the same x
+			// and Chrome prints nothing; with a 60pt box, without its width or without the padding both print the same x.
+			new IndividualExclusion(155_693_858, "fit-v1", 1_559_730_965,
+					"作者の溢れ: vertical-rlの200x200ptの紙の右端のhorizontal-tbのdivに、幅23ptの箱。中のolの既定の左の余白(40px、30pt)が箱より広く、T0〜T2は箱の右端を越えて紙の右の外(x=207、19124も同じx、Chromeの印刷も白紙。幅を60ptにするか幅か余白を外すとどちらも紙に載る)", "2026-11-22"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
