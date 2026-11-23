@@ -19,6 +19,9 @@ import net.zamasoft.foliojet.layout.box.IBox;
  * <li>d (40), e (20), f (30) in 60pt: line 1 = [d, e] (reversing first would give [f, e] / [d]).</li>
  * <li>vertical-rl, 100pt tall: line 1 (right) = [g, h] with g at the bottom, line 2 = [i] to its left.</li>
  * <li>column-reverse, 100pt tall: column 1 = [j, k] with j at the bottom, column 2 = [l] to its right.</li>
+ * <li>column-reverse with an auto height (2026-11-24, fit sweep seed 163157820): the container grows with its items,
+ * one column as with nowrap, so n is above m. It went to the streamed flow, which kept the document order.</li>
+ * <li>the same in vertical-lr, in an orthogonal box: the main axis runs left to right, mirrored, so p is left of o.</li>
  * </ul>
  * Positions are collected by the hooks and compared after the conversion, so the hook order does not matter.
  */
@@ -52,6 +55,11 @@ public class FlexReverseWrapTest extends AbstractTestCase {
 		assertEquals(x("j") + 30, x("l"), 0.1);
 		assertEquals(y("k") + 40, y("j"), 0.1);
 		assertEquals(y("j"), y("l"), 0.1);
+		// column-reverse with an auto main size
+		assertEquals(x("m"), x("n"), 0.1);
+		assertEquals(y("n") + 20, y("m"), 0.1);
+		assertEquals(y("o"), y("p"), 0.1);
+		assertEquals(x("p") + 20, x("o"), 0.1);
 	}
 
 	private double x(final String id) {
@@ -118,5 +126,21 @@ public class FlexReverseWrapTest extends AbstractTestCase {
 
 	public boolean check_l(IBox box, int pageNumber, double x, double y) {
 		return this.record("l", box, x, y);
+	}
+
+	public boolean check_m(IBox box, int pageNumber, double x, double y) {
+		return this.record("m", box, x, y);
+	}
+
+	public boolean check_n(IBox box, int pageNumber, double x, double y) {
+		return this.record("n", box, x, y);
+	}
+
+	public boolean check_o(IBox box, int pageNumber, double x, double y) {
+		return this.record("o", box, x, y);
+	}
+
+	public boolean check_p(IBox box, int pageNumber, double x, double y) {
+		return this.record("p", box, x, y);
 	}
 }

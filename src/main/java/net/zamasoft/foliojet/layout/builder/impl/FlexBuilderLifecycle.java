@@ -29,11 +29,16 @@ public final class FlexBuilderLifecycle {
 			// docs/design/column-flex-indefinite-main-design.md); the rest stays in the streamed flow (F0), where an
 			// app shell's body flex keeps its contents unretained. wrap additionally requires an absolute cross
 			// (line-axis) length (F4c recommendation: eligibility requires sizing the column width on the cross axis
-			// in advance).
+			// in advance) where it can break the column into lines, at a definite or absolute maximum main size.
+			// Without either the container grows with its items (FlexBuilder.indefiniteColumnMain), one line as with
+			// nowrap, which needs no cross size in advance. Until 2026-11-24 such a column-reverse went to the
+			// streamed flow, which stacks the items in document order (fit sweep seed 163157820, triage §271).
 			if (!flexBox.hasDefinitePageSize() && !retainsIndefiniteColumn(params)) {
 				return false;
 			}
 			if (params.flexWrap != FlexWrap.NOWRAP
+					&& (flexBox.hasDefinitePageSize() || params.maxSize
+							.getPageType(params.flow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE)
 					&& params.size.getLineType(params.flow) != net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE) {
 				return false;
 			}

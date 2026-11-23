@@ -1,0 +1,37 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<?jp.cssj.property name="output.page-width" value="200pt"?>
+<?jp.cssj.property name="output.page-height" value="200pt"?>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>fuzz v2 255694682</title>
+<meta name="foliojet-fuzz-generator" content="2" />
+<style>
+@page{margin:0pt}
+body{margin:0;font:normal 12pt/1.2 serif;writing-mode:horizontal-tb}
+p,div,td{margin:0;padding:0}
+table{border-collapse:separate;table-layout:fixed}
+td{border:1pt solid black}
+</style></head><body data-fuzz-generator="2">
+<div style="display:flex;position:static;flex-direction:column-reverse;flex-wrap:wrap;gap:2pt;">
+<p id="p0">T0 T1</p>
+<div data-fuzz-role="layout-item" style="flex:0 1 auto;">
+<p id="p2">T2</p>
+<p id="p3">T3</p>
+</div>
+<div data-fuzz-role="layout-item" style="flex:1 1 content;width:fit-content(70%);min-width:8em;max-width:90%;">
+<ul style="list-style-position:inside">
+<li>T4</li>
+<li>T5</li>
+</ul>
+</div>
+<div data-fuzz-role="layout-item" style="flex:0 0 24pt;">
+<table><tr><td>T6</td><td>T7</td></tr></table>
+</div>
+</div>
+<div style="display:flex;position:static;writing-mode:vertical-rl;flex-direction:column-reverse;flex-wrap:wrap-reverse;height:80pt;">
+<p id="p8">T8</p>
+<div data-fuzz-role="layout-item" style="flex:1 0 auto;">
+<p id="p9">T9</p>
+<p id="p10">T10</p>
+</div>
+</div>
+</body></html>
