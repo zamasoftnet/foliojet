@@ -2541,7 +2541,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// starts with an inline-block of 174pt and then an item of 80pt, so the line runs out to the left: T0 at x=-94 and
 			// T1 further left, off the paper, at the same places as in Chrome (T0 x=-94, T1 x=-177), whose print loses them too.
 			new IndividualExclusion(159_393_533, "fit-v1", 801_949_034,
-					"逆向きのflexの行の溢れ: 200x200ptの紙の2段組の1段目(83pt)で、row-reverse・nowrapのflex(min-width:8emで80pt)の項目が174ptのinline-blockと80ptの箱。行に入らず左へ溢れ、T0はx=-94、T1はさらに左で紙の外(Chromeも同じ位置で、印刷に載らない)", "2026-11-23"));
+					"逆向きのflexの行の溢れ: 200x200ptの紙の2段組の1段目(83pt)で、row-reverse・nowrapのflex(min-width:8emで80pt)の項目が174ptのinline-blockと80ptの箱。行に入らず左へ溢れ、T0はx=-94、T1はさらに左で紙の外(Chromeも同じ位置で、印刷に載らない)", "2026-11-23"),
+			// Triage §269, the author's overflow (§265 and the ones before alike): on vertical-rl 200x200pt paper a float of
+			// width:120pt at the right edge holds a horizontal-tb div, shrunk to its 24pt box, whose ul keeps the default left
+			// padding (40px, 30pt), wider than the box, so T0 and T1 start 6pt past the right edge of the paper (x=206), at the
+			// same x as in Chrome, whose print has no words.
+			new IndividualExclusion(161_441_776, "fit-v1", 680_388_338,
+					"作者の溢れ: vertical-rlの200x200ptの紙の右端の幅120ptのfloatに、幅24ptの箱に縮むhorizontal-tbのdiv。中のulの既定の左の余白(40px、30pt)が箱より広く、T0・T1は紙の右の外(x=206、Chromeも同じxで、印刷に字なし)", "2026-11-24"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
