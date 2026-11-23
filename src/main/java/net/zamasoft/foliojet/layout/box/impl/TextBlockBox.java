@@ -505,6 +505,15 @@ public class TextBlockBox extends AbstractBox implements IPageBreakableBox, IFlo
 		return line.pageAxis + line.box.getPageExtent(flow);
 	}
 
+	/** The page extent of the longest line, which no column break cuts (column balancing). */
+	public final double getLongestLinePageExtent() {
+		double extent = 0;
+		for (int i = 0; i < this.lines.size(); ++i) {
+			extent = Math.max(extent, ((Line) this.lines.get(i)).box.getPageExtent(this.getBlockParams().flow));
+		}
+		return extent;
+	}
+
 	/**
 	 * Returns whether the first line ending after {@code from} also ends after {@code pageAxis} (column balancing,
 	 * {@code FlowContainer.getBalanceCutPointBelow}).

@@ -643,7 +643,13 @@ public class FlowContainer implements Container {
 	}
 
 	@Override
-	public double balancePageSizeFloor() {
+	public double getBalancedSize() {
+		// A float at the end of the text reached past the last column, over what follows the multicol (2026-11-23)
+		return Math.max(this.getContentSize(), this.nestedFloatingPageEnd());
+	}
+
+	@Override
+	public double balancePageSizeFloor(final double wholeLimit) {
 		if (this.flows == null && this.floatings == null) {
 			return 0;
 		}
@@ -673,8 +679,87 @@ public class FlowContainer implements Container {
 		if (!this.hasFlows()) {
 			return this.floatingPageEnd();
 		}
+		// The column has to hold each of these, not all that comes before it (2026-11-21, sweep seed 147257079). The floor
+		// used to be where the child ends in the single stack: with an orthogonal block last, that was all the content, and
+		// every column after the first stayed empty. The capacity search does not cut inside these children
+		// (cutPointBelow), so it moves them whole as the actual cut does. The floats kept the old floor until 2026-11-23
+		// (triage §267): an image floated in the text of a multicol put all the text before it in the first column.
+		//
+		// The same holds of everything else that a column break does not cut (triage §267): an image in the flow, a block
+		// with break-inside: avoid, and the lines, wherever they are (in a float, in a flex or grid item). The capacity
+		// search takes such content as cut at the proposed position, so one image in three columns came out as three
+		// slices, and a card with break-inside: avoid was cut over the columns.
 		final WritingMode outer = this.box.getBlockParams().flow;
-		double floor = 0;
+		double floor = this.floatRowsPastFlowsEnd();
+		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
+		containers.push(this);
+		while (!containers.isEmpty()) {
+			final FlowContainer container = containers.pop();
+			if (container.floatings != null) {
+				for (int i = 0; i < container.floatings.getCount(); ++i) {
+					final IFloatBox box = container.floatings.getFloating(i).box;
+					floor = Math.max(floor, box.getType() == BoxType.REPLACED || box.getType() == BoxType.RESCUE
+							? box.getPageExtent(outer) : unbreakableExtent(box, outer, wholeLimit, containers));
+				}
+			}
+			if (container.flows != null) {
+				for (int i = 0; i < container.flows.size(); ++i) {
+					floor = Math.max(floor,
+							unbreakableExtent(((Flow) container.flows.get(i)).box, outer, wholeLimit, containers));
+				}
+			}
+		}
+		return floor;
+	}
+
+	/**
+	 * The page extent of a box that no column break cuts, or 0 for one that is cut inside; the contents of such a block
+	 * go to {@code cuttable}, to be searched in turn (no recursion in deep nesting).
+	 */
+	private static double unbreakableExtent(final IBox box, final WritingMode outer, final double wholeLimit,
+			final Deque<FlowContainer> cuttable) {
+		if (isKeptWholeInColumns(box, outer, wholeLimit)) {
+			return box.getPageExtent(outer);
+		}
+		if (box.getType() == BoxType.TEXT_BLOCK) {
+			return ((TextBlockBox) box).getLongestLinePageExtent();
+		}
+		if (box.getType() == BoxType.BLOCK && ((AbstractContainerBox) box).getContainer() instanceof FlowContainer inner) {
+			cuttable.push(inner);
+		}
+		return 0;
+	}
+
+	/**
+	 * Whether column balancing keeps a box whole: a block of the other axis or progression, and no longer than
+	 * {@code wholeLimit} an image or a block with {@code break-inside: avoid}. The actual cut cuts inside such a block only
+	 * where a column starts with it, and slices an image only there.
+	 */
+	private static boolean isKeptWholeInColumns(final IBox box, final WritingMode outer, final double wholeLimit) {
+		if (box.getType() == BoxType.BLOCK) {
+			final BlockParams params = ((AbstractContainerBox) box).getBlockParams();
+			if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer, params.flow)) {
+				return true;
+			}
+			if (params.pageBreakInside != PageBreakMode.AVOID) {
+				return false;
+			}
+		} else if (box.getType() != BoxType.REPLACED) {
+			return false;
+		}
+		return LayoutUtils.compare(box.getPageExtent(outer), wholeLimit) <= 0;
+	}
+
+	/**
+	 * Where the floats end if two or more rows of them start past the end of the flows, else 0. No flow breaks the columns
+	 * there, so the actual cut can leave them all to one column: they are one column, as floats alone are (2026-11-23). A
+	 * column as long as those rows does not hold them: what comes before them in it takes a part.
+	 */
+	private double floatRowsPastFlowsEnd() {
+		final WritingMode outer = this.box.getBlockParams().flow;
+		final double flowsEnd = this.getContentSize();
+		double first = Double.NaN, end = 0;
+		boolean rows = false;
 		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
 		final Deque<Double> offsets = new ArrayDeque<Double>();
 		containers.push(this);
@@ -682,39 +767,26 @@ public class FlowContainer implements Container {
 		while (!containers.isEmpty()) {
 			final FlowContainer container = containers.pop();
 			final double offset = offsets.pop();
-			if (container.floatings != null) {
-				for (int i = 0; i < container.floatings.getCount(); ++i) {
-					final Floating floating = container.floatings.getFloating(i);
-					final BoxType type = floating.box.getType();
-					if (type == BoxType.REPLACED || type == BoxType.RESCUE || (type == BoxType.BLOCK
-							&& ((AbstractContainerBox) floating.box).getBlockParams().flow != outer)) {
-						floor = Math.max(floor, offset + floating.pageAxis + floating.box.getPageExtent(outer));
-					}
-				}
-			}
-			if (container.flows == null) {
-				continue;
-			}
-			for (int i = 0; i < container.flows.size(); ++i) {
-				final Flow f = (Flow) container.flows.get(i);
-				if (f.box.getType() != BoxType.BLOCK) {
+			for (int i = 0; container.floatings != null && i < container.floatings.getCount(); ++i) {
+				final Floating floating = container.floatings.getFloating(i);
+				final double start = offset + floating.pageAxis;
+				if (LayoutUtils.compare(start, flowsEnd) < 0) {
 					continue;
 				}
-				final FlowBlockBox block = (FlowBlockBox) f.box;
-				if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer,
-						block.getBlockParams().flow)) {
-					// The column has to hold the child, not all that comes before it (2026-11-21, sweep seed 147257079).
-					// The floor used to be where the child ends in the single stack: with an orthogonal block last, that
-					// was all the content, and every column after the first stayed empty. The capacity search no longer
-					// cuts inside these children (cutPointBelow), so it moves them whole as the actual cut does.
-					floor = Math.max(floor, f.box.getPageExtent(outer));
-				} else if (block.getContainer() instanceof FlowContainer inner) {
+				rows |= !Double.isNaN(first) && LayoutUtils.compare(start, first) != 0;
+				first = Double.isNaN(first) ? start : first;
+				end = Math.max(end, start + floating.box.getPageExtent(outer));
+			}
+			for (int i = 0; container.flows != null && i < container.flows.size(); ++i) {
+				final Flow f = (Flow) container.flows.get(i);
+				if (f.box instanceof FlowBlockBox block && block.getBlockParams().flow == outer
+						&& block.getContainer() instanceof FlowContainer inner) {
 					containers.push(inner);
 					offsets.push(offset + f.pageAxis + block.getFrame().getFramePageStart(outer));
 				}
 			}
 		}
-		return floor;
+		return rows ? end : 0;
 	}
 
 	public double paintedPageEnd() {
@@ -771,7 +843,9 @@ public class FlowContainer implements Container {
 		while (!containers.isEmpty()) {
 			final FlowContainer container = containers.pop();
 			final double offset = offsets.pop();
-			end = Math.max(end, offset + container.floatingPageEnd());
+			if (container.hasFloatings()) {
+				end = Math.max(end, offset + container.floatingPageEnd());
+			}
 			if (container.flows == null) {
 				continue;
 			}
@@ -949,12 +1023,12 @@ public class FlowContainer implements Container {
 		return result;
 	}
 
-	public double getBalanceCutPointBelow(final double from, final double pageAxis) {
+	public double getBalanceCutPointBelow(final double from, final double pageAxis, final double wholeLimit) {
 		final double cut = this.cutPointBelow(pageAxis, true);
 		if (LayoutUtils.compare(cut, from) > 0) {
-			return this.keepAvoidedBreak(from, cut);
+			return this.keepAvoidedBreak(from, cut, wholeLimit);
 		}
-		if (this.firstLineEndsAfter(from, pageAxis)) {
+		if (this.firstLineEndsAfter(from, pageAxis, wholeLimit)) {
 			return cut;
 		}
 		// No boundary that this oracle sees (inside a table, a float or a flex item next to an empty one): the actual cut
@@ -968,8 +1042,14 @@ public class FlowContainer implements Container {
 	 * that leaves nothing in the column after {@code from}: the actual cut then gives up the avoidance (2026-11-15,
 	 * publishing report TECH-20261115-001). A heading with {@code break-after: avoid} at the end of the first column went
 	 * to the second with its paragraph, so the last column ran a line past the balanced height into the next block.
+	 *
+	 * <p>
+	 * A column that could not hold a heading and the image or card after it, but that a longer one can, is too short: the
+	 * start of the column (2026-11-23, triage §267). The heading stayed alone in the first column and the image started
+	 * the second.
+	 * </p>
 	 */
-	private double keepAvoidedBreak(final double from, final double cut) {
+	private double keepAvoidedBreak(final double from, final double cut, final double wholeLimit) {
 		if (!this.hasFlows()) {
 			return cut;
 		}
@@ -993,16 +1073,46 @@ public class FlowContainer implements Container {
 			final Flow previous = (Flow) this.flows.get(k - 1);
 			final double boundary = previous.pageAxis + previous.box.getPageExtent(flow);
 			if (LayoutUtils.compare(boundary, from) <= 0) {
-				return cut;
+				return this.canHoldWithNext(from, cut, wholeLimit) ? from : cut;
 			}
 			result = boundary;
 		}
 		if (k == 0 && this.flows.size() > 1 && (((Flow) this.flows.get(0)).box.avoidBreakAfter()
 				|| ((Flow) this.flows.get(1)).box.avoidBreakBefore())) {
 			// Kept with the first flow too: nothing would be left in the column
-			return cut;
+			return this.canHoldWithNext(from, cut, wholeLimit) ? from : cut;
 		}
 		return result;
+	}
+
+	/**
+	 * Whether a column of at most {@code wholeLimit} holds what is between {@code from} and {@code cut} with what follows
+	 * the cut: an image or a block kept whole, through plain blocks. Nothing is said of a paragraph or a table there, which
+	 * is cut inside.
+	 */
+	private boolean canHoldWithNext(final double from, final double cut, final double wholeLimit) {
+		final WritingMode flow = this.box.getBlockParams().flow;
+		for (int i = 0; i < this.flows.size(); ++i) {
+			final Flow f = (Flow) this.flows.get(i);
+			double end = f.pageAxis + f.box.getPageExtent(flow);
+			if (LayoutUtils.compare(end, cut) <= 0) {
+				continue;
+			}
+			double offset = f.pageAxis;
+			IBox box = f.box;
+			while (!isKeptWholeInColumns(box, flow, wholeLimit)) {
+				if (box.getType() != BoxType.BLOCK || !(((AbstractContainerBox) box).getContainer() instanceof FlowContainer inner)
+						|| !inner.hasFlows()) {
+					return false;
+				}
+				final Flow first = (Flow) inner.flows.get(0);
+				offset += ((AbstractContainerBox) box).getFrame().getFramePageStart(flow) + first.pageAxis;
+				box = first.box;
+			}
+			end = offset + box.getPageExtent(flow);
+			return LayoutUtils.compare(end - from, wholeLimit) <= 0;
+		}
+		return false;
 	}
 
 	/**
@@ -1010,7 +1120,7 @@ public class FlowContainer implements Container {
 	 * {@code pageAxis}: a column starting at {@code from} cannot hold even that line. Not where there are floats: a line
 	 * pushed below a float does not start the column, as the actual cut can leave part of the float before it.
 	 */
-	private boolean firstLineEndsAfter(final double from, final double pageAxis) {
+	private boolean firstLineEndsAfter(final double from, final double pageAxis, final double wholeLimit) {
 		if (!this.hasFlows() || this.hasFloatings()) {
 			return false;
 		}
@@ -1023,14 +1133,14 @@ public class FlowContainer implements Container {
 			if (f.box.getType() == BoxType.TEXT_BLOCK) {
 				return ((TextBlockBox) f.box).firstLineEndsAfter(from - f.pageAxis, pageAxis - f.pageAxis);
 			}
-			if (f.box.getType() == BoxType.BLOCK && net.zamasoft.foliojet.layout.fragment.PaginationContract
-					.isChainAtomicBoundary(flow, ((FlowBlockBox) f.box).getBlockParams().flow)) {
-				// A block that balancing does not cut (cutPointBelow) is one unit
+			if (isKeptWholeInColumns(f.box, flow, wholeLimit)) {
+				// What balancing does not cut (cutPointBelow) is one unit
 				return LayoutUtils.compare(f.pageAxis + f.box.getPageExtent(flow), pageAxis) > 0;
 			}
 			if (f.box.getType() == BoxType.BLOCK && ((FlowBlockBox) f.box).getContainer() instanceof FlowContainer inner) {
 				final double frameStart = ((FlowBlockBox) f.box).getFrame().getFramePageStart(flow);
-				return inner.firstLineEndsAfter(from - f.pageAxis - frameStart, pageAxis - f.pageAxis - frameStart);
+				return inner.firstLineEndsAfter(from - f.pageAxis - frameStart, pageAxis - f.pageAxis - frameStart,
+						wholeLimit);
 			}
 			if (f.box.getType() == BoxType.TABLE
 					&& ((net.zamasoft.foliojet.layout.box.impl.TableBox) f.box).getTableParams().flow.isVertical() == flow

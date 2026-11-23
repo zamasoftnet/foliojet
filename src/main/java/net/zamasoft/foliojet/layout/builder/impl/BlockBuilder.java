@@ -1178,7 +1178,7 @@ public class BlockBuilder implements Builder, LayoutContext {
 		if (flowBox.getColumnCount() > 1 && params.columns.fill == Columns.FILL_BALANCE) {
 			// Column balancing
 			this.pageAxis = flow.pageAxis;
-			flowBox.balance(this, flow.lineAxis, flow.pageAxis);
+			flowBox.balance(this, flow.lineAxis, flow.pageAxis, parentFlow.box.getMaxPageExtent());
 		}
 		if (flow.flexItem || establishesIndependentFloatScope(flowBox, parentParams)) {
 			// Remove floats inside independent BFCs from the parent's exclusion area.

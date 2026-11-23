@@ -150,7 +150,8 @@ public class FloatProgressGuardTest extends TestCase {
 	 * again, so the count over the lower of the last two breaks went back to 0 at every wave and the guard fired only
 	 * after about 100 nested breaks (59 s). Counted over the least cursor of the run, it fired after 32: three pages,
 	 * each text drawn once. Since the head of a cut keeps the length it was cut to (2026-11-09, triage §187), the form
-	 * ends without the guard: five pages, each text drawn once.
+	 * ends without the guard: five pages, each text drawn once. Since balanced columns distribute the floats (2026-11-23,
+	 * triage §267), four pages, and T197 and T198 are no longer past the paper's right edge.
 	 */
 	public void testCursorInLongWaves() throws Exception {
 		final String html = String.join("\n", "<!DOCTYPE html>", "<html><head><meta charset=\"utf-8\">", "<style>",
@@ -185,7 +186,7 @@ public class FloatProgressGuardTest extends TestCase {
 		for (final String text : new String[] { "T187", "T189", "T197", "T198" }) {
 			assertEquals(text + " drawn once", 1, count(all, "Text[\"" + text + "\""));
 		}
-		assertEquals("pages", 5, pages.length);
+		assertEquals("pages", 4, pages.length);
 	}
 
 	private static int count(final StringBuilder text, final String part) {

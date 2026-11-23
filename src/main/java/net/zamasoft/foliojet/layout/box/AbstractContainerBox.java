@@ -395,15 +395,22 @@ public abstract class AbstractContainerBox extends AbstractBox
 		return true;
 	}
 
+	/** The most page-axis size the box takes: its definite size, or its maximum. */
+	public final double getMaxPageExtent() {
+		return this.maxPageAxis;
+	}
+
 	public final void balance(final BlockBuilder builder) {
-		this.balance(builder, Double.NaN, Double.NaN);
+		this.balance(builder, Double.NaN, Double.NaN, Double.MAX_VALUE);
 	}
 
 	/**
 	 * Balances the columns; {@code lineOrigin}/{@code pageOrigin} is where the contents start in {@code builder}'s
-	 * coordinates (NaN when unknown), so that the lines laid out again avoid the page floats.
+	 * coordinates (NaN when unknown), so that the lines laid out again avoid the page floats. {@code maxExtent} is the most
+	 * that the box around the columns takes.
 	 */
-	public final void balance(final BlockBuilder builder, final double lineOrigin, final double pageOrigin) {
+	public final void balance(final BlockBuilder builder, final double lineOrigin, final double pageOrigin,
+			final double maxExtent) {
 		final Container oldCont = this.container;
 
 		final int acc = this.getActualColumnCount();
@@ -420,6 +427,12 @@ public abstract class AbstractContainerBox extends AbstractBox
 		}
 		final int columnCount = this.getColumnCount();
 		final boolean vertical = this.getBlockParams().flow.isVertical();
+		// An image, or a block with break-inside: avoid, is kept whole in one column if it is no longer than the page and the
+		// box around the columns. A longer one might run off the paper (in an inline block or an absolute box), so it is cut
+		// over the columns, and so it is where no page is known.
+		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
+		final double wholeLimit = root == null ? 0
+				: Math.min(maxExtent, root.getRootBox().getInnerPageExtent(this.getBlockParams().flow));
 		double pageSize;
 		if (acc >= 2) {
 			// If already built across multiple columns, the original single stack is lost,
@@ -429,12 +442,14 @@ public abstract class AbstractContainerBox extends AbstractBox
 		} else {
 			// Simulate actual cuts at the single stack's rounded-down boundaries and search
 			// for the minimum capacity that fits all columns (M5-B).
-			pageSize = ColumnBalancer.balance(oldCont::getBalanceCutPointBelow, oldCont.getContentSize(), columnCount);
+			pageSize = ColumnBalancer.balance(
+					(from, proposed) -> oldCont.getBalanceCutPointBelow(from, proposed, wholeLimit),
+					oldCont.getBalancedSize(), columnCount);
 		}
 		// Atomic children on the same axis with reverse progression cannot split at column boundaries.
 		// Prefer the floor over ColumnBalancer's approximation that assumes progress to the proposed
 		// position when no boundary exists (see Container.balancePageSizeFloor; 2026-08-22).
-		pageSize = Math.max(pageSize, oldCont.balancePageSizeFloor());
+		pageSize = Math.max(pageSize, oldCont.balancePageSizeFloor(wholeLimit));
 
 		// 2026-07-25 (withdrawal of exclusion area P2): removed all balance probes (M6c-2 through
 		// M6c-5) that rebuilt all contents in an isolated session in addition to the capacity calculation above.
@@ -468,7 +483,6 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// preceding fragments with isSourceReplayable() (2026-07-28). Rebuilding a split
 		// multicol from its child range would put the remainder held by the continuation
 		// fragment into this fragment too, duplicating content.
-		final net.zamasoft.foliojet.layout.builder.impl.RootBuilder root = builder.getPageContext();
 		final net.zamasoft.foliojet.layout.RetainedTextLimit limit =
 				net.zamasoft.foliojet.layout.RetainedTextLimit.get(builder);
 		// Content was counted during initial layout. Neither source nor box replay adds to the total.
@@ -505,15 +519,31 @@ public abstract class AbstractContainerBox extends AbstractBox
 		// to a page of their own (cti.li sample, settleRecoveredFootnotes). A capacity too small is left as it was.
 		if (this.container instanceof ColumnsContainer columns) {
 			final double end = Math.max(this.minPageAxis, columns.longestColumnEnd());
+			double extent = Double.NaN;
 			// Where no page is known a column break cannot follow, and in a cell no page break does: what the last column
 			// holds past the capacity stays in it. The box holds that too, or the page does not cut it and it runs off the
 			// paper (2026-11-03: floats in columns in a cell, whose flows made the box 12pt tall for a float of 288pt).
-			if (root == null || !(builder instanceof net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder)
+			if (root == null || !(builder instanceof net.zamasoft.foliojet.layout.builder.impl.BreakableBuilder breakable)
 					|| net.zamasoft.foliojet.layout.util.LayoutUtils.compare(end, pageSize) < 0) {
+				extent = end;
+			} else {
+				// Too small a capacity (2026-11-23): the estimate for columns already built does not know where a block that
+				// the rest of a column cannot hold leaves space, and a float moves on the same way. The box takes its last
+				// column if the page has room for it, or what follows the multicol is drawn over the column.
+				final double last = Math.max(this.minPageAxis, columns.lastColumnExtent());
+				if (!Double.isNaN(pageOrigin)
+						&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(last, pageSize) > 0
+						&& net.zamasoft.foliojet.layout.util.LayoutUtils.compare(
+								pageOrigin + last + this.getFrame().getFramePageEnd(this.getBlockParams().flow),
+								breakable.getPageLimit()) <= 0) {
+					extent = last;
+				}
+			}
+			if (!Double.isNaN(extent)) {
 				if (vertical) {
-					this.maxPageAxis = this.width = end;
+					this.maxPageAxis = this.width = extent;
 				} else {
-					this.maxPageAxis = this.height = end;
+					this.maxPageAxis = this.height = extent;
 				}
 			}
 		}

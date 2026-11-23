@@ -85,13 +85,24 @@ public interface Container {
 	}
 
 	/**
+	 * The page-axis size that column balancing distributes over the columns: the content with the floats that reach past
+	 * its flows (2026-11-23, triage §267).
+	 */
+	public default double getBalancedSize() {
+		return this.getContentSize();
+	}
+
+	/**
 	 * The minimum page-axis capacity for column balancing (2026-08-22).
 	 * Children that are atomic under the pagination contract (same-axis reverse progression or orthogonal
 	 * writing directions, including those nested in children with the same writing direction; 2026-10-03)
 	 * cannot split internally at column boundaries, so their full extent sets the capacity floor, as does that of
-	 * floats that cannot be cut (2026-10-09). 0 if there are no such children.
+	 * floats that cannot be cut (2026-10-09), images, lines, and blocks with {@code break-inside: avoid} (2026-11-23).
+	 * 0 if there are no such children.
+	 *
+	 * @param wholeLimit the extent up to which an image or a block with {@code break-inside: avoid} is kept whole
 	 */
-	public default double balancePageSizeFloor() {
+	public default double balancePageSizeFloor(final double wholeLimit) {
 		return 0;
 	}
 
@@ -158,11 +169,12 @@ public interface Container {
 	 * line), and the proposed position if not, as the actual cut may still find a boundary the oracle does not see
 	 * (inside a table, a float or a flex item).
 	 *
-	 * @param from     the start of the column (distance from the content start)
-	 * @param pageAxis the proposed position (distance from the content start)
+	 * @param from       the start of the column (distance from the content start)
+	 * @param pageAxis   the proposed position (distance from the content start)
+	 * @param wholeLimit the extent up to which an image or a block with {@code break-inside: avoid} is kept whole
 	 * @return the cut position
 	 */
-	public double getBalanceCutPointBelow(double from, double pageAxis);
+	public double getBalanceCutPointBelow(double from, double pageAxis, double wholeLimit);
 
 	public boolean avoidBreakBefore();
 

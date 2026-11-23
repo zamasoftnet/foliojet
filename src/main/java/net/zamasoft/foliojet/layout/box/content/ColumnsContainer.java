@@ -111,6 +111,12 @@ public class ColumnsContainer implements Container {
 		return end;
 	}
 
+	/** How long the last column is, its floats included, but not what its boxes paint past themselves. */
+	public final double lastColumnExtent() {
+		final FlowContainer last = this.getLastColumn();
+		return Math.max(last.getContentSize(), last.nestedFloatingPageEnd());
+	}
+
 	/** Where {@code column} ends, floats and what it paints past its flows included. */
 	public static double columnEnd(final Container column) {
 		final double end = Math.max(column.getContentSize(), column.paintedPageEnd());
@@ -203,9 +209,9 @@ public class ColumnsContainer implements Container {
 		return first.getCutPointBelow(pageAxis);
 	}
 
-	public double getBalanceCutPointBelow(double from, double pageAxis) {
+	public double getBalanceCutPointBelow(double from, double pageAxis, double wholeLimit) {
 		FlowContainer first = (FlowContainer) this.columns.get(0);
-		return first.getBalanceCutPointBelow(from, pageAxis);
+		return first.getBalanceCutPointBelow(from, pageAxis, wholeLimit);
 	}
 
 	public void pushFramesSteps(PageBox pageBox, Drawer drawer, Shape clip, AffineTransform transform, double x,
