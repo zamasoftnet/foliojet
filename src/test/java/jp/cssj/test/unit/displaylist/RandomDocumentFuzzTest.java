@@ -2524,7 +2524,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// lands on the paper). 19124 kept the rows shorter and put it at x=-166, off the paper too. Without the width, or
 			// in the paper's own direction, the grid divides over four pages and all of it is on the paper.
 			new IndividualExclusion(157_103_324, "fit-v1", 2_118_572_139,
-					"作者の溢れ: vertical-lrの120x400ptの紙の上の、幅(ブロックの長さ)を66ptに固定したvertical-rlのgridに、2行で264ptの中身。箱の左(ブロックの終わり)へ溢れ、2行目が紙の左の外(T53はx=-263、Chromeは-261で印刷も紙に載る分だけ、19124もx=-166で紙の外。幅を外すか紙と同じ向きにすると4頁に分かれて全部載る)", "2026-11-23"));
+					"作者の溢れ: vertical-lrの120x400ptの紙の上の、幅(ブロックの長さ)を66ptに固定したvertical-rlのgridに、2行で264ptの中身。箱の左(ブロックの終わり)へ溢れ、2行目が紙の左の外(T53はx=-263、Chromeは-261で印刷も紙に載る分だけ、19124もx=-166で紙の外。幅を外すか紙と同じ向きにすると4頁に分かれて全部載る)", "2026-11-23"),
+			// Triage §267, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): on vertical-rl
+			// 120x400pt paper the first item of a row-reverse nowrap flex container is a four-column multicol with a textarea,
+			// 531pt long (Chrome 534pt) in a line of 380pt, so it runs out at the top and the rest of the line is above it:
+			// every drawing is above the paper, as in Chrome, whose print is blank.
+			new IndividualExclusion(158_093_881, "fit-v1", 1_842_146_271,
+					"逆向きのflexの行の溢れ: 縦組みの120x400ptの紙のrow-reverse・nowrapのflexの最初の項目が、textareaを持つ4段の段組(531pt、Chromeは534pt)。380ptの行に入らず上へ溢れ、残りの項目はその上で全部紙の上の外(Chromeも同じで、印刷は白紙)", "2026-11-23"),
+			// Triage §267, the same: on vertical-lr 200x200pt paper a vertical-rl row-reverse wrapping flex container has an item
+			// whose three-column multicol (a button, a checkbox and a textarea, a float with a 101pt image) is 775pt long
+			// (Chrome 809pt) in a line of 200pt, so it runs out at the top: T17 at y=-572 (Chrome 803pt above the line's end).
+			new IndividualExclusion(158_175_431, "fit-v1", 1_956_092_657,
+					"逆向きのflexの行の溢れ: vertical-lrの200x200ptの紙のvertical-rlのrow-reverseのflexの項目が、ボタンとtextareaとfloatを持つ3段の段組(775pt、Chromeは809pt)。200ptの行に入らず上へ溢れ、T17はy=-572で紙の上の外(Chromeも同じ側、印刷は紙に載る分だけ)", "2026-11-23"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
