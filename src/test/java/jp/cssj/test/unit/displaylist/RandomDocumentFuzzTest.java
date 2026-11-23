@@ -2535,7 +2535,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// whose three-column multicol (a button, a checkbox and a textarea, a float with a 101pt image) is 775pt long
 			// (Chrome 809pt) in a line of 200pt, so it runs out at the top: T17 at y=-572 (Chrome 803pt above the line's end).
 			new IndividualExclusion(158_175_431, "fit-v1", 1_956_092_657,
-					"逆向きのflexの行の溢れ: vertical-lrの200x200ptの紙のvertical-rlのrow-reverseのflexの項目が、ボタンとtextareaとfloatを持つ3段の段組(775pt、Chromeは809pt)。200ptの行に入らず上へ溢れ、T17はy=-572で紙の上の外(Chromeも同じ側、印刷は紙に載る分だけ)", "2026-11-23"));
+					"逆向きのflexの行の溢れ: vertical-lrの200x200ptの紙のvertical-rlのrow-reverseのflexの項目が、ボタンとtextareaとfloatを持つ3段の段組(775pt、Chromeは809pt)。200ptの行に入らず上へ溢れ、T17はy=-572で紙の上の外(Chromeも同じ側、印刷は紙に載る分だけ)", "2026-11-23"),
+			// Triage §268, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): in the first column
+			// (83pt) of a two-column multicol on 200x200pt paper, a row-reverse nowrap flex container of 80pt (min-width 8em)
+			// starts with an inline-block of 174pt and then an item of 80pt, so the line runs out to the left: T0 at x=-94 and
+			// T1 further left, off the paper, at the same places as in Chrome (T0 x=-94, T1 x=-177), whose print loses them too.
+			new IndividualExclusion(159_393_533, "fit-v1", 801_949_034,
+					"逆向きのflexの行の溢れ: 200x200ptの紙の2段組の1段目(83pt)で、row-reverse・nowrapのflex(min-width:8emで80pt)の項目が174ptのinline-blockと80ptの箱。行に入らず左へ溢れ、T0はx=-94、T1はさらに左で紙の外(Chromeも同じ位置で、印刷に載らない)", "2026-11-23"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
