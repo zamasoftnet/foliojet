@@ -3870,11 +3870,16 @@ public class RandomDocumentFuzzTest extends TestCase {
 		String overlap = null;
 		boolean compared = false;
 		int images = 0;
+		String sliced = null;
 		for (int i = 0; i < dumps.length; ++i) {
 			final List<double[]> boxes = new ArrayList<>();
 			final List<String> texts = new ArrayList<>();
 			for (final String raw : dumps[i].split("\n")) {
 				if (raw.contains(" artifact ")) {
+					// An artifact image is a later slice of one that was cut (rescue split)
+					if (sliced == null && REPLACED_IN_DUMP.matcher(raw).find() && isSliceOfImageThatFits(doc, raw)) {
+						sliced = raw.trim() + " (page-" + (i + 1) + ")";
+					}
 					continue;
 				}
 				final Matcher g = DRAWING_GEOMETRY_IN_DUMP.matcher(raw);
@@ -3937,11 +3942,32 @@ public class RandomDocumentFuzzTest extends TestCase {
 		if (!twice.isEmpty()) {
 			findings.add(new String[] { "(観測)頁をまたぐ重複", twice.toString() });
 		}
+		if (sliced != null) {
+			findings.add(new String[] { "(観測)頁に入る画像が切れる", sliced });
+		}
 		final int expectedImages = countOccurrences(doc.html(), "<img ");
 		if (images < expectedImages) {
 			findings.add(new String[] { "(観測)画像の消失", images + "/" + expectedImages });
 		}
 		return findings;
+	}
+
+	/**
+	 * Whether a drawing is the visible part of an image no larger than four fifths of the page area (2026-11-23, triage
+	 * §267: the images of balanced columns were cut over the columns, which no invariant sees). The image may be cut along
+	 * with a box around it that does not fit on the page; the counts are sampled.
+	 */
+	static boolean isSliceOfImageThatFits(final Generated doc, final String raw) {
+		final Matcher g = DRAWING_GEOMETRY_IN_DUMP.matcher(raw);
+		if (!g.find()) {
+			return false;
+		}
+		final double w = Double.parseDouble(g.group(3)), h = Double.parseDouble(g.group(4));
+		final double[] visible = visiblePart(raw, Double.parseDouble(g.group(1)), Double.parseDouble(g.group(2)), w, h);
+		final Matcher margin = PAGE_MARGIN.matcher(doc.html());
+		final double frame = margin.find() ? 2 * Double.parseDouble(margin.group(1)) : 0;
+		return w <= 0.8 * (doc.pageWidth() - frame) && h <= 0.8 * (doc.pageHeight() - frame) && visible[2] > 0.5 && visible[3] > 0.5
+				&& (visible[2] < w - 0.5 || visible[3] < h - 0.5);
 	}
 
 	/**

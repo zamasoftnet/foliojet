@@ -111,6 +111,26 @@ public class ColumnsContainer implements Container {
 		return end;
 	}
 
+	/**
+	 * What no column break cuts in any of the columns (2026-11-23, triage §267): with columns already built, balancing takes
+	 * the one-shot estimate, which cut an image in vertical columns into two.
+	 */
+	@Override
+	public double balancePageSizeFloor(final double wholeLimit) {
+		double floor = 0;
+		for (final Container column : this.columns) {
+			floor = Math.max(floor,
+					UnbreakableContent.extent((FlowContainer) column, this.box.getBlockParams().flow, wholeLimit));
+		}
+		return floor;
+	}
+
+	final void eachColumn(final java.util.function.Consumer<Container> action) {
+		for (final Container column : this.columns) {
+			action.accept(column);
+		}
+	}
+
 	/** How long the last column is, its floats included, but not what its boxes paint past themselves. */
 	public final double lastColumnExtent() {
 		final FlowContainer last = this.getLastColumn();

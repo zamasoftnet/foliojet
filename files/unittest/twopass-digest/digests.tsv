@@ -1553,7 +1553,7 @@ container-queries/inline-size-switch.html	1	011d557ecff77f13ad2d864b49f0810d951c
 container-queries/nested-two-level.html	1	825b5c5ebd65fa94423b748178642f20a758ccdc9629a21a5744b237c0bf946f
 fuzz-repro/first-line-break-reopens-closed-text.html	1	fa89a187df95520496b8593eab4f2329d5aa7cb6ab03908e0d38549f140ffa51
 fuzz-repro/first-line-break-reopens-closed-text.html	2	b3800147072fb550a07fd7af4f1b3e62a4cd9bba7abb3c0f5a737008f68f4f2c
-fuzz-repro/first-line-break-reopens-closed-text.html	3	7a5a1d268b10a6185d36bc2bd59691a23a197f4a5aae949c6ff5f1e25a1a14e6
+fuzz-repro/first-line-break-reopens-closed-text.html	3	06e01d65c8ee25fb668ba7bf2fb452959ce8c1435326c2b9ba6df0614acfff9a
 fuzz-repro/flex-resplit-duplicates-content.html	1	0c9a06aa23a8d48ed90180631475ae7c076e642f41d5abd0ad96fb4732993ec3
 fuzz-repro/flex-resplit-duplicates-content.html	2	10106a662d6150484de45eab018418c2e54d3bc756a45cc66f9a908ed95f0f4c
 fuzz-repro/flex-resplit-reorders-content.html	1	a0a6afcb9f425dcb25f3ef339f51ee5d132535083cc03b5813d1923dd79772dd

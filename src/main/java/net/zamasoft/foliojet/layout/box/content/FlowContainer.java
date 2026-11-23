@@ -685,69 +685,9 @@ public class FlowContainer implements Container {
 		// (cutPointBelow), so it moves them whole as the actual cut does. The floats kept the old floor until 2026-11-23
 		// (triage §267): an image floated in the text of a multicol put all the text before it in the first column.
 		//
-		// The same holds of everything else that a column break does not cut (triage §267): an image in the flow, a block
-		// with break-inside: avoid, and the lines, wherever they are (in a float, in a flex or grid item). The capacity
-		// search takes such content as cut at the proposed position, so one image in three columns came out as three
-		// slices, and a card with break-inside: avoid was cut over the columns.
-		final WritingMode outer = this.box.getBlockParams().flow;
-		double floor = this.floatRowsPastFlowsEnd();
-		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
-		containers.push(this);
-		while (!containers.isEmpty()) {
-			final FlowContainer container = containers.pop();
-			if (container.floatings != null) {
-				for (int i = 0; i < container.floatings.getCount(); ++i) {
-					final IFloatBox box = container.floatings.getFloating(i).box;
-					floor = Math.max(floor, box.getType() == BoxType.REPLACED || box.getType() == BoxType.RESCUE
-							? box.getPageExtent(outer) : unbreakableExtent(box, outer, wholeLimit, containers));
-				}
-			}
-			if (container.flows != null) {
-				for (int i = 0; i < container.flows.size(); ++i) {
-					floor = Math.max(floor,
-							unbreakableExtent(((Flow) container.flows.get(i)).box, outer, wholeLimit, containers));
-				}
-			}
-		}
-		return floor;
-	}
-
-	/**
-	 * The page extent of a box that no column break cuts, or 0 for one that is cut inside; the contents of such a block
-	 * go to {@code cuttable}, to be searched in turn (no recursion in deep nesting).
-	 */
-	private static double unbreakableExtent(final IBox box, final WritingMode outer, final double wholeLimit,
-			final Deque<FlowContainer> cuttable) {
-		if (isKeptWholeInColumns(box, outer, wholeLimit)) {
-			return box.getPageExtent(outer);
-		}
-		if (box.getType() == BoxType.TEXT_BLOCK) {
-			return ((TextBlockBox) box).getLongestLinePageExtent();
-		}
-		if (box.getType() == BoxType.BLOCK && ((AbstractContainerBox) box).getContainer() instanceof FlowContainer inner) {
-			cuttable.push(inner);
-		}
-		return 0;
-	}
-
-	/**
-	 * Whether column balancing keeps a box whole: a block of the other axis or progression, and no longer than
-	 * {@code wholeLimit} an image or a block with {@code break-inside: avoid}. The actual cut cuts inside such a block only
-	 * where a column starts with it, and slices an image only there.
-	 */
-	private static boolean isKeptWholeInColumns(final IBox box, final WritingMode outer, final double wholeLimit) {
-		if (box.getType() == BoxType.BLOCK) {
-			final BlockParams params = ((AbstractContainerBox) box).getBlockParams();
-			if (net.zamasoft.foliojet.layout.fragment.PaginationContract.isChainAtomicBoundary(outer, params.flow)) {
-				return true;
-			}
-			if (params.pageBreakInside != PageBreakMode.AVOID) {
-				return false;
-			}
-		} else if (box.getType() != BoxType.REPLACED) {
-			return false;
-		}
-		return LayoutUtils.compare(box.getPageExtent(outer), wholeLimit) <= 0;
+		// The same holds of everything else that a column break does not cut (UnbreakableContent).
+		return Math.max(this.floatRowsPastFlowsEnd(),
+				UnbreakableContent.extent(this, this.box.getBlockParams().flow, wholeLimit));
 	}
 
 	/**
@@ -1100,7 +1040,7 @@ public class FlowContainer implements Container {
 			}
 			double offset = f.pageAxis;
 			IBox box = f.box;
-			while (!isKeptWholeInColumns(box, flow, wholeLimit)) {
+			while (!UnbreakableContent.isKeptWhole(box, flow, wholeLimit)) {
 				if (box.getType() != BoxType.BLOCK || !(((AbstractContainerBox) box).getContainer() instanceof FlowContainer inner)
 						|| !inner.hasFlows()) {
 					return false;
@@ -1133,7 +1073,7 @@ public class FlowContainer implements Container {
 			if (f.box.getType() == BoxType.TEXT_BLOCK) {
 				return ((TextBlockBox) f.box).firstLineEndsAfter(from - f.pageAxis, pageAxis - f.pageAxis);
 			}
-			if (isKeptWholeInColumns(f.box, flow, wholeLimit)) {
+			if (UnbreakableContent.isKeptWhole(f.box, flow, wholeLimit)) {
 				// What balancing does not cut (cutPointBelow) is one unit
 				return LayoutUtils.compare(f.pageAxis + f.box.getPageExtent(flow), pageAxis) > 0;
 			}

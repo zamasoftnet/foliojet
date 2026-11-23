@@ -332,6 +332,37 @@ public class TableBox extends AbstractBox implements IPageBreakableBox, IFlowBox
 		return LayoutUtils.NONE;
 	}
 
+	/** The rows and row groups that column balancing keeps whole, and the cells of the others (2026-11-23). */
+	public final void eachUnbreakable(final WritingMode outer,
+			final net.zamasoft.foliojet.layout.box.content.UnbreakableContent search) {
+		if (this.params.flow.isVertical() != outer.isVertical()) {
+			return;
+		}
+		if (this.bodyGroups == null) {
+			return;
+		}
+		// Every fragment of the table repeats the header, and keeps the footer and the end of the frame (firstUnitEnd)
+		final double table = this.frame.getFramePageStart(outer)
+				+ (this.headerGroupBox == null ? 0 : this.headerGroupBox.getPageSize())
+				+ (this.footerGroupBox == null ? 0 : this.footerGroupBox.getPageSize() + this.frame.getFramePageEnd(outer));
+		for (final TableRowGroupBox group : this.bodyGroups) {
+			if (search.addAvoid(group.getInnerTableParams().pageBreakInside, group.getPageSize(), table)) {
+				continue;
+			}
+			for (int r = 0; r < group.getTableRowCount(); ++r) {
+				final TableRowBox row = group.getTableRow(r);
+				if (search.addAvoid(row.getInnerTableParams().pageBreakInside, row.getPageSize(), table)) {
+					continue;
+				}
+				for (int c = 0; c < row.getCellCount(); ++c) {
+					if (row.getCell(c).isSource()) {
+						search.addCell(row.getCell(c).getCellBox(), table);
+					}
+				}
+			}
+		}
+	}
+
 	/**
 	 * {@inheritDoc}
 	 *

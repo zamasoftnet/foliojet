@@ -71,6 +71,52 @@ public class MulticolUnbreakableContentTest extends TestCase {
 		}
 	}
 
+	/** An image in a row that does not start the table, and in a float with padding and a border. */
+	public void testImageInATableRowAndInAFramedFloat() throws Exception {
+		final String table = columns("<table><tr><td>T1</td></tr><tr><td>" + block(60, 101) + "</td></tr><tr><td>T3</td></tr></table>");
+		assertImage(table, 107.92, 1.5, 60, 101);
+		final String framed = columns("<div style='float: right; padding: 5pt; border: 1pt solid'>" + block(60, 101) + "</div>" + p(100, 130));
+		assertImage(framed, 22.67, 6, 60, 101);
+		assertTrue("after the float", y(framed, "AFTER") >= 112);
+	}
+
+	/** Rows and row groups with break-inside: avoid. */
+	public void testAvoidTableRows() throws Exception {
+		final String row = columns("<table><tr><td>" + p(100, 110) + "</td></tr><tr style='break-inside: avoid'><td>" + p(200, 240)
+				+ "</td></tr><tr><td>T3</td></tr></table>");
+		assertTrue("the row in one column", x(row, "T200") > 100 && x(row, "T239") > 100 && x(row, "T239") < 200);
+		final StringBuilder rows = new StringBuilder();
+		for (int i = 1; i <= 5; ++i) {
+			rows.append("<tr><td>T").append(i).append("</td></tr>");
+		}
+		final String group = columns("<table><tbody style='break-inside: avoid'>" + rows + "</tbody><tbody><tr><td>T6</td></tr></tbody></table>");
+		assertTrue("the group in one column", x(group, "T1") < 100 && x(group, "T5") < 100);
+	}
+
+	/** Vertical columns that the first layout already spread over the page's rest: the estimate cut the image in two. */
+	public void testImageInColumnsAlreadyBuilt() throws Exception {
+		final List<String> pages = convertPages("595pt 842pt", "writing-mode: vertical-lr; font-size: 12pt",
+				"<div style='width: 410pt'>T1</div><div style='column-count: 4; column-gap: 19pt'><p>" + img(97, 171, "")
+						+ "</p><div style='display: table; width: 102pt'><p>T121 T122</p></div>"
+						+ "<div style='display: inline-block; float: left; writing-mode: horizontal-tb'>" + block(177, 104)
+						+ "</div></div><p>AFTER</p>");
+		int whole = 0;
+		for (final String page : pages) {
+			final Matcher m = Pattern.compile("x=[-0-9.]+ y=[-0-9.]+ (artifact )?AbsoluteRectFrame.w=97.00 h=171.00.(.*)").matcher(page);
+			while (m.find()) {
+				assertFalse("not sliced: " + m.group(), m.group(1) != null || m.group(2).contains("clip"));
+				++whole;
+			}
+		}
+		assertEquals(1, whole);
+	}
+
+	/** An image in a multicol in a multicol. */
+	public void testImageInNestedColumns() throws Exception {
+		final String page = columns("<div style='column-count: 2; column-gap: 5pt'>" + block(30, 101) + "<p>T50</p></div>" + p(100, 130));
+		assertImage(page, 0, 0, 30, 101);
+	}
+
 	public void testImageInVerticalColumns() throws Exception {
 		final String page = convert("400pt 300pt", "writing-mode: vertical-rl",
 				multicol("<div>" + block(101, 70) + "</div><p>T50</p>") + "<p>AFTER</p>");
