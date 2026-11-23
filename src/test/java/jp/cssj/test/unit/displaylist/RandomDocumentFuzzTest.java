@@ -2558,7 +2558,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// item that cannot shrink, so the line runs out to the left: T19 to T23 at x=-89 to -45 and the left of the table
 			// are off the paper, as in Chrome, whose print loses T1 to T5, T8, T11, T14, T17 and T19 to T23.
 			new IndividualExclusion(161_756_735, "fit-v1", 690_129_588,
-					"逆向きのflexの行の溢れ: 60x60ptの紙のrow-reverse・nowrapのflex(50pt)に、入れ子の表を持つ約68pt(Chromeは64pt)の表と縮まない項目。行に入らず左へ溢れ、T19〜T23(x=-89〜-45)と表の左が紙の外(Chromeの印刷もT1〜T5・T8・T11・T14・T17・T19〜T23が載らない)", "2026-11-24"));
+					"逆向きのflexの行の溢れ: 60x60ptの紙のrow-reverse・nowrapのflex(50pt)に、入れ子の表を持つ約68pt(Chromeは64pt)の表と縮まない項目。行に入らず左へ溢れ、T19〜T23(x=-89〜-45)と表の左が紙の外(Chromeの印刷もT1〜T5・T8・T11・T14・T17・T19〜T23が載らない)", "2026-11-24"),
+			// Triage §271, the author's overflow (§234 alike) and a known limitation (§176): at the left edge of vertical-lr 200x200pt
+			// paper a vertical-rl div with no in-flow content holds two floats, 97pt and about 450pt wide, which run out at its block
+			// end, the left: T2 to T21 are off the paper (T5 at x=-530), as in Chrome, whose print has only T0 and T1. The second
+			// float is a column-reverse flex container, which falls back to a block and stacks its items in document order (2823;
+			// Chrome puts T5 at x=-69), off the paper either way.
+			new IndividualExclusion(163_157_820, "fit-v1", 255_694_682,
+					"作者の溢れ: vertical-lrの200x200ptの紙の左端に、流れの中身の無いvertical-rlのdiv。中の幅97ptと約450ptのfloatがブロックの終わり(左)へ溢れ、T2〜T21は紙の左の外(T5はx=-530。Chromeも紙の外で、印刷はT0・T1だけ)。2つ目のfloatのflexは既知の制限でブロックに倒して積む(Chromeは並べてT5がx=-69)", "2026-11-24"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
