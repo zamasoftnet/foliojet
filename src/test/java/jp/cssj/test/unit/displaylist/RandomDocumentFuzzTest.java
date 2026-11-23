@@ -2547,7 +2547,18 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// padding (40px, 30pt), wider than the box, so T0 and T1 start 6pt past the right edge of the paper (x=206), at the
 			// same x as in Chrome, whose print has no words.
 			new IndividualExclusion(161_441_776, "fit-v1", 680_388_338,
-					"作者の溢れ: vertical-rlの200x200ptの紙の右端の幅120ptのfloatに、幅24ptの箱に縮むhorizontal-tbのdiv。中のulの既定の左の余白(40px、30pt)が箱より広く、T0・T1は紙の右の外(x=206、Chromeも同じxで、印刷に字なし)", "2026-11-24"));
+					"作者の溢れ: vertical-rlの200x200ptの紙の右端の幅120ptのfloatに、幅24ptの箱に縮むhorizontal-tbのdiv。中のulの既定の左の余白(40px、30pt)が箱より広く、T0・T1は紙の右の外(x=206、Chromeも同じxで、印刷に字なし)", "2026-11-24"),
+			// Triage §270, the author's overflow (§234 alike): in a vertical-lr body on 200x200pt paper a vertical-rl list-item
+			// div 64pt wide holds a vertical-rl div whose float:right table is 133pt wide (its block size), so the float runs
+			// out at its block end, the left, and T0 is off the paper's left (x=-61; Chrome x=-60, whose print has no words).
+			new IndividualExclusion(161_948_726, "fit-v1", 1_747_342_109,
+					"作者の溢れ: vertical-lrのbodyの200x200ptの紙に幅64ptのvertical-rlのlist-itemのdiv。中のfloat:rightの表が幅133pt(ブロックの長さ)でブロックの終わり(左)へ溢れ、T0は紙の左の外(x=-61、Chromeはx=-60で、印刷に字なし)", "2026-11-24"),
+			// Triage §270, a reversed flex line that cannot fit (user decision of 2026-11-12, triage §206): on 60x60pt paper a
+			// row-reverse nowrap flex container of 50pt holds a table about 68pt wide (Chrome 64pt) with a nested table and an
+			// item that cannot shrink, so the line runs out to the left: T19 to T23 at x=-89 to -45 and the left of the table
+			// are off the paper, as in Chrome, whose print loses T1 to T5, T8, T11, T14, T17 and T19 to T23.
+			new IndividualExclusion(161_756_735, "fit-v1", 690_129_588,
+					"逆向きのflexの行の溢れ: 60x60ptの紙のrow-reverse・nowrapのflex(50pt)に、入れ子の表を持つ約68pt(Chromeは64pt)の表と縮まない項目。行に入らず左へ溢れ、T19〜T23(x=-89〜-45)と表の左が紙の外(Chromeの印刷もT1〜T5・T8・T11・T14・T17・T19〜T23が載らない)", "2026-11-24"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
