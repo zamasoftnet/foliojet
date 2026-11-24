@@ -2583,7 +2583,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// end, the right, past the paper; its content starts from its own right edge, so every token is off the paper
 			// (T2 at x=635, T1 at 663), as in Chrome (x=622 and 650), whose print is blank.
 			new IndividualExclusion(167_203_346, "fit-v1", 635_476_996,
-					"作者の溢れ: vertical-rlのA4の紙に幅122pt(ブロックの長さ)のvertical-lrの箱。中の逆向きに進むvertical-rlのdivが約204ptで、箱のブロックの終わり(右)へ溢れて紙の外へ出る。中身はそのdivの右端から並ぶので字は全部紙の右の外(T2はx=635、T1は663。Chromeもx=622・650で、印刷は白紙)", "2026-11-25"));
+					"作者の溢れ: vertical-rlのA4の紙に幅122pt(ブロックの長さ)のvertical-lrの箱。中の逆向きに進むvertical-rlのdivが約204ptで、箱のブロックの終わり(右)へ溢れて紙の外へ出る。中身はそのdivの右端から並ぶので字は全部紙の右の外(T2はx=635、T1は663。Chromeもx=622・650で、印刷は白紙)", "2026-11-25"),
+			// Triage §276, the author's overflow (§270 alike): on vertical-lr 300x150pt paper a vertical-rl box 103pt wide (its
+			// block length) holds a horizontal div with a 132pt wide inline-block, which runs out at the box's block end, the
+			// left: T0 is at x=-29, off the paper, at the same place as in Chrome, whose print has no text.
+			new IndividualExclusion(167_255_714, "fit-v1", 1_823_884_772,
+					"作者の溢れ: vertical-lrの300x150ptの紙の左端に、幅103pt(ブロックの長さ)のvertical-rlの箱。中の横組みのdivの幅132ptのinline-blockが箱のブロックの終わり(左)へ溢れ、T0はx=-29で紙の外(Chromeも同じ位置で、印刷に字が無い)", "2026-11-25"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
