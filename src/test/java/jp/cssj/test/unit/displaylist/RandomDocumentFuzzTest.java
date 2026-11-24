@@ -2577,7 +2577,13 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// (T0 at x=-101, T1 to T4 at x=-110), at the same places as in Chrome, whose print is blank. The common predicate
 			// (reversedFlexOverflowSide) takes only the generator's lengthless wrappers, not the writing-mode one around it.
 			new IndividualExclusion(165_917_918, "standard", 165_917_918,
-					"逆向きのflexの行の溢れ: vertical-lrの200x200ptの紙に、幅89ptの横組みのrow-reverse・nowrapのflex。幅190ptのinline-blockを持つ段落ともう1つの項目が行に入らず行頭(左)へ溢れ、字は全部紙の左の外(T0はx=-101、T1〜T4はx=-110。Chromeも同じ位置で、印刷は白紙)。共通の判定はwriting-modeだけの包みを受けないので当たらない", "2026-11-24"));
+					"逆向きのflexの行の溢れ: vertical-lrの200x200ptの紙に、幅89ptの横組みのrow-reverse・nowrapのflex。幅190ptのinline-blockを持つ段落ともう1つの項目が行に入らず行頭(左)へ溢れ、字は全部紙の左の外(T0はx=-101、T1〜T4はx=-110。Chromeも同じ位置で、印刷は白紙)。共通の判定はwriting-modeだけの包みを受けないので当たらない", "2026-11-24"),
+			// Triage §275, the author's overflow (§266 alike): on vertical-rl A4 paper a vertical-lr box 122pt wide (its block
+			// length) holds a vertical-rl div of the opposite progression about 204pt wide, which runs out at the box's block
+			// end, the right, past the paper; its content starts from its own right edge, so every token is off the paper
+			// (T2 at x=635, T1 at 663), as in Chrome (x=622 and 650), whose print is blank.
+			new IndividualExclusion(167_203_346, "fit-v1", 635_476_996,
+					"作者の溢れ: vertical-rlのA4の紙に幅122pt(ブロックの長さ)のvertical-lrの箱。中の逆向きに進むvertical-rlのdivが約204ptで、箱のブロックの終わり(右)へ溢れて紙の外へ出る。中身はそのdivの右端から並ぶので字は全部紙の右の外(T2はx=635、T1は663。Chromeもx=622・650で、印刷は白紙)", "2026-11-25"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
