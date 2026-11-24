@@ -2570,7 +2570,14 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// holds a vertical-lr div with a 132pt wide div, about 167pt in all, which runs out at the block end, the left: every
 			// token is off the paper (T4 at x=-65, T0 at x=-100), as in Chrome (x=-66 and -101), whose print is blank.
 			new IndividualExclusion(163_660_246, "fit-v1", 1_956_354_784,
-					"作者の溢れ: vertical-lrの200x200ptの紙に幅64pt(8em)のvertical-rlのdiv。中のvertical-lrのdivが幅132ptのdivを持ち、約167ptがブロックの終わり(左)へ溢れて、字は全部紙の左の外(T4はx=-65、T0はx=-100。Chromeもx=-66・-101で、印刷は白紙)", "2026-11-24"));
+					"作者の溢れ: vertical-lrの200x200ptの紙に幅64pt(8em)のvertical-rlのdiv。中のvertical-lrのdivが幅132ptのdivを持ち、約167ptがブロックの終わり(左)へ溢れて、字は全部紙の左の外(T4はx=-65、T0はx=-100。Chromeもx=-66・-101で、印刷は白紙)", "2026-11-24"),
+			// Triage §273, a reversed flex line wider than its box (the user's decision of 2026-11-12, §268 alike): on
+			// vertical-lr 200x200pt paper a horizontal row-reverse nowrap flex 89pt wide holds a paragraph with a 190pt wide
+			// inline-block and a second item; the line runs out at its start, the left, so every token is off the paper
+			// (T0 at x=-101, T1 to T4 at x=-110), at the same places as in Chrome, whose print is blank. The common predicate
+			// (reversedFlexOverflowSide) takes only the generator's lengthless wrappers, not the writing-mode one around it.
+			new IndividualExclusion(165_917_918, "standard", 165_917_918,
+					"逆向きのflexの行の溢れ: vertical-lrの200x200ptの紙に、幅89ptの横組みのrow-reverse・nowrapのflex。幅190ptのinline-blockを持つ段落ともう1つの項目が行に入らず行頭(左)へ溢れ、字は全部紙の左の外(T0はx=-101、T1〜T4はx=-110。Chromeも同じ位置で、印刷は白紙)。共通の判定はwriting-modeだけの包みを受けないので当たらない", "2026-11-24"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
