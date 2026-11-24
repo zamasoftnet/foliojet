@@ -2565,7 +2565,12 @@ public class RandomDocumentFuzzTest extends TestCase {
 			// float is a column-reverse flex container, which falls back to a block and stacks its items in document order (2823;
 			// Chrome puts T5 at x=-69), off the paper either way.
 			new IndividualExclusion(163_157_820, "fit-v1", 255_694_682,
-					"作者の溢れ: vertical-lrの200x200ptの紙の左端に、流れの中身の無いvertical-rlのdiv。中の幅97ptと約450ptのfloatがブロックの終わり(左)へ溢れ、T2〜T21は紙の左の外(T5はx=-530。Chromeも紙の外で、印刷はT0・T1だけ)。2つ目のfloatのflexは既知の制限でブロックに倒して積む(Chromeは並べてT5がx=-69)", "2026-11-24"));
+					"作者の溢れ: vertical-lrの200x200ptの紙の左端に、流れの中身の無いvertical-rlのdiv。中の幅97ptと約450ptのfloatがブロックの終わり(左)へ溢れ、T2〜T21は紙の左の外(T5はx=-530。Chromeも紙の外で、印刷はT0・T1だけ)。2つ目のfloatのflexは既知の制限でブロックに倒して積む(Chromeは並べてT5がx=-69)", "2026-11-24"),
+			// Triage §272, the author's overflow (§270 alike): on vertical-lr 200x200pt paper a vertical-rl div 64pt (8em) wide
+			// holds a vertical-lr div with a 132pt wide div, about 167pt in all, which runs out at the block end, the left: every
+			// token is off the paper (T4 at x=-65, T0 at x=-100), as in Chrome (x=-66 and -101), whose print is blank.
+			new IndividualExclusion(163_660_246, "fit-v1", 1_956_354_784,
+					"作者の溢れ: vertical-lrの200x200ptの紙に幅64pt(8em)のvertical-rlのdiv。中のvertical-lrのdivが幅132ptのdivを持ち、約167ptがブロックの終わり(左)へ溢れて、字は全部紙の左の外(T4はx=-65、T0はx=-100。Chromeもx=-66・-101で、印刷は白紙)", "2026-11-24"));
 
 	private static final Pattern DOCUMENT_TITLE = Pattern.compile("<title>fuzz v(\\d+) (\\d+)</title>");
 
