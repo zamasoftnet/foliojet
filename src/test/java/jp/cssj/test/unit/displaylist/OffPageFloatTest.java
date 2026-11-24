@@ -294,6 +294,22 @@ public class OffPageFloatTest extends TestCase {
 				"float:right;width:0pt", "<div style=\"width:0pt\">", "</div>"), 120, 400);
 	}
 
+	/**
+	 * The block with an explicit page-axis size sits in a <b>wrapper without one</b> inside the float (added 2026-11-24,
+	 * fit sweep seed 166906493, triage §274). The wrapper's content size ends with the block, not with what runs out of
+	 * it, so the cut decision kept the overflow on the previous page, off the paper. Without the wrapper (above) the
+	 * block's own content size counted the overflow.
+	 */
+	public void testVerticalFloatWithWrappedSpecifiedPageExtentAtPageHeadStaysOnPage() throws Exception {
+		assertNoUnexplainedOffPage("vertical-wrapped-head", document(120, 400, "vertical-rl", "",
+				"float:right", "<div><div style=\"width:0pt\">", "</div></div>"), 120, 400);
+	}
+
+	public void testHorizontalFloatWithWrappedSpecifiedPageExtentAtPageHeadStaysOnPage() throws Exception {
+		assertNoUnexplainedOffPage("horizontal-wrapped-head", document(400, 120, "horizontal-tb", "",
+				"float:right", "<div><div style=\"height:0pt\">", "</div></div>"), 400, 120);
+	}
+
 	/** Content preceding the floats in the two cases above, occupying only page-axis space. */
 	private static final String LEADING_LIST = """
 			<ul style="list-style-position:inside">

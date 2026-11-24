@@ -2386,19 +2386,19 @@ public class FlowContainer implements Container {
 				switch (params.flow) {
 				case WritingMode.TB: {
 					// Horizontal writing
-					lastBottom += Math.max(flowBlock.getInnerHeight(), flowBlock.getContentSize())
+					lastBottom += Math.max(flowBlock.getInnerHeight(), flowOverflowSize(flowBlock))
 							+ flowBlock.getFrame().getFrameTop();
 					break;
 				}
 				case WritingMode.RL: {
 					// Vertical writing (Japanese)
-					lastBottom += Math.max(flowBlock.getInnerWidth(), flowBlock.getContentSize())
+					lastBottom += Math.max(flowBlock.getInnerWidth(), flowOverflowSize(flowBlock))
 							+ flowBlock.getFrame().getFrameRight();
 					break;
 				}
 				case WritingMode.LR: {
 					// Vertical writing (Mongolian)
-					lastBottom += Math.max(flowBlock.getInnerWidth(), flowBlock.getContentSize())
+					lastBottom += Math.max(flowBlock.getInnerWidth(), flowOverflowSize(flowBlock))
 							+ flowBlock.getFrame().getFrameLeft();
 					break;
 				}
@@ -2411,6 +2411,57 @@ public class FlowContainer implements Container {
 			flowBottoms[i] = lastBottom;
 		}
 		return flowBottoms;
+	}
+
+	/**
+	 * The content size of a block of the normal flow, counting what its descendant blocks draw past their own boxes
+	 * (2026-11-24, fit sweep seed 166906493, triage §274). A block's content size ends where its last child box ends,
+	 * so a wrapper without a size around a block of a definite page-axis size ({@code height}, or {@code width} in
+	 * vertical writing) ended with that block, not with the content running out of it: when a float was cut, the
+	 * overflow lay before the cut line and stayed on the page, off the paper. Without the wrapper the block's own
+	 * content size counted it.
+	 * <p>
+	 * A descendant counts where its flows end now ({@link #getContentSize()} of its container), not its own content
+	 * size, which keeps the largest size set while it was laid out: a multicol keeps its length before balancing, a box
+	 * laid out again keeps its earlier size, and read below the child they cut boxes that paint nothing there (a blank
+	 * page in the neighbourhood sweep of fixture flex-keep-after-probe-split). A flex or grid container counts as far as
+	 * it paints ({@code paintedPageExtent}, as the page builder measures it, triage §139) and is not entered: its items
+	 * do not follow one another along the page axis. Only blocks of the same writing mode count (another one measures
+	 * along another axis), none that clip their overflow, and nothing else (a multicol, a table): its extent is in its
+	 * parent's. Floats are left to their own split, as in {@link #computeFlowBottoms}. A worklist keeps deep nesting off
+	 * the stack.
+	 * </p>
+	 */
+	private static double flowOverflowSize(final FlowBlockBox block) {
+		double size = block.getContentSize();
+		final WritingMode flow = block.getBlockParams().flow;
+		if (block.getBlockParams().clipsOverflowPaint() || !(block.getContainer() instanceof FlowContainer top)) {
+			return size;
+		}
+		final Deque<FlowContainer> containers = new ArrayDeque<FlowContainer>();
+		final Deque<Double> offsets = new ArrayDeque<Double>();
+		containers.push(top);
+		offsets.push(0.0);
+		while (!containers.isEmpty()) {
+			final FlowContainer container = containers.pop();
+			final double offset = offsets.pop();
+			for (int i = 0; container.flows != null && i < container.flows.size(); ++i) {
+				final Flow f = (Flow) container.flows.get(i);
+				if (!(f.box instanceof FlowBlockBox child) || child.getBlockParams().flow != flow
+						|| child.getBlockParams().clipsOverflowPaint()) {
+					continue;
+				}
+				if (child instanceof net.zamasoft.foliojet.layout.box.PageAtomicBox) {
+					size = Math.max(size, offset + f.pageAxis + child.paintedPageExtent(flow));
+				} else if (child.getContainer() instanceof FlowContainer inner) {
+					final double start = offset + f.pageAxis + child.getFrame().getFramePageStart(flow);
+					size = Math.max(size, start + inner.getContentSize());
+					containers.push(inner);
+					offsets.push(start);
+				}
+			}
+		}
+		return size;
 	}
 
 	/**
