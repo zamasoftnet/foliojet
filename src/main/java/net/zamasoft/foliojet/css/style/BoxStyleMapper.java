@@ -269,6 +269,19 @@ final class BoxStyleMapper {
 		pos.location = BoxValueUtils.toInsets(top, right, bottom, left);
 
 		switch (CSSPosition.get(style)) {
+		case PositionValue.FIXED:
+			if (!hasTransformedAncestor(style)) {
+				pos.fiducial = Fiducial.ALL_PAGE;
+				pos.autoPosition = AutoPosition.BLOCK;
+				break;
+			}
+			// An ancestor with a transform is the containing block of a fixed-position descendant (CSS Transforms 1
+			// §2): the box is positioned in it as an absolutely positioned one, once, not on every page against the
+			// paper. Until 2026-11-25 it was fixed to the paper, so a submenu of an off-canvas navigation drawer
+			// (`position:fixed; transform:translateX(100%)`, go.dev) was drawn on every page over the text, while the
+			// drawer itself was moved off the paper (a test with real web documents, copperpdf4
+			// docs/history/2026-11-25-realweb-test.md).
+			// fall through
 		case PositionValue.ABSOLUTE:
 			pos.fiducial = Fiducial.CONTEXT;
 			switch (Display.get(style)) {
@@ -289,11 +302,26 @@ final class BoxStyleMapper {
 				break;
 			}
 			break;
-		case PositionValue.FIXED:
-			pos.fiducial = Fiducial.ALL_PAGE;
-			pos.autoPosition = AutoPosition.BLOCK;
-			break;
 		}
+	}
+
+	/**
+	 * Whether an ancestor has a transform ({@code transform} other than {@code none}, or {@code translate},
+	 * {@code rotate} or {@code scale}), which makes it the containing block of fixed-position descendants.
+	 */
+	private static boolean hasTransformedAncestor(final CSSStyle style) {
+		for (CSSStyle s = style.getParentStyle(); s != null; s = s.getParentStyle()) {
+			if (s.get(Transform.INFO) != net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
+					|| net.zamasoft.foliojet.css.impl.property.box.Translate
+							.get(s) != net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
+					|| net.zamasoft.foliojet.css.impl.property.box.Rotate
+							.get(s) != net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
+					|| net.zamasoft.foliojet.css.impl.property.box.Scale
+							.get(s) != net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
