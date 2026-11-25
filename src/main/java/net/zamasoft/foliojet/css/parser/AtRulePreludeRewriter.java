@@ -34,6 +34,12 @@ import java.util.function.Predicate;
  * <li>{@code @page} selectors' {@code :nth(An+B [of name])} (CSS GCPM 3, 2026-10-28): ph-css drops the whole
  * stylesheet. Each becomes the pseudo-class {@code :-foliojet-nth-...} ({@link #rewritePage}), which
  * {@code CSSStyleSheetBuilder} reads back ({@link #decodePageNth}).</li>
+ * <li>{@code @import}'s {@code layer}, {@code layer(<name>)} and {@code supports(<condition>)} (CSS Cascade 5,
+ * 2026-11-25): ph-css drops the whole stylesheet for the last two, and the import for the first. They become one more
+ * media query, {@code (-foliojet-import-layer: x...)} and {@code (-foliojet-import-supports: x...)}
+ * ({@link #IMPORT_LAYER}, {@link #IMPORT_SUPPORTS}, {@link #rewriteImport}), which {@code CSSStyleSheetBuilder} reads
+ * back ({@link #decodeImportValue}). The HTML papers of arXiv import their whole stylesheet with
+ * {@code @import "ar5iv.css" layer(ar5iv)}: none of it applied.</li>
  * </ul>
  *
  * <p>
@@ -49,6 +55,12 @@ public final class AtRulePreludeRewriter {
 
 	/** The prefix of a strict "less than" media feature written as a range ({@code width < 400px}). */
 	public static final String MEDIA_LT = "-foliojet-lt-";
+
+	/** The media feature an {@code @import}'s layer becomes; its value is {@link #decodeImportValue encoded}. */
+	public static final String IMPORT_LAYER = "-foliojet-import-layer";
+
+	/** The media feature an {@code @import}'s {@code supports()} condition becomes. */
+	public static final String IMPORT_SUPPORTS = "-foliojet-import-supports";
 
 	private AtRulePreludeRewriter() {
 		// utility
@@ -68,7 +80,7 @@ public final class AtRulePreludeRewriter {
 		}
 		final String lower = css.toLowerCase(Locale.ROOT);
 		if (!lower.contains("@supports") && !lower.contains("@layer") && !lower.contains("@media")
-				&& !lower.contains("@page")) {
+				&& !lower.contains("@page") && !lower.contains("@import")) {
 			return css;
 		}
 		final StringBuilder out = new StringBuilder(css.length());
@@ -124,6 +136,15 @@ public final class AtRulePreludeRewriter {
 				end = Math.min(end, n);
 				final String prelude = css.substring(i, end);
 				final String rewritten = rewritePage(prelude);
+				changed |= !rewritten.equals(prelude);
+				out.append(rewritten);
+				i = end;
+			} else if (c == '@' && atKeyword(css, i, "import")) {
+				out.append(css, i, i + 7);
+				i += 7;
+				final int end = preludeEnd(css, i);
+				final String prelude = css.substring(i, end);
+				final String rewritten = rewriteImport(prelude);
 				changed |= !rewritten.equals(prelude);
 				out.append(rewritten);
 				i = end;
@@ -245,6 +266,133 @@ public final class AtRulePreludeRewriter {
 			++i;
 		}
 		return out.toString();
+	}
+
+	/**
+	 * Moves the {@code layer}, {@code layer(<name>)} and {@code supports(<condition>)} of one {@code @import} prelude
+	 * (in this order, after the URL) into one more media query at the end: {@code @import "a.css" layer(x) screen}
+	 * becomes {@code @import "a.css" screen, (-foliojet-import-layer: x78)}. The query has no media type, so it does not
+	 * change which media the import is for. A prelude without them is returned unchanged.
+	 */
+	static String rewriteImport(final String prelude) {
+		final int n = prelude.length();
+		int i = skipSpaces(prelude, 0);
+		if (i < n && (prelude.charAt(i) == '"' || prelude.charAt(i) == '\'')) {
+			i = stringEnd(prelude, i);
+		} else if (prelude.regionMatches(true, i, "url(", 0, 4)) {
+			i = closingParen(prelude, i + 3);
+		} else {
+			return prelude;
+		}
+		final int urlEnd = i;
+		i = skipSpaces(prelude, i);
+		String layer = null;
+		if (prelude.regionMatches(true, i, "layer", 0, 5)) {
+			final int after = i + 5;
+			if (after < n && prelude.charAt(after) == '(') {
+				final int close = closingParen(prelude, after);
+				if (prelude.charAt(close - 1) != ')'
+						|| withoutComments(prelude.substring(after + 1, close - 1)).isEmpty()) {
+					return prelude;
+				}
+				layer = withoutComments(prelude.substring(after + 1, close - 1));
+				i = skipSpaces(prelude, close);
+			} else if (after >= n || !isNameChar(prelude.charAt(after))) {
+				layer = "";
+				i = skipSpaces(prelude, after);
+			}
+		}
+		String supports = null;
+		if (prelude.regionMatches(true, i, "supports(", 0, 9)) {
+			final int close = closingParen(prelude, i + 8);
+			if (prelude.charAt(close - 1) != ')') {
+				return prelude;
+			}
+			supports = withoutComments(prelude.substring(i + 9, close - 1));
+			i = skipSpaces(prelude, close);
+		}
+		if (layer == null && supports == null) {
+			return prelude;
+		}
+		final StringBuilder out = new StringBuilder(prelude.length() + 64).append(prelude, 0, urlEnd).append(' ');
+		final String media = prelude.substring(i).trim();
+		if (!media.isEmpty()) {
+			out.append(media).append(", ");
+		}
+		if (layer != null) {
+			out.append('(').append(IMPORT_LAYER).append(": ").append(encodeImportValue(layer)).append(')');
+		}
+		if (supports != null) {
+			out.append(layer != null ? " and (" : "(").append(IMPORT_SUPPORTS).append(": ")
+					.append(encodeImportValue(supports)).append(')');
+		}
+		return out.toString();
+	}
+
+	/** {@code x} and the hex of the text's UTF-8: an identifier, whatever the text. */
+	private static String encodeImportValue(final String text) {
+		final StringBuilder out = new StringBuilder("x");
+		for (final byte b : text.getBytes(java.nio.charset.StandardCharsets.UTF_8)) {
+			out.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+		}
+		return out.toString();
+	}
+
+	/**
+	 * The text of a value of {@link #IMPORT_LAYER} or {@link #IMPORT_SUPPORTS}: the layer's name (empty for an
+	 * anonymous layer) or the condition; null when the value was not written by {@link #rewriteImport}.
+	 */
+	public static String decodeImportValue(final String value) {
+		final String v = value == null ? "" : value.trim();
+		if (!v.startsWith("x") || v.length() % 2 == 0) {
+			return null;
+		}
+		final byte[] bytes = new byte[(v.length() - 1) / 2];
+		for (int k = 0; k < bytes.length; ++k) {
+			final int hi = Character.digit(v.charAt(1 + 2 * k), 16), lo = Character.digit(v.charAt(2 + 2 * k), 16);
+			if (hi == -1 || lo == -1) {
+				return null;
+			}
+			bytes[k] = (byte) (hi << 4 | lo);
+		}
+		return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+	}
+
+	/** The index of the first character from {@code i} that is neither whitespace nor in a comment. */
+	private static int skipSpaces(final String s, int i) {
+		while (i < s.length()) {
+			if (Character.isWhitespace(s.charAt(i))) {
+				++i;
+			} else if (s.startsWith("/*", i)) {
+				i = commentEnd(s, i);
+			} else {
+				break;
+			}
+		}
+		return i;
+	}
+
+	/** The text without its comments (outside strings), trimmed. */
+	private static String withoutComments(final String s) {
+		if (!s.contains("/*")) {
+			return s.trim();
+		}
+		final StringBuilder out = new StringBuilder(s.length());
+		for (int i = 0; i < s.length();) {
+			final char c = s.charAt(i);
+			if (c == '/' && s.startsWith("/*", i)) {
+				i = commentEnd(s, i);
+				out.append(' ');
+			} else if (c == '"' || c == '\'') {
+				final int end = stringEnd(s, i);
+				out.append(s, i, end);
+				i = end;
+			} else {
+				out.append(c);
+				++i;
+			}
+		}
+		return out.toString().trim();
 	}
 
 	/** Rewrites the range features of one {@code @media} prelude (every parenthesized group, nested ones too). */
@@ -651,19 +799,20 @@ public final class AtRulePreludeRewriter {
 	}
 
 	/** The index after the comment starting at {@code i} (the end when it is not closed). */
-	private static int commentEnd(final String s, final int i) {
+	static int commentEnd(final String s, final int i) {
 		final int end = s.indexOf("*/", i + 2);
 		return end == -1 ? s.length() : end + 2;
 	}
 
 	/** The index after the string starting at {@code i} (a newline or the end also ends it). */
-	private static int stringEnd(final String s, final int i) {
+	static int stringEnd(final String s, final int i) {
 		final char quote = s.charAt(i);
 		int j = i + 1;
 		while (j < s.length()) {
 			final char c = s.charAt(j);
 			if (c == '\\') {
-				j += 2;
+				// a backslash before a CRLF continues the string over both
+				j += s.startsWith("\r\n", j + 1) ? 3 : 2;
 				continue;
 			}
 			if (c == quote) {
@@ -681,7 +830,7 @@ public final class AtRulePreludeRewriter {
 		return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '-' || c >= 0x80;
 	}
 
-	private static boolean isNameChar(final char c) {
+	static boolean isNameChar(final char c) {
 		return isNameStart(c) || (c >= '0' && c <= '9');
 	}
 }

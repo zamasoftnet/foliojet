@@ -48,6 +48,7 @@ import net.zamasoft.foliojet.css.parser.CSSException;
 import net.zamasoft.foliojet.css.parser.InputSource;
 import net.zamasoft.foliojet.css.parser.SelectorConverter;
 import net.zamasoft.foliojet.css.parser.AtRulePreludeRewriter;
+import net.zamasoft.foliojet.css.parser.AttributeValueQuoter;
 import net.zamasoft.foliojet.css.property.ElementPropertySet;
 import net.zamasoft.foliojet.css.property.FontFacePropertySet;
 import net.zamasoft.foliojet.css.property.PagePropertySet;
@@ -129,10 +130,15 @@ public class CSSStyleSheetBuilder {
 	 * Parses a stylesheet and adds it to the CSSStyleSheet under construction.
 	 */
 	public void parse(InputSource source) throws IOException, CSSException {
+		this.parse(source, Rule.NO_LAYER);
+	}
+
+	/** @param layer the layer an {@code @import ... layer} puts the stylesheet in, {@link Rule#NO_LAYER} otherwise */
+	private void parse(final InputSource source, final int layer) throws IOException, CSSException {
 		final String css = read(source.getReader());
 		// A later pass skips the rules this source added in an earlier pass (CSSStyleSheet.beginPass)
 		this.cssStyleSheet.beginSource(source.getURI() + '\n' + sha256(css));
-		this.addRules(this.toSheet(css), source.getURI(), source.getEncoding());
+		this.addRules(this.toSheet(css), source.getURI(), source.getEncoding(), layer);
 	}
 
 	/** A style sheet bundled with the engine as parsed. Nothing writes to it, so conversions can share it. */
@@ -160,7 +166,7 @@ public class CSSStyleSheetBuilder {
 			BUNDLED.put(resource, bundled);
 		}
 		this.cssStyleSheet.beginSource(bundled.key());
-		this.addRules(bundled.sheet(), bundled.uri(), "UTF-8");
+		this.addRules(bundled.sheet(), bundled.uri(), "UTF-8", Rule.NO_LAYER);
 	}
 
 	private CascadingStyleSheet toSheet(String css) throws CSSException {
@@ -168,6 +174,9 @@ public class CSSStyleSheetBuilder {
 		// Implicitly close an unclosed comment at the end (see DeclarationParser;
 		// ph-css lexical analysis cannot recover here and discards the entire sheet).
 		css = DeclarationParser.closeUnterminatedComment(css);
+		// Unquoted attribute values that ph-css lexes as keywords ([data-active=false]) drop the rule; before the
+		// preludes, so that selector() conditions see them quoted too.
+		css = AttributeValueQuoter.quote(css);
 		// selector()/font-tech()/font-format() conditions of @supports and the dotted names of @layer: ph-css cannot
 		// read them and drops the whole enclosing @media/@layer block (see AtRulePreludeRewriter).
 		css = AtRulePreludeRewriter.rewrite(css, this::isSelectorSupported);
@@ -178,20 +187,106 @@ public class CSSStyleSheetBuilder {
 		return sheet;
 	}
 
-	private void addRules(final CascadingStyleSheet sheet, final String sourceUri, final String encoding)
-			throws IOException, CSSException {
+	private void addRules(final CascadingStyleSheet sheet, final String sourceUri, final String encoding,
+			final int layer) throws IOException, CSSException {
 		final URI uri = URI.create(sourceUri);
 		this.uriStack.add(uri);
 		try {
-			for (CSSImportRule importRule : sheet.getAllImportRules()) {
-				this.importStyle(importRule.getLocationString(), toMediaTypes(importRule.getAllMediaQueries()), uri,
-						encoding);
+			// The @layer statements written among the imports (the only rules allowed there) fix the order of the
+			// layers before the imports that come after them: "@layer a, b; @import 'b.css' layer(b);" puts a first.
+			// ph-css keeps the imports apart from the other rules; their source positions give the order back. The
+			// statements are read again in their place below, which leaves the order as it is.
+			final List<CSSImportRule> imports = sheet.getAllImportRules();
+			int statement = 0;
+			for (CSSImportRule importRule : imports) {
+				for (; statement < sheet.getRuleCount(); ++statement) {
+					if (!(sheet.getRuleAtIndex(statement) instanceof CSSLayerRule layerRule)
+							|| !layerRule.getAllRules().isEmpty() || !before(layerRule, importRule)) {
+						break;
+					}
+					this.layer(layerRule, uri, true, layer, null);
+				}
+				this.importRule(importRule, uri, encoding, layer);
 			}
 			for (ICSSTopLevelRule rule : sheet.getAllRules()) {
-				this.rule(rule, uri, true, Rule.NO_LAYER, null);
+				this.rule(rule, uri, true, layer, null);
 			}
 		} finally {
 			this.uriStack.remove(this.uriStack.size() - 1);
+		}
+	}
+
+	/** Whether {@code a} starts before {@code b} in the source (false when either position is unknown). */
+	private static boolean before(final com.helger.css.ICSSSourceLocationAware a,
+			final com.helger.css.ICSSSourceLocationAware b) {
+		final com.helger.css.CSSSourceLocation la = a.getSourceLocation(), lb = b.getSourceLocation();
+		if (la == null || lb == null) {
+			return false;
+		}
+		return la.getFirstTokenBeginLineNumber() < lb.getFirstTokenBeginLineNumber()
+				|| la.getFirstTokenBeginLineNumber() == lb.getFirstTokenBeginLineNumber()
+						&& la.getFirstTokenBeginColumnNumber() < lb.getFirstTokenBeginColumnNumber();
+	}
+
+	/**
+	 * One {@code @import}. Its {@code layer}/{@code layer(name)} and {@code supports()} arrive as one more media query
+	 * ({@link AtRulePreludeRewriter#rewriteImport}): the stylesheet goes into that layer of the importing one's layer
+	 * (CSS Cascade 5 §2.1), and only when the condition holds.
+	 */
+	private void importRule(final CSSImportRule importRule, final URI uri, final String encoding, final int parent) {
+		String layerName = null;
+		String supports = null;
+		for (final CSSMediaQuery query : importRule.getAllMediaQueries()) {
+			for (final CSSMediaExpression expression : query.getAllMediaExpressions()) {
+				final String value = expression.getValue() == null ? null
+						: expression.getValue().getAsCSSString(MEDIA_WRITER_SETTINGS, 0);
+				if (AtRulePreludeRewriter.IMPORT_LAYER.equalsIgnoreCase(expression.getFeature())) {
+					layerName = AtRulePreludeRewriter.decodeImportValue(value);
+				} else if (AtRulePreludeRewriter.IMPORT_SUPPORTS.equalsIgnoreCase(expression.getFeature())) {
+					supports = AtRulePreludeRewriter.decodeImportValue(value);
+					if (supports == null) {
+						return;
+					}
+				}
+			}
+		}
+		final String mediaTypes = toMediaTypes(importRule.getAllMediaQueries());
+		if (!this.ua.is(mediaTypes) || supports != null && !this.importSupported(supports, uri)) {
+			return;
+		}
+		int layer = parent;
+		if (layerName != null) {
+			layer = layerName.isEmpty() ? this.cssStyleSheet.registerAnonymousLayer(parent)
+					: this.cssStyleSheet.registerNamedLayer(parent,
+							// dots separate the names, escaped or not, as in @layer (AtRulePreludeRewriter#layerNamePath)
+							AtRulePreludeRewriter.layerNamePath(layerName.replaceAll("(?<!\\\\)\\.", "\\\\.")));
+		}
+		this.importStyle(importRule.getLocationString(), mediaTypes, uri, encoding, layer);
+	}
+
+	/** Whether the condition of an {@code @import}'s {@code supports()} (a declaration or a condition) holds. */
+	private boolean importSupported(final String condition, final URI uri) {
+		// A declaration ("display: grid") needs parentheses; a condition ("(a: b) and (c: d)", "selector(...)") has them
+		int depth = 0;
+		boolean declaration = false;
+		for (int i = 0; i < condition.length(); ++i) {
+			final char c = condition.charAt(i);
+			if (c == '(') {
+				++depth;
+			} else if (c == ')') {
+				--depth;
+			} else if (c == ':' && depth == 0) {
+				declaration = true;
+				break;
+			}
+		}
+		try {
+			final CascadingStyleSheet sheet = this
+					.toSheet("@supports " + (declaration ? "(" + condition + ")" : condition) + " {}");
+			return sheet.getRuleCount() == 1 && sheet.getRuleAtIndex(0) instanceof CSSSupportsRule rule
+					&& this.evaluateSupports(rule.getAllSupportConditionMembers(), uri, 0);
+		} catch (final CSSException e) {
+			return false;
 		}
 	}
 
@@ -1449,7 +1544,7 @@ public class CSSStyleSheetBuilder {
 		}
 	}
 
-	private void importStyle(String href, String mediaTypes, URI baseURI, String encoding) {
+	private void importStyle(String href, String mediaTypes, URI baseURI, String encoding, int layer) {
 		if (!this.ua.is(mediaTypes)) {
 			return;
 		}
@@ -1484,7 +1579,7 @@ public class CSSStyleSheetBuilder {
 			Source source = this.ua.resolve(uri);
 			try {
 				InputSource inputSource = XMLUtils.toCSSInputSource(source, encoding);
-				this.parse(inputSource);
+				this.parse(inputSource, layer);
 			} finally {
 				this.ua.release(source);
 			}
