@@ -89,7 +89,11 @@ class MyTextPainter extends StrokingTextPainter {
 	protected void paintTextRuns(@SuppressWarnings("rawtypes") List textRuns, Graphics2D g2d) {
 		// TODO Outline-only drawing
 		// TODO SVG embedded fonts (Batik appears to impose limitations)
-		GC gc = ((BridgeGraphics2D) g2d).getGC();
+		// Batik paints a group with some filters (feTurbulence and feDisplacementMap over text) into an image of its
+		// own, an AWT Graphics2D, not the PDF bridge: each run is drawn there through a GC over it, made after the run's
+		// paint is set (2026-11-26; the cast to the bridge failed the whole conversion, and Batik's own drawing needs
+		// glyph outlines MyGVTGlyphVector does not give)
+		final GC bridgeGC = g2d instanceof BridgeGraphics2D bridge ? bridge.getGC() : null;
 		for (int i = 0; i < textRuns.size(); i++) {
 			TextRun textRun = (TextRun) textRuns.get(i);
 			AttributedCharacterIterator aci = textRun.getACI();
@@ -132,6 +136,7 @@ class MyTextPainter extends StrokingTextPainter {
 			}
 
 			// Draw.
+			final GC gc = bridgeGC != null ? bridgeGC : new net.zamasoft.pdfg2d.g2d.gc.G2DGC(g2d, this.fm);
 			TextSpanLayout layout = textRun.getLayout();
 			// In horizontal writing, draw from the first character's position (2026-10-04). getOffset()
 			// is the position before dx, dy, and baseline-shift (as GlyphLayout documents);

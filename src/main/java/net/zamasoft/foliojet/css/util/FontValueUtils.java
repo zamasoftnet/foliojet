@@ -19,6 +19,7 @@ import net.zamasoft.pdfg2d.gc.font.FontFamily;
 import net.zamasoft.pdfg2d.gc.font.FontPolicyList.FontPolicy;
 import net.zamasoft.foliojet.css.token.CssToken;
 import net.zamasoft.foliojet.css.token.TokenStream;
+import net.zamasoft.foliojet.css.token.Tokens;
 import net.zamasoft.foliojet.css.value.RelativeLengthValue;
 import net.zamasoft.foliojet.css.token.Unit;
 import net.zamasoft.foliojet.ua.AbsoluteFontSize;
@@ -48,13 +49,18 @@ public final class FontValueUtils {
 				// the first word and could not resolve
 				// (actual failure in Docker with Google Fonts).
 				// Only a standalone ident can be a generic-family keyword.
+				// The name is what the identifiers spell after their escapes are decoded, as a quoted name is
+				// (2026-11-26: Font Awesome 7 declares `@font-face{font-family:Font Awesome\ 7 Free}` and refers
+				// to "Font Awesome 7 Free"; the raw `Awesome\ 7` named a font nothing asked for, and every icon
+				// on pypi.org was a missing glyph). Decoded here only: other identifiers are compared raw with
+				// their definitions (custom properties, grid line names, @counter-style).
 				StringBuilder joined = null;
 				while (tokens.peek() instanceof CssToken.Ident next) {
 					tokens.next();
 					if (joined == null) {
-						joined = new StringBuilder(ident.name());
+						joined = new StringBuilder(Tokens.unescape(ident.name()));
 					}
-					joined.append(' ').append(next.name());
+					joined.append(' ').append(Tokens.unescape(next.name()));
 				}
 				if (joined != null) {
 					list.add(new FontFamily(joined.toString()));
@@ -80,7 +86,7 @@ public final class FontValueUtils {
 						break;
 					default:
 						// Ordinary family name
-						list.add(new FontFamily(ident.name()));
+						list.add(new FontFamily(Tokens.unescape(ident.name())));
 						break;
 					}
 				}
