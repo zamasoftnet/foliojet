@@ -250,8 +250,15 @@ public class CSSStyleSheetBuilder {
 				}
 			}
 		}
-		final String mediaTypes = toMediaTypes(importRule.getAllMediaQueries());
-		if (!this.ua.is(mediaTypes) || supports != null && !this.importSupported(supports, uri)) {
+		// The media queries as @media evaluates them, without the one rewriteImport added
+		final List<CSSMediaQuery> queries = new ArrayList<>();
+		for (final CSSMediaQuery query : importRule.getAllMediaQueries()) {
+			if (query.getMedium() != null || query.getAllMediaExpressions().stream()
+					.noneMatch(e -> e.getFeature() != null && e.getFeature().startsWith("-foliojet-import-"))) {
+				queries.add(query);
+			}
+		}
+		if (!this.mediaMatches(queries) || supports != null && !this.importSupported(supports, uri)) {
 			return;
 		}
 		int layer = parent;
@@ -261,8 +268,49 @@ public class CSSStyleSheetBuilder {
 							// dots separate the names, escaped or not, as in @layer (AtRulePreludeRewriter#layerNamePath)
 							AtRulePreludeRewriter.layerNamePath(layerName.replaceAll("(?<!\\\\)\\.", "\\\\.")));
 		}
-		this.importStyle(importRule.getLocationString(), mediaTypes, uri, encoding, layer);
+		this.importStyle(importRule.getLocationString(), uri, encoding, layer);
 	}
+
+	/** Whether any of the queries applies, as @media evaluates them; true for none (a list for all media). */
+	private boolean mediaMatches(final List<CSSMediaQuery> queries) {
+		if (queries.isEmpty()) {
+			return true;
+		}
+		for (final CSSMediaQuery query : queries) {
+			if (this.evaluateMediaQuery(query)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether a media query list written in a {@code media} attribute (of a link or style element) applies, as
+	 * {@code @media} evaluates it (2026-11-25). Before, only the names of media types were looked for in the text, so a
+	 * query of features alone ({@code media="(max-width: 767px)"}, Toyo Keizai's stylesheets for phones and PCs) never
+	 * applied and the page printed without its stylesheets, and {@code not print} applied.
+	 *
+	 * @param media the attribute's value, null when there is none (all media)
+	 */
+	public boolean mediaMatches(final String media) {
+		if (media == null || media.isBlank()) {
+			return true;
+		}
+		try {
+			final CascadingStyleSheet sheet = this.toSheet("@media " + media + " {}");
+			if (sheet.getRuleCount() == 1 && sheet.getRuleAtIndex(0) instanceof CSSMediaRule mediaRule) {
+				return this.mediaMatches(mediaRule.getAllMediaQueries());
+			}
+		} catch (final CSSException e) {
+			// not a media query list
+		}
+		// Media type names separated by spaces, as older documents and the stylesheet processing instruction write
+		// them ("print screen"); anything else that does not parse is a query that is not true (Media Queries 4 §3.2)
+		return MEDIA_TYPE_NAMES.matcher(media).matches() && this.ua.is(media.toLowerCase(java.util.Locale.ROOT));
+	}
+
+	private static final java.util.regex.Pattern MEDIA_TYPE_NAMES = java.util.regex.Pattern
+			.compile("\\s*[A-Za-z][-A-Za-z0-9]*(?:[\\s,]+[A-Za-z][-A-Za-z0-9]*)*\\s*");
 
 	/** Whether the condition of an {@code @import}'s {@code supports()} (a declaration or a condition) holds. */
 	private boolean importSupported(final String condition, final URI uri) {
@@ -1102,10 +1150,8 @@ public class CSSStyleSheetBuilder {
 	 */
 	private boolean evaluateMediaQuery(CSSMediaQuery query) {
 		String medium = query.getMedium();
-		if (medium == null) {
-			medium = "all";
-		}
-		boolean result = this.ua.is(medium.toLowerCase(java.util.Locale.ROOT));
+		// A query without a media type is for all media, whatever output.media_types lists (2026-11-25)
+		boolean result = medium == null || this.ua.is(medium.toLowerCase(java.util.Locale.ROOT));
 		if (result) {
 			for (CSSMediaExpression expression : query.getAllMediaExpressions()) {
 				if (!this.evaluateMediaExpression(expression)) {
@@ -1544,10 +1590,7 @@ public class CSSStyleSheetBuilder {
 		}
 	}
 
-	private void importStyle(String href, String mediaTypes, URI baseURI, String encoding, int layer) {
-		if (!this.ua.is(mediaTypes)) {
-			return;
-		}
+	private void importStyle(String href, URI baseURI, String encoding, int layer) {
 		if (this.uriStack.size() > MAX_DEPTH) {
 			this.ua.message(MessageCodes.WARN_DEEP_IMPORT, baseURI.toString(), String.valueOf(MAX_DEPTH));
 			return;
@@ -1590,21 +1633,6 @@ public class CSSStyleSheetBuilder {
 			this.ua.message(MessageCodes.WARN_MISSING_CSS_STYLESHEET, uri.toString());
 			LOG.log(Level.FINE, "CSS読み込みエラー", e);
 		}
-	}
-
-	private static String toMediaTypes(List<CSSMediaQuery> queries) {
-		StringBuilder buff = new StringBuilder();
-		for (CSSMediaQuery query : queries) {
-			String medium = query.getMedium();
-			if (medium == null) {
-				continue;
-			}
-			if (buff.length() > 0) {
-				buff.append(' ');
-			}
-			buff.append(medium);
-		}
-		return buff.toString();
 	}
 
 	private static String read(Reader reader) throws IOException {

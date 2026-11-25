@@ -56,6 +56,9 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 
 	private StringBuilder contentBuff;
 
+	/** The media attribute of the style element being read, passed on for CSSProcessor to evaluate (null: none). */
+	private String styleMedia;
+
 	private AttributesImpl atts = new AttributesImpl();
 
 	private boolean useMetaInfo = true;
@@ -222,14 +225,10 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 					String media = atts.getValue(XHTML.URI, "media");
 					if ((type == null && this.defaultStyleType.equalsIgnoreCase(Constants.CSS_MIME_TYPE))
 							|| Constants.CSS_MIME_TYPE.equalsIgnoreCase(type)) {
-						if (media != null) {
-							media = media.toLowerCase(java.util.Locale.ROOT);
-						} else {
-							media = "all";
-						}
-						if (this.ua.is(media)) {
-							this.contentBuff = new StringBuilder();
-						}
+						// CSSProcessor evaluates the media as @media does (2026-11-25): a query of features alone
+						// ("(min-width: 768px)") applies when it holds
+						this.styleMedia = media;
+						this.contentBuff = new StringBuilder();
 					}
 				}
 			} else if (lName.equals(XHTML.TITLE_ELEM.lName)) {
@@ -479,9 +478,12 @@ public class XHTMLPreprocessFilter extends DefaultXMLHandlerFilter {
 			String[] pi = null;
 			if (lName.equals(XHTML.STYLE_ELEM.lName)) {
 				if (this.contentBuff != null) {
+					final String media = this.styleMedia == null ? ""
+							: "media='" + XMLUtils.escapePseudeAttr(this.styleMedia) + "' ";
 					pi = new String[] { CSSJML.PI_STYLESHEET,
-							"[" + XMLUtils.escapePseudeData(this.contentBuff.toString()) + "]" };
+							media + "[" + XMLUtils.escapePseudeData(this.contentBuff.toString()) + "]" };
 					this.contentBuff = null;
+					this.styleMedia = null;
 				}
 			} else if (lName.equals(XHTML.TITLE_ELEM.lName)) {
 				if (this.contentBuff != null) {

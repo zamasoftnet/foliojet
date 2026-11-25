@@ -38,22 +38,28 @@ public class TitleBufferReleaseTest extends TestCase {
 	private static final Pattern TEXT = Pattern.compile("Text\\[\"([^\"]*)\"");
 
 	/**
-	 * The filter alone, fed SAX events: a title, a style element for a medium the user agent is not, and a body. No
-	 * style sheet may come out of it: one does when the title's buffer is still collecting at the end of the style
-	 * element.
+	 * The filter alone, fed SAX events: a title, a style element for a medium the user agent is not, and a body. The
+	 * style element comes out with its media and its own text only (since 2026-11-25 the filter passes every style
+	 * element on and CSSProcessor evaluates the media as @media does); the title's text and the body's do not, as they
+	 * did when the title's buffer was still collecting at the end of the style element.
 	 */
 	public void testNoStyleSheetFromTitleBuffer() throws Exception {
 		final List<String[]> off = feed("false");
-		for (final String[] pi : off) {
-			assertFalse("style sheet made of the title buffer: " + pi[1], CSSJML.PI_STYLESHEET.equals(pi[0]));
-			assertFalse("document information is off: " + pi[1], CSSJML.PI_DOCUMENT_INFO.equals(pi[0]));
-		}
+		assertEquals("processing instructions", 1, off.size());
+		assertStyleSheetOfItsOwn(off.get(0));
 
 		// With the document information on (the default), the title is passed on and the buffer is released as before
 		final List<String[]> on = feed(null);
-		assertEquals("processing instructions", 1, on.size());
+		assertEquals("processing instructions", 2, on.size());
 		assertEquals(CSSJML.PI_DOCUMENT_INFO, on.get(0)[0]);
 		assertTrue(on.get(0)[1], on.get(0)[1].contains("TITLE"));
+		assertStyleSheetOfItsOwn(on.get(1));
+	}
+
+	private static void assertStyleSheetOfItsOwn(final String[] pi) {
+		assertEquals(CSSJML.PI_STYLESHEET, pi[0]);
+		assertTrue(pi[1], pi[1].startsWith("media='tty' [") && pi[1].contains("p{display:none}"));
+		assertFalse("style sheet made of the title buffer: " + pi[1], pi[1].contains("TITLE") || pi[1].contains("BODY"));
 	}
 
 	/** The same in a conversion: the style element for another medium does not hide the paragraph. */

@@ -570,6 +570,23 @@ public class StyleContext {
 		return false;
 	}
 
+	/**
+	 * {@code :checked} as the document gives it (2026-11-25): a checkbox or radio button with the {@code checked}
+	 * attribute, an option with {@code selected}. Pure-CSS tabs show the content after the checked radio button
+	 * ({@code input:checked + label + .tab-content}); Sphinx's inline tabs on pip's documentation printed no tab.
+	 */
+	private static boolean isChecked(final CSSElement ce) {
+		if (ce.atts == null || ce.lName == null || !XHTML.URI.equals(ce.uri)) {
+			return false;
+		}
+		if (ce.lName.equalsIgnoreCase("input")) {
+			final String type = ce.atts.getValue("type");
+			return ("checkbox".equalsIgnoreCase(type) || "radio".equalsIgnoreCase(type))
+					&& ce.atts.getValue("checked") != null;
+		}
+		return ce.lName.equalsIgnoreCase("option") && ce.atts.getValue("selected") != null;
+	}
+
 	private static List<CSSElement> withLast(List<CSSElement> ancestors, CSSElement last) {
 		List<CSSElement> result = new ArrayList<CSSElement>(ancestors.size() + 1);
 		result.addAll(ancestors);
@@ -638,6 +655,12 @@ public class StyleContext {
 			}
 			byte pc = 0;
 			switch (pseudoClass.charAt(0)) {
+			case 'C':
+			case 'c':
+				if (pseudoClass.equalsIgnoreCase("checked")) {
+					return isChecked(ce);
+				}
+				break;
 			case 'F':
 			case 'f':
 				if (pseudoClass.equalsIgnoreCase("first")) {

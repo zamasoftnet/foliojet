@@ -212,7 +212,7 @@ public class CSSProcessor implements XMLHandler {
 		} else {
 			apply = !alternate;
 		}
-		if (apply && !this.ua.is(mediaTypes)) {
+		if (apply && !this.styleSheetBuilder.mediaMatches(mediaTypes)) {
 			apply = false;
 		}
 		if (apply) {
@@ -365,7 +365,7 @@ public class CSSProcessor implements XMLHandler {
 				if (type == null) {
 					type = this.defaultStyleType;
 				}
-				if (type.equals(Constants.CSS_MIME_TYPE) && this.ua.is(media)) {
+				if (type.equals(Constants.CSS_MIME_TYPE) && this.styleSheetBuilder.mediaMatches(media)) {
 					InputSource inputSource = new InputSource(new StringReader(styleSheet));
 					inputSource.setEncoding(this.ua.getDocumentContext().getEncoding());
 					inputSource.setURI(this.applier.getBaseURI().toString());
