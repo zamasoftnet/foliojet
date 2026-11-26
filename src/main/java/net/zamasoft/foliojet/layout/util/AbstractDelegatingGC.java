@@ -190,6 +190,11 @@ public abstract class AbstractDelegatingGC implements GC, DelegatingGC {
 	}
 
 	@Override
+	public double getRasterResolution() {
+		return this.gc.getRasterResolution();
+	}
+
+	@Override
 	public void clip(final Shape shape) throws GraphicsException {
 		this.gc.clip(shape);
 	}

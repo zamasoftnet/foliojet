@@ -230,6 +230,11 @@ class TeeGC implements GC {
 	}
 
 	@Override
+	public double getRasterResolution() {
+		return this.primary.getRasterResolution();
+	}
+
+	@Override
 	public void clip(final Shape shape) throws GraphicsException {
 		this.primary.clip(shape);
 		this.secondary.clip(shape);

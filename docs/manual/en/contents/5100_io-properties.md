@@ -436,7 +436,8 @@ The following is a list of properties you can set when accessing this layout eng
 				<td>The resolution for rasterizing elements with <span class="cssprop">filter</span> (color conversion, <tt>blur()</tt>, or <tt>drop-shadow()</tt>)
 					in PDF output (dpi, 72–600)<span class="since">4.0.0</span>.
 					The default is higher than for shadow blur (<span class="ioprop">output.pdf.blur-resolution</span>) because the element may contain text.
-					Elements exceeding 16 million pixels are drawn as vectors without the effect, and warning 2822 (content: filter-limit) is issued.</td>
+					Elements exceeding 16 million pixels are drawn as vectors without the effect, and warning 2822 (content: filter-limit) is issued.
+					SVG <tt>&lt;filter&gt;</tt> effects are rasterized at this resolution too (coarser where a whole SVG would exceed 16 million pixels).</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.image.max-height">
 				<td class="nowrap">output.pdf.image.max-height</td>

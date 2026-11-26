@@ -436,7 +436,8 @@
 				<td>PDF出力で<span class="cssprop">filter</span>(色の変換・<tt>blur()</tt>・<tt>drop-shadow()</tt>)の
 					付いた要素を画像にする解像度(dpi、72〜600)です<span class="since">4.0.0</span>。
 					要素の文字が含まれ得るので影のぼかし(<span class="ioprop">output.pdf.blur-resolution</span>)より高い既定です。
-					画素数が1,600万を超える要素は効果を掛けずにベクタのまま描き、警告2822(内容 filter-limit)で知らせます。</td>
+					画素数が1,600万を超える要素は効果を掛けずにベクタのまま描き、警告2822(内容 filter-limit)で知らせます。
+					SVGの<tt>&lt;filter&gt;</tt>もこの解像度で画像にします(SVG全体で1,600万画素まで粗くします)。</td>
 			</tr>
 			<tr id="appx-ioprop-output.pdf.image.max-height">
 				<td class="nowrap">output.pdf.image.max-height</td>
