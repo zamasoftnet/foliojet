@@ -281,6 +281,9 @@ public class SVGImageLoader implements ImageLoader {
 
 	private Image buildImage(String docURI, final Document doc, final UserAgent ua) throws IOException {
 		try {
+			// SVG 2's href and CSS3 colours into the forms Batik reads (images, inline SVG and running elements all
+			// come here, 2026-11-26)
+			SvgCompat.apply(doc);
 			SVGOMSVGElement root = (SVGOMSVGElement) doc.getDocumentElement();
 			Dimension2D viewport = VIEWPORT;
 			double vbWidth = 0;

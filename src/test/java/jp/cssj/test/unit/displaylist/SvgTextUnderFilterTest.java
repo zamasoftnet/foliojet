@@ -36,6 +36,29 @@ public class SvgTextUnderFilterTest extends TestCase {
 	}
 
 	/**
+	 * A shields.io badge: text under a blur filter, in Verdana (a fallback without glyph shapes here). Batik takes the
+	 * filter's region from the text's outline, which threw, and the whole badge failed (2026-11-26, PlantUML's documents;
+	 * a failed SVG takes a 40pt box instead of its own 101 x 20px).
+	 */
+	public void testShieldsBadgeConverts() throws Exception {
+		final File dir = new File("local/svg-badge-in");
+		dir.mkdirs();
+		Files.writeString(new File(dir, "badge.svg").toPath(),
+				"<svg xmlns='http://www.w3.org/2000/svg' width='101' height='20'><filter id='blur'>"
+						+ "<feGaussianBlur stdDeviation='16'/></filter><g fill='#fff' text-anchor='middle' "
+						+ "font-family='Verdana,Geneva,DejaVu Sans,sans-serif' font-size='110'><g transform='scale(.1)'>"
+						+ "<text x='445' y='150' fill='#010101' fill-opacity='.8' filter='url(#blur)' textLength='430'>"
+						+ "patreon</text><text x='445' y='140' textLength='430'>patreon</text></g></g>"
+						+ "<a href='https://example.invalid/'><text x='5' y='15' font-size='10'>LINK</text></a></svg>",
+				StandardCharsets.UTF_8);
+		final File input = new File(dir, "input.html");
+		Files.writeString(input.toPath(), "<!DOCTYPE html><html><body><p>BEFORE</p><img src='badge.svg'><p>AFTER</p>"
+				+ "</body></html>", StandardCharsets.UTF_8);
+		final String all = String.join("\n", DisplayListPages.of(input.getPath(), "svg-badge"));
+		assertTrue(all, all.contains("AbsoluteRectFrame[w=75.75 h=15.00]"));
+	}
+
+	/**
 	 * An SVG part Batik cannot paint leaves the rest of the document (Inkscape's feConvolveMatrix icon: AWT's
 	 * ConvolveOp threw "Unable to convolve src image" and the whole conversion failed, 2026-11-26).
 	 */

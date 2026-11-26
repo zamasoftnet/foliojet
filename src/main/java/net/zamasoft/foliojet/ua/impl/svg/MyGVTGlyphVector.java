@@ -78,13 +78,27 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public Rectangle2D getLogicalBounds() {
+		return this.textBox();
+	}
+
+	/**
+	 * The box the text takes where it is: from the ascent above the baseline to the descent below it, or the em box
+	 * centred on the line in vertical text (2026-11-26). It was the box below the baseline (y0 to y0 + size): Batik
+	 * takes a filter's region and the image it filters from the bounds, and the text under a filter was cut away.
+	 */
+	private Rectangle2D textBox() {
 		double advance = 0;
 		for (int i = 0; i < this.getNumGlyphs(); ++i) {
 			advance += this.advance(i);
 		}
 		advance += this.text.getLetterSpacing() * this.getNumGlyphs();
-		double size = this.text.getFontStyle().getSize();
-		return new Rectangle2D.Double(this.x[0], this.y[0], advance, size);
+		final double size = this.text.getFontStyle().getSize();
+		if (this.text.getFontStyle().getDirection() == FontStyle.Direction.TB) {
+			return new Rectangle2D.Double(this.x[0] - size / 2, this.y[0], size, advance);
+		}
+		final FontMetrics fm = this.text.getFontMetrics();
+		final double ascent = Math.abs(fm.getAscent()), descent = Math.abs(fm.getDescent());
+		return new Rectangle2D.Double(this.x[0], this.y[0] - ascent, advance, ascent + descent);
 	}
 
 	public int getGlyphCode(int ix) {
@@ -142,16 +156,32 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 
 	public Shape getGlyphOutline(int ix) {
 		if (!(this.font.font instanceof ShapedFont)) {
-			throw new UnsupportedOperationException();
+			// a font without glyph shapes (base 14, a CID font not embedded): the glyph's box
+			final FontMetrics fm = this.text.getFontMetrics();
+			final double ascent = Math.abs(fm.getAscent()), descent = Math.abs(fm.getDescent());
+			return new Rectangle2D.Double(0, -ascent, this.advance(ix), ascent + descent);
 		}
 		ShapedFont font = (ShapedFont) this.font.font;
 		return font.getShapeByGID(this.getGlyphCode(ix));
 	}
 
+	/**
+	 * The outline of the text where it is (2026-11-26). Batik takes a filter's region, an objectBoundingBox and a
+	 * link's area from it. It threw for a font without glyph shapes, and every shields.io badge (text under a blur
+	 * filter, in Verdana that falls back to Helvetica) failed as a whole; with shapes it was at the origin, not at the
+	 * text, and the text under a filter was cut away.
+	 */
 	public Shape getOutline() {
 		if (!(this.font.font instanceof ShapedFont)) {
-			throw new UnsupportedOperationException();
+			return this.textBox();
 		}
+		final GeneralPath path = this.shapedOutline();
+		path.transform(AffineTransform.getTranslateInstance(this.x[0], this.y[0]));
+		return path;
+	}
+
+	/** The glyph shapes from the pen's start at the origin. */
+	private GeneralPath shapedOutline() {
 		ShapedFont font = (ShapedFont) this.font.font;
 		FontStyle fontStyle = text.getFontStyle();
 		FontStyle.Direction direction = fontStyle.getDirection();
@@ -253,7 +283,7 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	}
 
 	public Rectangle2D getGeometricBounds() {
-		throw new UnsupportedOperationException();
+		return this.getOutline().getBounds2D();
 	}
 
 	public Rectangle2D getGlyphCellBounds(int ix) {
