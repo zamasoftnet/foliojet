@@ -33,6 +33,9 @@ import org.w3c.dom.Node;
  * {@code stroke="transparent"}: a black frame round every graph), and one such value in a {@code <style>} made it
  * drop the whole sheet. Attributes, {@code style} attributes and {@code <style>} elements are rewritten; a value
  * Batik already reads is left as written.</li>
+ * <li>CSS Writing Modes 3's {@code writing-mode} values ({@code vertical-rl} and so on) become SVG 1.1's
+ * ({@code tb-rl}), and {@code text-orientation} becomes {@code glyph-orientation-vertical}: Batik dropped a whole
+ * {@code <style>} for {@code vertical-rl} (2026-11-26).</li>
  * </ul>
  * Approximations: the opacity is inherited where the colour is, so a descendant that sets its own colour by attribute
  * or {@code style} gets the opacity it had before back (one set by a style sheet rule does not); {@code color} has no
@@ -135,6 +138,23 @@ public final class SvgCompat {
 				}
 			}
 		}
+		final Attr writingMode = plainAttr(e, "writing-mode");
+		if (writingMode != null) {
+			final String mode = svg11WritingMode(writingMode.getValue());
+			if (mode != null) {
+				writingMode.setValue(mode);
+			}
+		}
+		final Attr textOrientation = plainAttr(e, "text-orientation");
+		if (textOrientation != null) {
+			final String orientation = glyphOrientation(textOrientation.getValue());
+			if (orientation != null) {
+				e.removeAttributeNode(textOrientation);
+				if (plainAttr(e, "glyph-orientation-vertical") == null) {
+					e.setAttributeNS(null, "glyph-orientation-vertical", orientation);
+				}
+			}
+		}
 		if (style != null) {
 			// the alpha multiplies the opacity the element has or inherits, as for an attribute
 			final String rewritten = rewriteDeclarations(style.getValue(), fill, stroke);
@@ -159,6 +179,38 @@ public final class SvgCompat {
 			}
 		}
 		return new Inherited(fill, effectiveFill, stroke, effectiveStroke);
+	}
+
+	/**
+	 * The SVG 1.1 writing-mode for a CSS Writing Modes 3 value Batik refuses, or null to leave it (2026-11-26: the
+	 * vertical newspaper pages of a local film project set {@code writing-mode:vertical-rl} in their {@code <style>},
+	 * and Batik dropped the whole sheet: no vertical text, no fonts, no fills). A single text has one line, so
+	 * {@code vertical-lr} is {@code tb} as well. The sideways modes become plain vertical: their glyph orientation is
+	 * not made up here (a made-up {@code glyph-orientation-vertical} would outlive a later {@code writing-mode} that
+	 * overrides them), and {@code sideways-lr}'s bottom-to-top is not drawn.
+	 */
+	static String svg11WritingMode(final String value) {
+		return switch (value.trim().toLowerCase(Locale.ROOT)) {
+		case "horizontal-tb" -> "lr-tb";
+		case "vertical-rl", "sideways-rl" -> "tb-rl";
+		case "vertical-lr", "sideways-lr" -> "tb";
+		default -> null;
+		};
+	}
+
+	/**
+	 * SVG 1.1's glyph-orientation-vertical for text-orientation (CSS Writing Modes 3), which Batik does not know, or
+	 * null to leave the value as written (Batik ignores the property). Both are inherited: inherit and unset stay
+	 * inherit, initial is mixed.
+	 */
+	static String glyphOrientation(final String value) {
+		return switch (value.trim().toLowerCase(Locale.ROOT)) {
+		case "upright" -> "0";
+		case "sideways", "sideways-right" -> "90";
+		case "mixed", "initial" -> "auto";
+		case "inherit", "unset" -> "inherit";
+		default -> null;
+		};
 	}
 
 	/** An opacity written on the element (the style attribute over the attribute), NaN if none. */
@@ -472,7 +524,9 @@ public final class SvgCompat {
 				continue;
 			}
 			final String property = d.substring(0, colon).trim().toLowerCase(Locale.ROOT);
-			if (opacityProperty(property) == null && !property.equals("lighting-color") && !property.equals("color")) {
+			final boolean writing = property.equals("writing-mode") || property.equals("text-orientation");
+			if (!writing && opacityProperty(property) == null && !property.equals("lighting-color")
+					&& !property.equals("color")) {
 				continue;
 			}
 			String value = d.substring(colon + 1);
@@ -480,6 +534,18 @@ public final class SvgCompat {
 			final boolean isImportant = important.matches();
 			if (isImportant) {
 				value = important.group(1);
+			}
+			if (writing) {
+				final String suffix = isImportant ? " !important" : "";
+				final String converted = property.equals("writing-mode") ? svg11WritingMode(value)
+						: glyphOrientation(value);
+				if (converted == null) {
+					continue;
+				}
+				rewritten[i] = (property.equals("writing-mode") ? "writing-mode:" : "glyph-orientation-vertical:")
+						+ converted + suffix;
+				changed = true;
+				continue;
 			}
 			final Color color = convert(property, value);
 			if (color == null) {

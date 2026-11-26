@@ -167,6 +167,28 @@ public class SvgCompatTest extends TestCase {
 		assertNull(SvgCompat.convert("fill", "color(xyz 0.1 0.2 0.3)"));
 	}
 
+	/** CSS Writing Modes 3 values: Batik dropped the whole sheet for vertical-rl (any error fails the build here). */
+	public void testWritingModes() throws Exception {
+		final List<ShapeNode> s = build(HEAD + "<style>.v{writing-mode:vertical-rl;text-orientation:upright}"
+				+ " .h{display:none}</style><text class='v' x='10' y='10'>縦</text>"
+				+ "<text writing-mode='vertical-lr' text-orientation='sideways' x='30' y='10'>A</text>"
+				+ "<rect class='h' width='10' height='10'/><rect width='10' height='10' style='writing-mode:sideways-rl'/>"
+				+ "</svg>");
+		assertEquals("the sheet hid the first rect", 1, s.size());
+		final org.w3c.dom.Element a = (org.w3c.dom.Element) this.doc.getElementsByTagName("text").item(1);
+		assertEquals("tb", a.getAttribute("writing-mode"));
+		assertEquals("90", a.getAttribute("glyph-orientation-vertical"));
+		assertFalse(a.hasAttribute("text-orientation"));
+		assertEquals(".v{writing-mode:tb-rl;glyph-orientation-vertical:0}",
+				SvgCompat.rewriteSheet(".v{writing-mode:vertical-rl;text-orientation:upright}"));
+		assertNull(SvgCompat.svg11WritingMode("tb-rl"));
+		// inherited properties: inherit stays inherit, initial is mixed; an unknown value is left as written
+		assertEquals(".v{glyph-orientation-vertical:90;glyph-orientation-vertical:inherit}",
+				SvgCompat.rewriteSheet(".v{text-orientation:sideways;text-orientation:inherit}"));
+		assertEquals("auto", SvgCompat.glyphOrientation("initial"));
+		assertNull(SvgCompat.glyphOrientation("bogus"));
+	}
+
 	public void testRoundingAndRange() {
 		assertEquals("rgb(128,0,0)", SvgCompat.convert("fill", "rgba(50%,0%,0%,1)").value());
 		assertEquals("rgb(255,0,0)", SvgCompat.convert("fill", "rgba(2147483648,0,0,1)").value());

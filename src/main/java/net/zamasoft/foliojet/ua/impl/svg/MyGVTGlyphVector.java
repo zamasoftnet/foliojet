@@ -94,11 +94,23 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 		advance += this.text.getLetterSpacing() * this.getNumGlyphs();
 		final double size = this.text.getFontStyle().getSize();
 		if (this.text.getFontStyle().getDirection() == FontStyle.Direction.TB) {
-			return new Rectangle2D.Double(this.x[0] - size / 2, this.y[0], size, advance);
+			final Point2D start = this.verticalStart();
+			return new Rectangle2D.Double(start.getX() - size / 2, start.getY(), size, advance);
 		}
 		final FontMetrics fm = this.text.getFontMetrics();
 		final double ascent = Math.abs(fm.getAscent()), descent = Math.abs(fm.getDescent());
 		return new Rectangle2D.Double(this.x[0], this.y[0] - ascent, advance, ascent + descent);
+	}
+
+	/**
+	 * Where vertical text starts as MyTextPainter draws it: the column's centre and the top of the first glyph
+	 * (2026-11-26). Batik puts an upright first glyph half its advance left of x and its first offset, the ascent
+	 * (half the em in vertical text), below y (GlyphLayout.doExplicitGlyphLayout); a Latin letter first on its side is
+	 * placed otherwise, and the box is then off by up to half an em.
+	 */
+	private Point2D verticalStart() {
+		final double size = this.text.getFontStyle().getSize();
+		return new Point2D.Double(this.x[0] + (this.getNumGlyphs() > 0 ? this.advance(0) / 2 : 0), this.y[0] - size / 2);
 	}
 
 	public int getGlyphCode(int ix) {
@@ -138,6 +150,12 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 	public Shape getGlyphLogicalBounds(int ix) {
 		float hadvance = (float) this.advance(ix);
 		float vadvance = (float) this.text.getFontStyle().getSize();
+		if (this.text.getFontStyle().getDirection() == FontStyle.Direction.TB) {
+			// Above the baseline by the ascent, as AWT's bounds are (2026-11-26): Batik adds the last glyph's bounds
+			// below the baseline and the ascent to a vertical chunk's length for text-anchor, and with the box below the
+			// baseline middle and end stood a quarter and half an em too high. (Horizontal text uses the width only.)
+			return new Rectangle2D.Float(0, -vadvance / 2, hadvance, vadvance);
+		}
 		return new Rectangle2D.Float(0, 0, hadvance, vadvance);
 	}
 
@@ -176,7 +194,10 @@ public class MyGVTGlyphVector implements GVTGlyphVector {
 			return this.textBox();
 		}
 		final GeneralPath path = this.shapedOutline();
-		path.transform(AffineTransform.getTranslateInstance(this.x[0], this.y[0]));
+		// vertical shapes run down from the origin, centred on it
+		final Point2D start = this.text.getFontStyle().getDirection() == FontStyle.Direction.TB ? this.verticalStart()
+				: new Point2D.Float(this.x[0], this.y[0]);
+		path.transform(AffineTransform.getTranslateInstance(start.getX(), start.getY()));
 		return path;
 	}
 

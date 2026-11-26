@@ -109,8 +109,34 @@ public class MySVGTextElementBridge extends SVGTextElementBridge {
 		final int weightIndex = Math.max(0, Math.min(8, cssWeight / 100 - 1));
 		final FontStyle.Weight weight = FontStyle.Weight.values()[weightIndex];
 
+		// glyph-orientation-vertical (SvgCompat maps text-orientation to it): 0 stands Latin letters upright, 90 lays
+		// every glyph on its side, auto mixes (2026-11-26: upright letters were drawn on their side, and the next run,
+		// placed by Batik after upright advances, left a gap)
+		FontStyle.TextOrientation orientation = FontStyle.TextOrientation.MIXED;
+		if (direction == FontStyle.Direction.TB) {
+			final Value gov = CSSUtilities.getComputedStyle(element, SVGCSSEngine.GLYPH_ORIENTATION_VERTICAL_INDEX);
+			final short type = gov.getPrimitiveType();
+			if (type != org.w3c.dom.css.CSSPrimitiveValue.CSS_IDENT) {
+				// The computed value keeps its unit. Converted and rounded to a right angle exactly as Batik's layout does
+				// (SVGTextElementBridge, GlyphLayout.getGlyphOrientationAngle; its grad is x 9/5), so that the glyphs
+				// are drawn the way Batik advanced them
+				float degrees = gov.getFloatValue();
+				if (type == org.w3c.dom.css.CSSPrimitiveValue.CSS_RAD) {
+					degrees = (float) Math.toDegrees(degrees);
+				} else if (type == org.w3c.dom.css.CSSPrimitiveValue.CSS_GRAD) {
+					degrees = degrees * 9 / 5;
+				}
+				final int angle = (((int) degrees % 360) + 360) % 360;
+				if (angle <= 45 || angle > 315) {
+					orientation = FontStyle.TextOrientation.UPRIGHT;
+				} else if (angle <= 135) {
+					orientation = FontStyle.TextOrientation.SIDEWAYS;
+				}
+			}
+		}
 		FontStyle fontStyle = new FontStyleImpl(new FontFamilyList(families), fontSize, style, weight, direction,
-				this.defaultPolicy);
+				this.defaultPolicy, null, true, true, orientation, net.zamasoft.pdfg2d.font.FontSource.NORMAL_WIDTH_CLASS,
+				null);
 		List fontList = new ArrayList();
 
 		FontListMetrics ms = this.fm.getFontListMetrics(fontStyle);

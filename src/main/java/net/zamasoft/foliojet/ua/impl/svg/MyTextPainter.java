@@ -150,9 +150,18 @@ class MyTextPainter extends StrokingTextPainter {
 			try (final var gcState = gc.begin()) {
 				double x = position.getX();
 				double y = position.getY();
-				AffineTransform at = AffineTransform.getTranslateInstance(x, y - fontStyle.getSize());
+				final boolean vertical = fontStyle.getDirection() == FontStyle.Direction.TB;
+				// Vertical text: the column centred on x, the glyphs from y down, as Chrome draws it (2026-11-26). The
+				// line handler puts a vertical line's centre half the line's width left of its origin; with the
+				// horizontal formula (y minus the size, the default line height 1.2) the column stood 0.6em left of x
+				// and the text began 1em above y
+				AffineTransform at = vertical ? AffineTransform.getTranslateInstance(x + fontStyle.getSize() / 2, y)
+						: AffineTransform.getTranslateInstance(x, y - fontStyle.getSize());
 				gc.transform(at);
 				PageLayoutGlyphHandler lineHandler = new PageLayoutGlyphHandler(gc);
+				if (vertical) {
+					lineHandler.setLineHeight(1.0);
+				}
 			lineHandler.setDirection(fontStyle.getDirection());
 			lineHandler.setLineAdvance(Double.MAX_VALUE);
 			TextLayoutHandler tlf = new TextLayoutHandler(gc, this.rules, lineHandler);
