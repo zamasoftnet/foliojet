@@ -800,7 +800,8 @@ public class StyleContext {
 			// already determined at its start) and :last-child (STRUCTURE_SCAN)
 			return ce.isPseudoClass(CSSElement.PC_FIRST_CHILD) && facts != null && facts.isLastChild(ce.elementKey);
 		case EMPTY_CONDITION:
-			return facts != null && facts.isEmpty(ce.elementKey);
+			// A closed element (a preceding sibling) is known with one pass as well (2026-11-26)
+			return facts != null && facts.isEmpty(ce.elementKey) || ce.isClosedEmpty();
 		case LAST_OF_TYPE_CONDITION:
 			return facts != null && facts.isLastOfType(ce.elementKey);
 		case ONLY_OF_TYPE_CONDITION:

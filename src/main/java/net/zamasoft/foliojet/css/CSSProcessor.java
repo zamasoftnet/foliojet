@@ -86,6 +86,12 @@ public class CSSProcessor implements XMLHandler {
 
 	private CSSElement precedingElement = null;
 
+	/**
+	 * Elements started and non-blank text seen so far, in whatever part of the document (hidden or an inline object):
+	 * an element whose count did not move between its start and its end had no content ({@code :empty}, 2026-11-26).
+	 */
+	private long contentCount = 0;
+
 	/** The siblings the next element joins, null when it is the first child (a new {@link Siblings} then). */
 	private Siblings siblings = null;
 
@@ -423,6 +429,7 @@ public class CSSProcessor implements XMLHandler {
 
 	public void startElement(String uri, String lName, String qName, Attributes atts) throws SAXException {
 		this.requireBuilder();
+		++this.contentCount;
 
 		int charOffset = this.sourceLocator == null ? -1 : this.sourceLocator.getCharacterOffset();
 
@@ -600,6 +607,7 @@ public class CSSProcessor implements XMLHandler {
 		CSSElement ce = new CSSElement(uri, lName, id, styleClasses, pseudoClasses, loca, dir, atts,
 				this.precedingElement, charOffset, this.nextElementKey++, this.siblings);
 		Siblings.keepBounded(ce);
+		ce.opened(this.contentCount);
 		this.precedingElement = null;
 		this.siblings = null;
 
@@ -717,6 +725,12 @@ public class CSSProcessor implements XMLHandler {
 		if (len == 0) {
 			return;
 		}
+		for (int i = off; i < off + len; ++i) {
+			if (!Character.isWhitespace(ch[i])) {
+				++this.contentCount;
+				break;
+			}
+		}
 		int charOffset = this.sourceLocator == null ? -1 : this.sourceLocator.getCharacterOffset();
 		if (charOffset != -1) {
 			charOffset -= len;
@@ -771,6 +785,7 @@ public class CSSProcessor implements XMLHandler {
 				// An inline object (svg, math) precedes the next sibling too (codex, 2026-10-11: it did not, and the next
 				// one took :first-child)
 				this.precedingElement = this.inlineObjectStyle.getCSSElement();
+				this.precedingElement.closed(this.contentCount);
 				this.siblings = this.precedingElement.siblings;
 				this.firstChild = false;
 				this.inlineObjectStyle = null;
@@ -786,6 +801,7 @@ public class CSSProcessor implements XMLHandler {
 				// The end of a display: none element: it precedes the next sibling all the same, as in Chrome (it was
 				// skipped: the next one counted from 1 for :nth-child() and took :first-child, 2026-10-11)
 				this.precedingElement = this.noneElement;
+				this.precedingElement.closed(this.contentCount);
 				this.siblings = this.precedingElement.siblings;
 				this.noneElement = null;
 				this.firstChild = false;
@@ -809,6 +825,8 @@ public class CSSProcessor implements XMLHandler {
 		this.builder.endStyle();
 		this.applier.endStyle();
 		this.precedingElement = currentStyle.getExplicitStyle().getCSSElement();
+		// after its ::after was styled: an element's own :empty is decided while it is open, as before
+		this.precedingElement.closed(this.contentCount);
 		this.siblings = this.precedingElement.siblings;
 		this.firstChild = false;
 	}

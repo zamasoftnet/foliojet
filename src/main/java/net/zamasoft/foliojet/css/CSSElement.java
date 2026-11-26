@@ -205,6 +205,39 @@ public class CSSElement implements StructureElement {
 	public final long elementKey;
 
 	/**
+	 * Whether the element had content, known once it closed (2026-11-26): while it is open, the content count of the
+	 * document when it opened; {@link #CLOSED_EMPTY} or {@link #CLOSED_WITH_CONTENT} once it closed (see
+	 * {@link #opened(long)}). With one pass, {@code :empty} of a closed element (a preceding sibling) is then known:
+	 * {@code #overlay:not(:empty) + main{display:none}} hid the National Diet Library's whole page.
+	 */
+	private long content;
+
+	private static final long CLOSED_EMPTY = -1, CLOSED_WITH_CONTENT = -2;
+
+	/**
+	 * Notes the document's content count (elements started and non-blank text seen, this element's own start
+	 * included) when this element opened.
+	 */
+	void opened(final long count) {
+		this.content = count;
+	}
+
+	/** Notes the document's content count when this element closed: the same count means it had no content. */
+	void closed(final long count) {
+		if (this.content > 0) {
+			this.content = count == this.content ? CLOSED_EMPTY : CLOSED_WITH_CONTENT;
+		}
+	}
+
+	/**
+	 * Whether the element closed with no element and no text but white space in it ({@code :empty} as the structure
+	 * scan of two passes decides it). False while it is open.
+	 */
+	public boolean isClosedEmpty() {
+		return this.content == CLOSED_EMPTY;
+	}
+
+	/**
 	 * Constructs an HTML element.
 	 *
 	 * @param uri
