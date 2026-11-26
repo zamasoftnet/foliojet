@@ -4,7 +4,6 @@ import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 
-import org.w3c.dom.svg.SVGPreserveAspectRatio;
 
 import net.zamasoft.foliojet.css.value.PaintValue;
 import net.zamasoft.foliojet.layout.util.BorderRenderer;
@@ -12,7 +11,6 @@ import net.zamasoft.pdfg2d.gc.GC;
 import net.zamasoft.pdfg2d.gc.text.TextClip;
 import net.zamasoft.pdfg2d.gc.GraphicsException;
 import net.zamasoft.pdfg2d.gc.image.Image;
-import net.zamasoft.foliojet.layout.part.CenteredImage;
 import net.zamasoft.pdfg2d.gc.paint.BlendMode;
 import net.zamasoft.pdfg2d.gc.paint.Pattern;
 
@@ -414,19 +412,17 @@ public class Background {
 			throw new IllegalStateException();
 		}
 
-		final double sx;
-		final double sy;
-		final Image image;
-
-		SVGPreserveAspectRatio preserveAspectRatio = null;
-		if (preserveAspectRatio != null
-				&& preserveAspectRatio.getAlign() == SVGPreserveAspectRatio.SVG_PRESERVEASPECTRATIO_XMIDYMID) {
-			sx = sy = 1;
-			image = new CenteredImage(backgroundImage.image, imageWidth, imageHeight);
-		} else {
-			sx = imageWidth / backgroundImage.image.getWidth();
-			sy = imageHeight / backgroundImage.image.getHeight();
-			image = backgroundImage.image;
+		final double sx = imageWidth / backgroundImage.image.getWidth();
+		double sy = imageHeight / backgroundImage.image.getHeight();
+		Image image = backgroundImage.image;
+		if (Math.abs(sx - sy) > 1e-6 * Math.max(sx, sy)) {
+			// A background-size of another ratio: an SVG with a viewBox is laid out anew by its preserveAspectRatio
+			// instead of stretched, as browsers do (2026-11-26, Image.viewport)
+			final Image fitted = image.viewport(image.getWidth(), imageHeight / sx);
+			if (fitted != null) {
+				image = fitted;
+				sy = sx;
+			}
 		}
 
 		// Draw

@@ -54,6 +54,15 @@ public class FlexItemBox extends FlowBlockBox {
 	private double pageBase = net.zamasoft.foliojet.layout.util.LayoutUtils.NONE;
 
 	/**
+	 * Whether the item's page-axis size is definite for the percentages of its content (2026-11-26, CSS Flexbox §9.8):
+	 * the flex container's page-axis size is an absolute length, and the item is stretched along it in a single-line
+	 * row, or flexed along it in a column. Otherwise a percentage height in the item is cyclic and counts as auto: an
+	 * icon's svg of height: 100% in an item of align-items: flex-start took the height of an ancestor beyond the flex
+	 * container (BBC Sport's search box, 540pt high).
+	 */
+	private boolean contentPageDefinite;
+
+	/**
 	 * Whether the item is laid out in the normal flow of its container's host, breaking across pages as a block does
 	 * (2026-10-09, {@code FlexBuilder} for a single item that fills its line). It still seals its margins and floats.
 	 */
@@ -195,6 +204,16 @@ public class FlexItemBox extends FlowBlockBox {
 				&& !net.zamasoft.foliojet.layout.util.LayoutUtils.isNone(item.insetBase) ? item.insetBase : lineSize;
 	}
 
+	/** See {@link #contentPageDefinite}. */
+	public void setContentPageDefinite(final boolean definite) {
+		this.contentPageDefinite = definite;
+	}
+
+	/** See {@link #contentPageDefinite}. */
+	public boolean isContentPageDefinite() {
+		return this.contentPageDefinite;
+	}
+
 	/** See {@link #pageBase}. */
 	public void setPageBase(final double pageBase) {
 		this.pageBase = pageBase;
@@ -298,6 +317,7 @@ public class FlexItemBox extends FlowBlockBox {
 		replica.replacedCrossFill = this.replacedCrossFill;
 		replica.insetBase = this.insetBase;
 		replica.pageBase = this.pageBase;
+		replica.contentPageDefinite = this.contentPageDefinite;
 		return replica;
 	}
 
@@ -346,6 +366,7 @@ public class FlexItemBox extends FlowBlockBox {
 		final boolean replacedCrossFill = this.replacedCrossFill;
 		final double base = this.insetBase;
 		final double pageBase = this.pageBase;
+		final boolean contentPageDefinite = this.contentPageDefinite;
 		final boolean streamed = this.streamedInFlow;
 		return (state, container) -> {
 			final net.zamasoft.foliojet.layout.box.params.Dimension ns = state.nextSize();
@@ -368,6 +389,7 @@ public class FlexItemBox extends FlowBlockBox {
 			}
 			next.insetBase = base;
 			next.pageBase = pageBase;
+			next.contentPageDefinite = contentPageDefinite;
 			if (streamed) {
 				next.markStreamedInFlow();
 			}

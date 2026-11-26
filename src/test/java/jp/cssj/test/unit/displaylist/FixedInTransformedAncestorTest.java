@@ -79,6 +79,35 @@ public class FixedInTransformedAncestorTest extends TestCase {
 		assertTrue("移動した祖先と一緒に紙の左の外へ: " + Arrays.toString(boxes.get(0)), boxes.get(0)[0] + boxes.get(0)[4] < 0);
 	}
 
+	/**
+	 * A fixed box inside an ancestor with a clip-path is clipped by it (2026-11-26, batch 6 of the real-site tests,
+	 * Shopify's Dawn theme: the image of a "fixed" banner, {@code position:fixed; height:100vh} in a
+	 * {@code clip-path: inset(0)} box). Fixed to the paper it covered the whole page, the heading above the banner and
+	 * the text below it too. Chrome shows it inside the banner only.
+	 */
+	public void testFixedBoxInsideClipPathIsClipped() throws Exception {
+		final File[] pages = convert("clip-path", HEAD + ".b{position:relative;height:100pt;clip-path:inset(0)}"
+				+ ".m{position:absolute;top:0;left:0;width:100%;height:100%} .i{position:fixed;top:0;left:0;"
+				+ "width:100%;height:100vh;background:#00f}</style></head><body><div style='height:60pt;background:#ccc'>"
+				+ "HEAD</div><div class='b'><div class='m'><div class='i'></div></div></div><p>BELOW</p>"
+				+ "<div style='height:600pt'></div><p>NEXT</p></body></html>");
+		assertTrue(pages.length >= 2);
+		try (org.apache.pdfbox.pdmodel.PDDocument doc = org.apache.pdfbox.Loader
+				.loadPDF(new File(pages[0].getParentFile(), "out.pdf"))) {
+			// 1 px = 1 pt; the page area starts 20pt from the edge
+			final java.awt.image.BufferedImage p1 = new org.apache.pdfbox.rendering.PDFRenderer(doc).renderImage(0);
+			final java.awt.image.BufferedImage p2 = new org.apache.pdfbox.rendering.PDFRenderer(doc).renderImage(1);
+			assertFalse("見出しが固定の箱に覆われた", blue(p1.getRGB(100, 50)));
+			assertTrue("帯の中に固定の箱が無い", blue(p1.getRGB(100, 120)));
+			assertFalse("帯の下が固定の箱に覆われた", blue(p1.getRGB(100, 300)));
+			assertFalse("次の頁が固定の箱に覆われた", blue(p2.getRGB(100, 300)));
+		}
+	}
+
+	private static boolean blue(final int rgb) {
+		return (rgb & 0xff) > 200 && (rgb >> 16 & 0xff) < 60 && (rgb >> 8 & 0xff) < 60;
+	}
+
 	/** Without a transformed ancestor a fixed box is still drawn on every page. */
 	public void testFixedBoxWithoutTransformRepeatsOnEveryPage() throws Exception {
 		final File[] pages = convert("header", HEAD + ".h{position:fixed;top:0;left:0}</style></head><body>"

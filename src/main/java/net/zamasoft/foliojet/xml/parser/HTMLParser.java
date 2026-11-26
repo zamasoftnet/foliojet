@@ -46,14 +46,14 @@ public class HTMLParser implements Parser {
 		final boolean changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
 
 		final TagBalancer balancer = new TagBalancer();
-		XMLDocumentFilter[] filters = { new ForeignContentFilter(ua, balancer, changeDefaultNamespace) {
+		XMLDocumentFilter[] filters = { new StandardsModeFilter(ua, balancer) {
 			@Override
 			public void startDocument(XMLLocator locator, String encoding, NamespaceContext namespaceContext,
 					Augmentations augs) throws XNIException {
 				super.startDocument(locator, encoding, namespaceContext, augs);
 				xmlHandler.setDocumentLocator(new HTMLSourceLocator(locator));
 			}
-		}, balancer };
+		}, balancer, new ForeignContentFilter(changeDefaultNamespace) };
 		parser.setProperty("http://cyberneko.org/html/properties/filters", filters);
 
 		parser.setProperty("http://xml.org/sax/properties/lexical-handler", xmlHandler);

@@ -288,8 +288,11 @@ public class SVGImageLoader implements ImageLoader {
 			Dimension2D viewport = VIEWPORT;
 			double vbWidth = 0;
 			double vbHeight = 0;
+			double vbX = 0, vbY = 0;
 			try {
 				SVGRect r = root.getViewBox().getBaseVal();
+				vbX = r.getX();
+				vbY = r.getY();
 				vbWidth = r.getWidth();
 				vbHeight = r.getHeight();
 				if (vbWidth > 0 && vbHeight > 0) {
@@ -416,7 +419,15 @@ public class SVGImageLoader implements ImageLoader {
 			}
 
 			ImageMap imageMap = ctx.imageMap;
-			Image image = new SVGImage(gvtRoot, w, h, intrinsic);
+			// The viewBox and preserveAspectRatio lay the image out anew in a box of another ratio (2026-11-26,
+			// SVGImage.viewport)
+			SVGImage.ViewBox viewBox = null;
+			if (vbWidth > 0 && vbHeight > 0) {
+				final org.w3c.dom.svg.SVGPreserveAspectRatio par = root.getPreserveAspectRatio().getBaseVal();
+				viewBox = new SVGImage.ViewBox(vbX, vbY, vbWidth, vbHeight, par.getAlign(),
+						par.getMeetOrSlice() != org.w3c.dom.svg.SVGPreserveAspectRatio.SVG_MEETORSLICE_SLICE);
+			}
+			Image image = new SVGImage(gvtRoot, w, h, intrinsic, viewBox);
 			ua.getUAContext().getImageMaps().put(image, imageMap);
 			return image;
 		} catch (BridgeException e) {

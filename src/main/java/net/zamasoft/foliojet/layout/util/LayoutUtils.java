@@ -773,6 +773,17 @@ public final class LayoutUtils {
 				refMaxWidth = refWidth = LayoutUtils.NONE;
 			}
 		}
+		// A page-axis percentage needs a containing block of definite page-axis size (CSS 2.1 §10.5); in one of auto
+		// size it counts as auto, the natural size or the ratio (2026-11-26). The nearest ancestor of a specified size
+		// stood in: an icon's svg of height: 100% in an auto-high block took the height of a box of height: 100vh far
+		// above it (BBC Sport's search box, 540pt high, its table pushed off the page).
+		if (!pageAxisDefinite(containerBox)) {
+			if (params.flow.isVertical()) {
+				refMaxWidth = refWidth = LayoutUtils.NONE;
+			} else {
+				refMaxHeight = refHeight = LayoutUtils.NONE;
+			}
+		}
 		// Fill the neutral wrapper (flex item) along the line axis (2026-08-09). The wrapper has
 		// already resolved authored percentages against the flex container (NeutralTransfer), so
 		// reapplying the same percentage to the wrapper's inner size in the child applies it twice
@@ -861,6 +872,36 @@ public final class LayoutUtils {
 	 * (if unavailable, resolve as NONE=auto). Using the inner size directly as the reference made
 	 * {@code height: 100%} images zero-sized and invisible.
 	 */
+	/**
+	 * Whether a replaced element's page-axis percentages have a basis in its containing block (2026-11-26,
+	 * {@link #calculateReplacedSize}). Only blocks in the flow, floats and inline-blocks of auto page-axis size defer
+	 * them, and flex items not made definite by their container ({@code FlexItemBox.contentPageDefinite}). The rest
+	 * keep the nearest box of a specified size as before: the page, grid items, table cells, absolutely positioned
+	 * boxes, a flex item's neutral wrapper (its own rules follow) and the areas of footnotes, page floats and margin
+	 * notes.
+	 */
+	private static boolean pageAxisDefinite(final AbstractContainerBox containerBox) {
+		if (containerBox.isSpecifiedPageSize()) {
+			// A length, or a percentage of a definite containing block (html, body { height: 100% } and what is in
+			// them); not one of an auto-high one (codex)
+			return true;
+		}
+		if (containerBox instanceof net.zamasoft.foliojet.layout.box.impl.FlexItemBox item) {
+			return item.isNeutralLineFill() || item.isContentPageDefinite();
+		}
+		if (containerBox instanceof net.zamasoft.foliojet.layout.box.impl.GridItemBox) {
+			return true;
+		}
+		final net.zamasoft.foliojet.layout.box.params.Pos pos = containerBox.getPos();
+		if (pos instanceof net.zamasoft.foliojet.layout.box.params.FootnotePos
+				|| pos instanceof net.zamasoft.foliojet.layout.box.params.PageFloatPos
+				|| pos instanceof net.zamasoft.foliojet.layout.box.params.PageMarginNotePos) {
+			return true;
+		}
+		final PosType type = pos.getType();
+		return type != PosType.FLOW && type != PosType.FLOAT && type != PosType.INLINE;
+	}
+
 	private static double pageAxisReference(final AbstractContainerBox box, final boolean vertical) {
 		if (box instanceof net.zamasoft.foliojet.layout.box.impl.AbsoluteBlockBox absolute
 				&& absolute.getBlockParams().flow.isVertical() == vertical) {

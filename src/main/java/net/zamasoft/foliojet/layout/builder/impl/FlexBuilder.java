@@ -368,6 +368,25 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	}
 
 	/**
+	 * Whether an item's page-axis size is definite for its content's percentages (CSS Flexbox §9.8, 2026-11-26,
+	 * FlexItemBox.contentPageDefinite): the container's is, and the item is stretched along it in a single-line row
+	 * or flexed along it in a column.
+	 */
+	private boolean contentPageDefinite(final FlexItemSpec spec) {
+		// An absolute length, or a percentage of a definite containing block (codex: a flex container of height: 100%
+		// in a box of 200pt)
+		if (!(this.definiteInnerPage() > 0) && !this.flexBox.isSpecifiedPageSize()) {
+			return false;
+		}
+		final FlexParams params = this.flexBox.getFlexParams();
+		if (!params.flexDirection.isRow()) {
+			return true;
+		}
+		return !params.flexWrap.isWrap()
+				&& BoxAlignment.resolve(spec.alignSelf(), params.alignItems) == BoxAlignment.STRETCH;
+	}
+
+	/**
 	 * The container's inner page-axis size when its specified size is an absolute length, from its params (its box is
 	 * not sized yet while its items are measured); NaN otherwise (2026-10-10, FlexItemBox.pageBase).
 	 */
@@ -548,6 +567,7 @@ public final class FlexBuilder implements RetainedFlex, net.zamasoft.foliojet.la
 	private TwoPassBlockBuilder startItem(final FlexItemBox itemBox, final boolean anonymous,
 			final FlexItemSpec spec) {
 		assert this.openItemBuilder == null : "前のitemが閉じられていない";
+		itemBox.setContentPageDefinite(this.contentPageDefinite(spec));
 		final TwoPassBlockBuilder builder = new TwoPassBlockBuilder(this.hostStack, itemBox);
 		builder.tagRootKind(ContinuationStats.TwoPassRootKind.FLEX_ITEM);
 		this.openItemBuilder = builder;

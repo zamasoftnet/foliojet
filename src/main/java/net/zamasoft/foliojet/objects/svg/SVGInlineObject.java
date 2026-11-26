@@ -28,6 +28,8 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 	/** Style of the svg element in the host document (context for author CSS var() resolution). */
 	private net.zamasoft.foliojet.css.CSSStyle hostStyle;
 	private net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource runningSource;
+	/** Whether the root element has started (it gets the declaration of the xlink prefix, see startElement). */
+	private boolean rootStarted;
 
 	public net.zamasoft.foliojet.css.value.internal.CSSJImageValue.SvgSource getRunningSource() {
 		return this.runningSource;
@@ -149,6 +151,21 @@ public class SVGInlineObject extends SAXSVGDocumentFactory
 				}
 				attsi.setLocalName(i, adjusted);
 				attsi.setQName(i, adjusted);
+			}
+		}
+		if (!this.rootStarted) {
+			this.rootStarted = true;
+			if (atts.getIndex("xmlns:xlink") == -1) {
+				// HTML binds the xlink prefix in an svg without a declaration (HTML Standard §13.2.6.5 "adjust foreign
+				// attributes", 2026-11-26). Batik takes an attribute's namespace from the declarations it has seen,
+				// so without one it left <use xlink:href="#icon"> in none and drew nothing: the icons of the Tokyo
+				// Metropolitan Government's site
+				if (attsi == null) {
+					attsi = new AttributesImpl(atts);
+					atts = attsi;
+				}
+				attsi.addAttribute("http://www.w3.org/2000/xmlns/", "xlink", "xmlns:xlink", "CDATA",
+						"http://www.w3.org/1999/xlink");
 			}
 		}
 		super.startElement(uri, adjustTag(lName), adjustTag(qName), atts);

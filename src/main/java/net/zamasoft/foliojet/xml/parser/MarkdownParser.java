@@ -235,14 +235,14 @@ public class MarkdownParser implements Parser {
 
 	/**
 	 * An emitter of XNI events from the syntax tree. Event flow is
-	 * {@code emitter/fragment scanner → foreign filter → TagBalancer → SAX conversion →
+	 * {@code emitter/fragment scanner → standards mode filter → TagBalancer → foreign filter → SAX conversion →
 	 * XMLHandler}; everything from the filter onward is shared with HTML input ({@link HTMLParser}).
 	 */
 	private static final class EventBridge {
 
 		private final UserAgent ua;
 		private final TagBalancer balancer;
-		/** Head of the chain (foreign content filter). Send all events here. */
+		/** Head of the chain (standards mode filter). Send all events here. */
 		private final XMLDocumentHandler head;
 		/** Raw HTML fragment tokenizer (created lazily and shared across fragments). */
 		private HTMLConfiguration fragmentScanner;
@@ -258,12 +258,16 @@ public class MarkdownParser implements Parser {
 			this.ua = ua;
 			this.balancer = new TagBalancer();
 			final boolean changeDefaultNamespace = UAProps.INPUT_CHANGE_DEFAULT_NAMESPACE.getBoolean(ua);
-			// HTMLParser's foreign content filter (HTML5 namespaces for math/svg) + ElementProps switch in standards mode
-			final DefaultFilter foreign = new ForeignContentFilter(ua, this.balancer, changeDefaultNamespace);
-			foreign.setDocumentHandler(this.balancer);
-			this.balancer.setDocumentSource(foreign);
-			this.balancer.setDocumentHandler(new XniToSax(xmlHandler));
-			this.head = foreign;
+			// HTMLParser's chain: the ElementProps switch in standards mode before the balancer, the foreign content
+			// filter (HTML5 namespaces for math/svg) after it
+			final DefaultFilter mode = new StandardsModeFilter(ua, this.balancer);
+			final DefaultFilter foreign = new ForeignContentFilter(changeDefaultNamespace);
+			mode.setDocumentHandler(this.balancer);
+			this.balancer.setDocumentSource(mode);
+			this.balancer.setDocumentHandler(foreign);
+			foreign.setDocumentSource(this.balancer);
+			foreign.setDocumentHandler(new XniToSax(xmlHandler));
+			this.head = mode;
 		}
 
 		void emit(final Node document, final String hoistedStyles, final boolean defaultStyle)

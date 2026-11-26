@@ -6,10 +6,6 @@ import org.htmlunit.cyberneko.xerces.xni.QName;
 import org.htmlunit.cyberneko.xerces.xni.XMLAttributes;
 import org.htmlunit.cyberneko.xerces.xni.XNIException;
 
-import net.zamasoft.balancer.ElementProps;
-import net.zamasoft.balancer.TagBalancer;
-import net.zamasoft.foliojet.ua.CompatibleMode;
-import net.zamasoft.foliojet.ua.UserAgent;
 import net.zamasoft.foliojet.xml.vocab.Foreign;
 
 /**
@@ -24,48 +20,72 @@ import net.zamasoft.foliojet.xml.vocab.Foreign;
  * HTML (ar5iv/LaTeXML): {@code h_{t}} appeared as "htsubscript … h_{t}"
  * (2026-08-05, real-world corpus wave 11).
  * <b>Simplification</b>: does not handle HTML5 integration points (where contents of {@code <foreignObject>}
- * or {@code <annotation-xml encoding="text/html">} return to HTML); tracks depth only.
+ * or {@code <annotation-xml encoding="text/html">} return to HTML).
  * Documents for printing almost never switch back to HTML inside these in practice.</li>
  * <li>If {@code input.html.change-default-namespace} is false, removes non-foreign namespaces
  * from unprefixed elements.</li>
- * <li>At the first {@code <body>}, switches element properties to {@code html4.xml} in standards mode.</li>
  * </ul>
+ * It follows the {@link net.zamasoft.balancer.TagBalancer}, whose end events match its start events one for one,
+ * and keeps the namespace of each open element of foreign content (2026-11-26). Before the balancer it counted the end
+ * tags as written:
+ * {@code <svg><path d="..."></svg>} left it one deep, and every element after the svg went into the SVG namespace,
+ * the rest of the document with it (Shopify's theme demo). The switch of element properties at the first
+ * {@code <body>} stays before the balancer ({@link StandardsModeFilter}).
  */
 class ForeignContentFilter extends DefaultFilter {
-	private final UserAgent ua;
-	private final TagBalancer balancer;
 	private final boolean changeDefaultNamespace;
-	private boolean firstElement = true;
 
-	/** Foreign content namespace and nesting depth (0 means outside). */
-	private String foreignURI = null;
-	private int foreignDepth = 0;
+	/**
+	 * The namespace each open element of foreign content was given, innermost first; empty outside foreign content.
+	 * An end event gets the namespace its start event got (2026-11-26): the balancer sends the end event of an element
+	 * with the name it kept, whose namespace was NekoHTML's (the XHTML one under {@code <html xmlns="...xhtml">}).
+	 */
+	private final java.util.ArrayDeque<String> openURIs = new java.util.ArrayDeque<String>();
 
-	ForeignContentFilter(final UserAgent ua, final TagBalancer balancer, final boolean changeDefaultNamespace) {
-		this.ua = ua;
-		this.balancer = balancer;
+	ForeignContentFilter(final boolean changeDefaultNamespace) {
 		this.changeDefaultNamespace = changeDefaultNamespace;
 	}
 
-	private void applyForeign(final QName element) {
-		if (this.foreignDepth == 0) {
-			if (element.getUri() == null) {
-				final String uri = Foreign.uriOf(element.getLocalpart());
-				if (uri == null) {
-					return;
-				}
-				this.foreignURI = uri;
-				element.setUri(uri);
-			} else if (Foreign.is(element.getUri())) {
-				// An explicit xmlns is present. NekoHTML has already assigned it.
-				this.foreignURI = element.getUri();
-			} else {
-				return;
-			}
-		} else if (element.getUri() == null) {
-			element.setUri(this.foreignURI);
+	/**
+	 * Gives the element its namespace by where it is, as HTML does, and tells whether it is in foreign content. An svg
+	 * or a math element is an SVG or MathML one by its name; the other unprefixed elements in foreign content take their
+	 * parent's. The namespace NekoHTML gave them by the xmlns attributes in force does not count (2026-11-26): it was
+	 * the XHTML one for an svg in a document of {@code <html xmlns="http://www.w3.org/1999/xhtml">}, which was not drawn,
+	 * and the SVG one for a math element after an svg its namespace binder took as still open. A prefixed element keeps
+	 * the namespace its declared prefix gives it.
+	 */
+	private boolean applyForeign(final QName element) {
+		final String byName = Foreign.uriOf(element.getLocalpart());
+		final String parent = this.openURIs.peek();
+		final String uri;
+		if (prefixed(element) && element.getUri() != null && (parent != null || Foreign.is(element.getUri()))) {
+			uri = element.getUri();
+		} else if (byName != null) {
+			uri = byName;
+		} else if (parent != null) {
+			uri = parent;
+		} else {
+			this.dropStaleForeign(element);
+			return false;
 		}
-		++this.foreignDepth;
+		element.setUri(uri);
+		return true;
+	}
+
+	private static boolean prefixed(final QName element) {
+		return element.getPrefix() != null && element.getPrefix().length() > 0;
+	}
+
+	/**
+	 * Takes a foreign namespace off an unprefixed element outside foreign content (2026-11-26). HTML gives no element
+	 * a namespace by its xmlns attribute; NekoHTML does, and its namespace binder counts the end tags as written: after
+	 * {@code <svg xmlns="http://www.w3.org/2000/svg"><symbol><path d="..."></symbol></svg>} the svg's default namespace
+	 * stayed in force, and every element after it was an SVG one (Shopify's theme demo).
+	 */
+	private void dropStaleForeign(final QName element) {
+		if (Foreign.is(element.getUri()) && !prefixed(element)) {
+			element.setUri(null);
+		}
 	}
 
 	/** Removes non-foreign default namespaces from unprefixed elements. */
@@ -79,27 +99,19 @@ class ForeignContentFilter extends DefaultFilter {
 	@Override
 	public void startElement(final QName element, final XMLAttributes attributes, final Augmentations augs)
 			throws XNIException {
-		this.applyForeign(element);
+		if (this.applyForeign(element)) {
+			this.openURIs.push(element.getUri());
+		}
 		this.stripDefaultNamespace(element);
 		super.startElement(element, attributes, augs);
-		if (this.firstElement && element.getLocalpart().equalsIgnoreCase("body")) {
-			// Switch to standards mode.
-			if (this.ua.getDocumentContext().getCompatibleMode() == CompatibleMode.STRICT) {
-				this.balancer.setElementProps(ElementProps.getElementProps("html4.xml"));
-			}
-			this.firstElement = false;
-		}
 	}
 
 	@Override
 	public void endElement(final QName element, final Augmentations augs) throws XNIException {
-		if (this.foreignDepth > 0) {
-			if (element.getUri() == null) {
-				element.setUri(this.foreignURI);
-			}
-			if (--this.foreignDepth == 0) {
-				this.foreignURI = null;
-			}
+		if (!this.openURIs.isEmpty()) {
+			element.setUri(this.openURIs.pop());
+		} else {
+			this.dropStaleForeign(element);
 		}
 		this.stripDefaultNamespace(element);
 		super.endElement(element, augs);
@@ -108,12 +120,8 @@ class ForeignContentFilter extends DefaultFilter {
 	@Override
 	public void emptyElement(final QName element, final XMLAttributes attributes, final Augmentations augs)
 			throws XNIException {
-		// Empty elements open and close immediately. Do not change foreign depth.
-		final int depth = this.foreignDepth;
-		final String uri = this.foreignURI;
+		// Empty elements open and close immediately: nothing to keep for an end event.
 		this.applyForeign(element);
-		this.foreignDepth = depth;
-		this.foreignURI = uri;
 		this.stripDefaultNamespace(element);
 		super.emptyElement(element, attributes, augs);
 	}

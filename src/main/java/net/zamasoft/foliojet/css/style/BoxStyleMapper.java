@@ -270,7 +270,7 @@ final class BoxStyleMapper {
 
 		switch (CSSPosition.get(style)) {
 		case PositionValue.FIXED:
-			if (!hasTransformedAncestor(style)) {
+			if (!hasFixedHoldingAncestor(style)) {
 				pos.fiducial = Fiducial.ALL_PAGE;
 				pos.autoPosition = AutoPosition.BLOCK;
 				break;
@@ -280,7 +280,10 @@ final class BoxStyleMapper {
 			// paper. Until 2026-11-25 it was fixed to the paper, so a submenu of an off-canvas navigation drawer
 			// (`position:fixed; transform:translateX(100%)`, go.dev) was drawn on every page over the text, while the
 			// drawer itself was moved off the paper (a test with real web documents, copperpdf4
-			// docs/history/2026-11-25-realweb-test.md).
+			// docs/history/2026-11-25-realweb-test.md). An ancestor with a clip-path is taken the same way
+			// (2026-11-26): the clip-path clips the fixed-position box too (Chrome), and positioned as an absolute one
+			// the box is drawn inside the clip. Fixed to the paper, the image of a "fixed" banner of Shopify's Dawn
+			// theme (`clip-path: inset(0)` around an img of `position:fixed; height:100vh`) covered the page.
 			// fall through
 		case PositionValue.ABSOLUTE:
 			pos.fiducial = Fiducial.CONTEXT;
@@ -307,11 +310,14 @@ final class BoxStyleMapper {
 
 	/**
 	 * Whether an ancestor has a transform ({@code transform} other than {@code none}, or {@code translate},
-	 * {@code rotate} or {@code scale}), which makes it the containing block of fixed-position descendants.
+	 * {@code rotate} or {@code scale}), which makes it the containing block of fixed-position descendants, or a
+	 * {@code clip-path}, which clips them.
 	 */
-	private static boolean hasTransformedAncestor(final CSSStyle style) {
+	private static boolean hasFixedHoldingAncestor(final CSSStyle style) {
 		for (CSSStyle s = style.getParentStyle(); s != null; s = s.getParentStyle()) {
-			if (s.get(Transform.INFO) != net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
+			if (net.zamasoft.foliojet.css.impl.property.box.ClipPath
+					.get(s) instanceof net.zamasoft.foliojet.css.impl.property.box.ClipPath.ClipPathValue
+					|| s.get(Transform.INFO) != net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
 					|| net.zamasoft.foliojet.css.impl.property.box.Translate
 							.get(s) != net.zamasoft.foliojet.css.value.css3.TransformValue.IDENTITY_TRANSFORM_VALUE
 					|| net.zamasoft.foliojet.css.impl.property.box.Rotate

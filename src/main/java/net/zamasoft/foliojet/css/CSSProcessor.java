@@ -646,10 +646,14 @@ public class CSSProcessor implements XMLHandler {
 			// GenericElement instances, and `GenericElement cannot be cast to
 			// SVGOMSVGElement` prevents the entire SVG from rendering.
 			// This caused an inconsistency where only markup with an explicit `xmlns` worked.
-			final boolean hasDefaultNamespace = this.namespaces.containsKey("")
+			// The element's own namespace is the default one of the object, not the default in force around it
+			// (2026-11-26): under <html xmlns="http://www.w3.org/1999/xhtml"> an svg got xmlns of XHTML and Batik made
+			// it a generic element; a math element after an svg NekoHTML took as still open got the SVG one.
+			final boolean ownNamespace = uri != null && !uri.isEmpty();
+			final boolean hasDefaultNamespace = (!ownNamespace && this.namespaces.containsKey(""))
 					|| atts.getIndex("http://www.w3.org/2000/xmlns/", "xmlns") >= 0
 					|| atts.getIndex("xmlns") >= 0;
-			final boolean addDefaultNamespace = !hasDefaultNamespace && uri != null && !uri.isEmpty();
+			final boolean addDefaultNamespace = !hasDefaultNamespace && ownNamespace;
 			if (!this.namespaces.isEmpty() || addDefaultNamespace) {
 				this.attsi.clear();
 				this.attsi.setAttributes(atts);
@@ -658,6 +662,9 @@ public class CSSProcessor implements XMLHandler {
 					Entry<?, ?> entry = (Entry<?, ?>) i.next();
 					String prefix = (String) entry.getKey();
 					String namespaceURI = (String) entry.getValue();
+					if (prefix.length() == 0 && (ownNamespace || atts.getIndex("xmlns") >= 0)) {
+						continue;
+					}
 					this.attsi.addAttribute("http://www.w3.org/2000/xmlns/", prefix,
 							prefix.length() == 0 ? "xmlns" : "xmlns:" + prefix, "CDATA", namespaceURI);
 				}

@@ -573,7 +573,20 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 				final double[] r = this.fitRect(width, height);
 				final double dx = r[0], dy = r[1], drawWidth = r[2], drawHeight = r[3];
 				final AffineTransform at = AffineTransform.getTranslateInstance(x + dx, y + dy);
-				at.scale(drawWidth / this.image.getWidth(), drawHeight / this.image.getHeight());
+				Image image = this.image;
+				final double sx = drawWidth / image.getWidth();
+				double sy = drawHeight / image.getHeight();
+				if (Math.abs(sx - sy) > 1e-6 * Math.max(sx, sy)) {
+					// In a box of another ratio (object-fit: fill), an SVG with a viewBox is laid out anew by its
+					// preserveAspectRatio instead of stretched (2026-11-26, Image.viewport): an icon's circle in a tall
+					// box was drawn as a tall ellipse
+					final Image fitted = image.viewport(image.getWidth(), drawHeight / sx);
+					if (fitted != null) {
+						image = fitted;
+						sy = sx;
+					}
+				}
+				at.scale(sx, sy);
 				// Clip content that overflows the content box (cover/none, etc.),
 				// as browsers do.
 				final boolean overflows = dx < -0.001 || dy < -0.001 || dx + drawWidth > width + 0.001
@@ -590,7 +603,7 @@ public abstract class AbstractReplacedBox extends AbstractBox {
 						gc.clip(new Rectangle2D.Double(x, y, width, height));
 					}
 					gc.transform(at);
-					gc.drawImage(this.image);
+					gc.drawImage(image);
 				}
 			}
 		}

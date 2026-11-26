@@ -25,7 +25,9 @@ public class FloatMaxSizeHTest extends AbstractTestCase {
 			// 2026-09-02: In standards mode (with a DOCTYPE), even an image-only line has a strut,
 			// adding a gap of descent + half-leading (4.7 pt) below the image (CSS 2.1
 			// §10.8; as in browser standards mode. Quirks mode retains the previous value of 86).
-			assertEquals(90.73, box.getHeight(), 1);
+			// 2026-11-26: the image's max-height: 40% counts as none in the float of auto height (CSS 2.1 §10.5); it
+			// was 40% of the page height (90.73). Chrome: 284.95 x 119.38
+			assertEquals(120.34, box.getHeight(), 1);
 			return true;
 		}
 		return false;
