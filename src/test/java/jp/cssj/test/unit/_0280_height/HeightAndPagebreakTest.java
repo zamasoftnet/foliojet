@@ -32,7 +32,9 @@ public class HeightAndPagebreakTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(pageNumber + "/" + y);
 			assertEquals(2, pageNumber);
-			assertEquals(0, y, 1);
+			// After the forced break the h3's margin is kept, as on the first page and in Chrome (2026-11-26: it was
+			// 0 while the break waited for the h3's line, the margin left on the previous page)
+			assertEquals(9, y, 1);
 			return true;
 		}
 		return false;
@@ -42,7 +44,7 @@ public class HeightAndPagebreakTest extends AbstractTestCase {
 		if (box.getType() == BoxType.BLOCK) {
 			System.out.println(pageNumber + "/" + y);
 			assertEquals(3, pageNumber);
-			assertEquals(0, y, 1);
+			assertEquals(9, y, 1);
 			return true;
 		}
 		return false;

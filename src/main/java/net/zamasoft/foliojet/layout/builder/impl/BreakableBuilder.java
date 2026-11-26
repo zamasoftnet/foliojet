@@ -378,6 +378,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		this.requireNoOpenTextBuilder(flowBox.getParams().element);
 
 		boolean canBreakAfter = false;
+		boolean takesRoomAtStart = false;
 		switch (flowBox.getType()) {
 		case BLOCK:
 			AbstractBlockBox blockBox = flowBox;
@@ -390,6 +391,7 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			} else {
 				canBreakAfter = !blockBox.getFrame().frame.border.getTop().isNull();
 			}
+			takesRoomAtStart = canBreakAfter || takesRoomAtStart(blockBox, rootFlow);
 			break;
 		}
 
@@ -405,15 +407,27 @@ public abstract class BreakableBuilder extends BlockBuilder {
 				// create pages with the new name).
 				final boolean namedTransition = this.resolveNamedPageTransition(flowBox);
 				boolean forcedBreak = false;
-				if (this.breakAfter != null && canBreakAfter) {
+				boolean beforeTaken = false;
+				if (this.breakAfter != null && takesRoomAtStart) {
 					// Page break from the preceding page-break-after
-					this.forceBreak(this.breakAfter);
-					forcedBreak = true;
+					final PageBreakMode after = this.breakAfter;
+					final PageBreakMode before = pos.pageBreakBefore;
+					if (before == PageBreakMode.PAGE || before == PageBreakMode.VERSO || before == PageBreakMode.RECTO) {
+						// This block's own forced break is the same break point: one break, the later value deciding
+						// the side (css-break-3 3.1; a recto after and a verso before turned two pages, 2026-11-26)
+						this.forceBreak(before);
+						beforeTaken = true;
+						forcedBreak = true;
+					} else {
+						this.forceBreak(after);
+						// a column break is no new page: a page-name transition still breaks (2026-11-26)
+						forcedBreak = after != PageBreakMode.COLUMN;
+					}
 				}
-				final PageBreakMode forced = this.resolveForcedBreakBefore(pos.pageBreakBefore);
+				final PageBreakMode forced = beforeTaken ? null : this.resolveForcedBreakBefore(pos.pageBreakBefore);
 				if (forced != null) {
 					this.forceBreak(forced);
-					forcedBreak = true;
+					forcedBreak |= forced != PageBreakMode.COLUMN;
 				} else if (pos.pageBreakBefore == PageBreakMode.AVOID) {
 					this.interflowBreak = false;
 				}
@@ -454,6 +468,57 @@ public abstract class BreakableBuilder extends BlockBuilder {
 			this.canBreakBefore = true;
 			this.interflowBreak = true;
 		}
+	}
+
+	/**
+	 * Whether a block takes room at its start, before anything in it (2026-11-26): padding or a margin on its page-axis
+	 * start, or a length of its own along the page axis (a start border is {@code canBreakAfter}). A break-after pending
+	 * from a preceding box breaks before such a block, as break-before does, so that its start goes to the new page
+	 * with it, margin included, as in Chrome (CSS Fragmentation 3, 5.2: the margins after a forced break are kept).
+	 * Before, the break waited for the first line in it: its padding and margin stayed on the previous page, a block of
+	 * a height alone stayed there whole, and one holding only absolutely positioned boxes never broke (sections of a
+	 * page's height drawn off the paper, found with 9,903 local SVG files laid out one page each). A block that takes
+	 * no room still waits, as before: an empty block at the end of a document makes no page.
+	 */
+	private static boolean takesRoomAtStart(final AbstractBlockBox blockBox, final WritingMode rootFlow) {
+		final net.zamasoft.foliojet.layout.box.params.RectFrame frame = blockBox.getFrame().frame;
+		if (startsPositive(frame.padding, rootFlow) || startsPositive(frame.margin, rootFlow)) {
+			return true;
+		}
+		final net.zamasoft.foliojet.layout.box.params.BlockParams params = blockBox.getBlockParams();
+		return params.size.getPageType(rootFlow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE
+				&& params.size.getPageLength(rootFlow) > 0
+				|| params.minSize.getPageType(rootFlow) == net.zamasoft.foliojet.layout.box.params.LengthType.ABSOLUTE
+						&& params.minSize.getPageLength(rootFlow) > 0;
+	}
+
+	/**
+	 * Whether an inset's page-axis start side is surely positive: a length, a percentage (of the line axis), or a calc()
+	 * of both when neither part is negative (calc(10pt - 5%) may well be 0).
+	 */
+	private static boolean startsPositive(final net.zamasoft.foliojet.layout.box.params.Insets insets,
+			final WritingMode rootFlow) {
+		final double length, ratio;
+		final net.zamasoft.foliojet.layout.box.params.LengthType type;
+		if (!rootFlow.isVertical()) {
+			length = insets.getTop();
+			ratio = insets.getTopRatio();
+			type = insets.getTopType();
+		} else if (rootFlow == WritingMode.LR) {
+			length = insets.getLeft();
+			ratio = insets.getLeftRatio();
+			type = insets.getLeftType();
+		} else {
+			length = insets.getRight();
+			ratio = insets.getRightRatio();
+			type = insets.getRightType();
+		}
+		return switch (type) {
+		case ABSOLUTE -> length > 0;
+		case RELATIVE -> ratio > 0;
+		case MIXED -> length >= 0 && ratio >= 0 && (length > 0 || ratio > 0);
+		default -> false;
+		};
 	}
 
 	private final boolean breakByClear(final FlowPos pos) {
@@ -1087,10 +1152,16 @@ public abstract class BreakableBuilder extends BlockBuilder {
 		super.endFlowBlock();
 		// An empty anchor block takes no room and leaves the page unbegun. Only the block's own frame: what it holds was
 		// placed already (searching the descendants at every closing level of a deep nest would be quadratic).
-		if (!this.placedOnPage
-				&& (LayoutUtils.compare(flow.box.getPageExtent(this.getRootBox().getBlockParams().flow), 0) > 0
-						|| flow.box.getFrame().isVisible())) {
+		final boolean tookRoom = LayoutUtils
+				.compare(flow.box.getPageExtent(this.getRootBox().getBlockParams().flow), 0) > 0;
+		if (!this.placedOnPage && (tookRoom || flow.box.getFrame().isVisible())) {
 			this.notePlaced();
+		}
+		if (tookRoom) {
+			// A block that took room on this page may be followed by a forced break, as a line may: a break-after
+			// moves an empty block of a height to a new page (startFlowBlock), and a break-before after it did nothing
+			// (2026-11-26, codex). Natural breaks (interflowBreak) stay as they were.
+			this.canBreakBefore = true;
 		}
 		// After balance resolves the multi-column height, check whether the collected column notes fit (increment 6).
 		if (footnoteRoot != null && closesColumnOwner) footnoteRoot.settleRecoveredFootnotes(this.pageAxis);
