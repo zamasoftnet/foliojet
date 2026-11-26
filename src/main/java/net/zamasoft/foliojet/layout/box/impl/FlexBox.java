@@ -352,7 +352,10 @@ public class FlexBox extends FlowBlockBox implements PageAtomicBox, net.zamasoft
 			}
 		}
 		boolean crossesByPaint = false;
-		if (boundary < 0 && this.carriedLines) {
+		// Also on a first fragment (2026-11-26): an item of definite height in a column of definite height ends its line
+		// above the cut line while its content overflows past it, and the whole container was kept with the overflow
+		// below the paper (BBC Sport's league table, in an app shell of height: 100vh; Chrome goes on to the next page)
+		if (boundary < 0) {
 			// A line of a continuation whose item, as laid out again, paints past the cut line crosses it all the same
 			// (2026-10-09). The carried line sizes are lower bounds: the remainder's is the line less what the kept side
 			// painted, and a box with a background broken inside paints down to the cut line though its last line ends
