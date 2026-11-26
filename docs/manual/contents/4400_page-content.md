@@ -105,6 +105,9 @@ output.fit-to-paper = preserve-aspect-ratio
 <code>body</code>の余白(左右8ピクセルずつ、約4mm)を足すと約289mmなので、290mmとしています。
 印刷面の縦横比を用紙と揃えておくと、縮めたときに余白が偏りません。
 
+文書のCSSが`@page`規則の<span class="cssprop">size</span>でページの大きさを決めているときは、印刷面はその大きさになり、
+<span class="ioprop">output.page-width</span>と<span class="ioprop">output.page-height</span>は使われません(用紙と同じ大きさなら縮みません)。
+
 <span class="ioprop">output.resolution</span> を大きくして、
 ピクセルあたりの長さを縮める方法もあります。ただしこちらは<b>行の折り返しが組み直される</b>ため、
 内容が用紙に収まる保証はありません。確実に収めたい場合は上の方法を使ってください。

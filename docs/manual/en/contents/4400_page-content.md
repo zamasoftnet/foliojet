@@ -105,6 +105,10 @@ so 980 pixels is 980÷96=10.2 inches=259 mm. Adding the default page margins (12
 <code>body</code> margin (8 pixels on each side, about 4 mm) gives about 289 mm, so 290 mm is used here.
 Matching the print area's aspect ratio to the paper prevents uneven margins when you reduce it.
 
+If the document's CSS sets the page size with <span class="cssprop">size</span> in an `@page` rule, the print area
+takes that size and <span class="ioprop">output.page-width</span> and <span class="ioprop">output.page-height</span>
+are not used (if that size is the paper's, nothing is reduced).
+
 You can also increase <span class="ioprop">output.resolution</span>
 to reduce the length of each pixel. However, this <b>recalculates line wrapping</b>,
 so it does not guarantee that the content will fit on the paper. Use the method above to ensure that it fits.
